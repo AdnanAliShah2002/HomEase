@@ -1,0 +1,23 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Simplified house roofline where the peak forms a location pin pointer -->
+    <!-- Base house body & roof silhouette -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 C57,26 68,36 78,45.5 L74,50 L71,47.5 L71,76 C71,78.2 69.2,80 67,80 L41,80 C38.8,80 37,78.2 37,76 L37,47.5 L34,50 L30,45.5 C40,36 51,26 54,26 Z" />
+    <!-- Pin heart cutout / door arch in indigo to let background peek through -->
+    <path
+        android:fillColor="#4338CA"
+        android:pathData="M48,64 C48,60.7 50.7,58 54,58 C57.3,58 60,60.7 60,64 L60,80 L48,80 Z" />
+    <!-- Orange accent dot at the pin tip / peak -->
+    <path
+        android:fillColor="#FB923C"
+        android:pathData="M54,20 C57.3,20 60,22.7 60,26 C60,29.3 57.3,32 54,32 C50.7,32 48,29.3 48,26 C48,22.7 50.7,20 54,20 Z" />
+    <!-- Small spark/accent inside the pin dot -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,23.5 C55.4,23.5 56.5,24.6 56.5,26 C56.5,27.4 55.4,28.5 54,28.5 C52.6,28.5 51.5,27.4 51.5,26 C51.5,24.6 52.6,23.5 54,23.5 Z" />
+</vector>
