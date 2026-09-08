@@ -58,6 +58,8 @@ import com.example.ui.theme.SoftOrange
 import com.example.ui.theme.SoftOrangeContainer
 import com.example.ui.theme.StatusGreen
 import com.example.ui.theme.StatusGreenContainer
+import com.example.ui.theme.SurfaceVariantLight
+import com.example.ui.theme.TextSlateMuted
 import com.example.ui.theme.StatusYellow
 import com.example.ui.theme.StatusYellowContainer
 import com.example.ui.theme.TextSlate
@@ -107,7 +109,8 @@ fun HomEaseTopBar(
     modifier: Modifier = Modifier,
     showRoleSwitcher: Boolean = true,
     userAvatar: String? = null,
-    onLogout: (() -> Unit)? = null
+    onLogout: (() -> Unit)? = null,
+    onOpenProfile: (() -> Unit)? = null
 ) {
     Surface(
         color = Color.White,
@@ -129,8 +132,8 @@ fun HomEaseTopBar(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF8FAFC))
-                        .border(1.dp, Color(0xFFE2E8F0), CircleShape)
+                        .background(SurfaceVariantLight)
+                        .border(1.dp, BorderStroke, CircleShape)
                         .clickable { onToggleLanguage() }
                         .testTag("language_toggle"),
                     contentAlignment = Alignment.Center
@@ -139,19 +142,21 @@ fun HomEaseTopBar(
                         text = if (language == AppLanguage.ENGLISH) "EN" else "اردو",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF475569)
+                        color = TextSlateMuted
                     )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Professional Polish Avatar container: 38dp indigo-50 with soft border
+                // Professional Polish Avatar container: 38dp with soft dynamic border (opens profile on click)
                 Box(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
                         .background(DeepIndigoContainer)
-                        .border(1.5.dp, Color(0xFFE0E7FF), CircleShape),
+                        .border(1.5.dp, DeepIndigo.copy(alpha = 0.25f), CircleShape)
+                        .clickable(enabled = onOpenProfile != null) { onOpenProfile?.invoke() }
+                        .testTag("top_bar_profile_icon"),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -167,11 +172,11 @@ fun HomEaseTopBar(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
                             .background(
-                                if (currentRole == UserRole.PROVIDER) DeepIndigo else Color(0xFFF1F5F9)
+                                if (currentRole == UserRole.PROVIDER) DeepIndigo else SurfaceVariantLight
                             )
                             .border(
                                 width = 1.dp,
-                                color = if (currentRole == UserRole.PROVIDER) DeepIndigo else Color(0xFFCBD5E1),
+                                color = if (currentRole == UserRole.PROVIDER) DeepIndigo else BorderStroke,
                                 shape = RoundedCornerShape(20.dp)
                             )
                             .clickable { onToggleRole() }

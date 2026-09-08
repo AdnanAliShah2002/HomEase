@@ -31,6 +31,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
@@ -44,10 +45,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -59,6 +62,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,9 +80,12 @@ import com.example.data.db.ServiceRequestEntity
 import com.example.data.localization.AppLanguage
 import com.example.data.localization.Strings
 import com.example.data.model.ServiceCatalog
+import com.example.data.remote.CategoryDetectionRemoteService
+import com.example.data.remote.CategoryDetectionResult
 import com.example.ui.components.AutoLocationFetcher
 import com.example.ui.components.PrimaryCtaButton
 import com.example.ui.components.getCategoryIcon
+import kotlinx.coroutines.launch
 import com.example.ui.theme.BackgroundLight
 import com.example.ui.theme.BorderStroke
 import com.example.ui.theme.DeepIndigo
@@ -87,6 +94,7 @@ import com.example.ui.theme.SoftOrange
 import com.example.ui.theme.SoftOrangeContainer
 import com.example.ui.theme.StatusGreen
 import com.example.ui.theme.StatusGreenContainer
+import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
 
@@ -104,7 +112,8 @@ fun CustomerRequestFlowScreen(
     onBack: () -> Unit,
     onSubmitRequest: (ServiceRequestEntity) -> Unit,
     onSelectOffer: (JobOfferEntity) -> Unit,
-    onDoneViewingConfirmed: () -> Unit
+    onDoneViewingConfirmed: () -> Unit,
+    onDetectCategory: (suspend (String) -> CategoryDetectionResult)? = null
 ) {
     // If there is already an active live request being viewed (either searching or accepted)
     if (activeLiveRequest != null) {
@@ -129,6 +138,15 @@ fun CustomerRequestFlowScreen(
     }
 
     // Step-by-step Request Creation
+    val defaultDetector = remember { CategoryDetectionRemoteService() }
+    val detectCategoryAction: suspend (String) -> CategoryDetectionResult = onDetectCategory ?: { defaultDetector.detectCategory(it) }
+    val coroutineScope = rememberCoroutineScope()
+
+    var aiProblemInput by remember { mutableStateOf("") }
+    var isAiLoading by remember { mutableStateOf(false) }
+    var aiDetectionResult by remember { mutableStateOf<CategoryDetectionResult?>(null) }
+    var aiErrorMessage by remember { mutableStateOf<String?>(null) }
+
     var selectedCatId by remember {
         mutableStateOf(initialCategoryId ?: ServiceCatalog.categories.first().id)
     }
@@ -219,9 +237,315 @@ fun CustomerRequestFlowScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
-            // 1. Select Category
+            // AI Smart Assistant: Describe Your Problem Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("ai_assistant_card"),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(DeepIndigoContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AutoAwesome,
+                                contentDescription = null,
+                                tint = DeepIndigo,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = Strings.get("ai_describe_title", language),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextSlate
+                            )
+                            Text(
+                                text = Strings.get("ai_describe_subtitle", language),
+                                fontSize = 12.sp,
+                                color = TextSlateMuted
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = aiProblemInput,
+                        onValueChange = {
+                            aiProblemInput = it
+                            aiErrorMessage = null
+                        },
+                        placeholder = {
+                            Text(
+                                text = Strings.get("ai_describe_placeholder", language),
+                                fontSize = 13.sp,
+                                color = TextSlateMuted
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("ai_problem_input"),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = DeepIndigo,
+                            unfocusedBorderColor = BorderStroke,
+                            focusedContainerColor = BackgroundLight,
+                            unfocusedContainerColor = BackgroundLight
+                        ),
+                        minLines = 2,
+                        maxLines = 4
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(
+                            onClick = {
+                                if (aiProblemInput.isNotBlank() && !isAiLoading) {
+                                    coroutineScope.launch {
+                                        isAiLoading = true
+                                        aiErrorMessage = null
+                                        aiDetectionResult = null
+                                        val res = detectCategoryAction(aiProblemInput)
+                                        isAiLoading = false
+                                        if (res.success && res.categoryId != null) {
+                                            aiDetectionResult = res
+                                        } else {
+                                            aiErrorMessage = res.error
+                                                ?: Strings.get("ai_unclassified_notice", language)
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = aiProblemInput.isNotBlank() && !isAiLoading,
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = DeepIndigo,
+                                disabledContainerColor = DeepIndigo.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.testTag("ai_suggest_service_btn")
+                        ) {
+                            if (isAiLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = Strings.get("ai_analyzing", language),
+                                    fontSize = 13.sp,
+                                    color = Color.White
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Filled.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = Strings.get("ai_suggest_service_button", language),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+
+                    // Show AI Suggestion if available
+                    if (aiDetectionResult != null) {
+                        val result = aiDetectionResult!!
+                        val isLowConfidence = result.confidence?.lowercase() == "low"
+                        val framingPrefix = if (isLowConfidence) {
+                            Strings.get("ai_might_be_prefix", language)
+                        } else {
+                            Strings.get("ai_looks_like_prefix", language)
+                        }
+                        val continuePrompt = Strings.get("ai_continue_prompt", language)
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("ai_suggestion_card"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isLowConfidence) SoftOrangeContainer else DeepIndigoContainer.copy(alpha = 0.45f)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isLowConfidence) SoftOrange.copy(alpha = 0.5f) else DeepIndigo.copy(alpha = 0.3f)
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = framingPrefix,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (isLowConfidence) SoftOrange else DeepIndigo
+                                    )
+                                    val badgeKey = when (result.confidence?.lowercase()) {
+                                        "high" -> "ai_confidence_high"
+                                        "medium" -> "ai_confidence_medium"
+                                        else -> "ai_confidence_low"
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (isLowConfidence) SoftOrange.copy(alpha = 0.2f) else StatusGreenContainer
+                                    ) {
+                                        Text(
+                                            text = Strings.get(badgeKey, language),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isLowConfidence) SoftOrange else StatusGreen,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text(
+                                    text = "${result.category} → ${result.serviceNote}",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextSlate
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = continuePrompt,
+                                    fontSize = 13.sp,
+                                    color = TextSlateMuted
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // Confirm Button (Pre-fills existing form)
+                                    Button(
+                                        onClick = {
+                                            result.categoryId?.let { catId ->
+                                                selectedCatId = catId
+                                                selectedServiceDetail = result.serviceNote ?: ""
+                                                problemDescription = aiProblemInput.trim()
+                                                if (catId == "dry_cleaning") {
+                                                    laundryItemsNote = aiProblemInput.trim()
+                                                }
+                                            }
+                                            aiDetectionResult = null
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = DeepIndigo),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("ai_confirm_suggestion_btn")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = Color.White
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = Strings.get("ai_confirm_button", language),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    // Fallback Button: "Not quite, let me choose myself"
+                                    OutlinedButton(
+                                        onClick = {
+                                            aiDetectionResult = null
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSlate),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("ai_dismiss_suggestion_btn")
+                                    ) {
+                                        Text(
+                                            text = Strings.get("ai_choose_myself", language),
+                                            fontSize = 12.sp,
+                                            maxLines = 2,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Show Unclassified Notice if any
+                    if (aiErrorMessage != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = SoftOrangeContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = SoftOrange,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = aiErrorMessage!!,
+                                    fontSize = 12.sp,
+                                    color = TextSlate,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = { aiErrorMessage = null },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Text("✕", fontSize = 12.sp, color = TextSlateMuted)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 1. Select Category (Always available manual grid)
             Text(
-                text = Strings.get("step_category", language),
+                text = Strings.get("ai_or_manual_header", language),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = DeepIndigo
@@ -561,7 +885,7 @@ fun CustomerRequestFlowScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                colors = CardDefaults.cardColors(containerColor = SurfaceVariantLight),
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -1031,7 +1355,7 @@ fun ProviderOfferCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFF1F5F9))
+                        .background(SurfaceVariantLight)
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

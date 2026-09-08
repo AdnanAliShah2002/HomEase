@@ -54,7 +54,7 @@ object ServiceCatalog {
             iconType = "dry_cleaning",
             popularServices = listOf("Ironing Only (Rs 40–60)", "Wash Only (Rs 60–90)", "Wash & Iron (Rs 90–150)", "Heavy Blanket / Duvet"),
             emoji = "👔",
-            pastelBgColor = 0xFFEEF2FF, // indigo-50
+            pastelBgColor = 0xFFFDF0ED, // coral-50
             priceMin = 40,
             priceMax = 150,
             priceBasis = "per suit (ironing / wash / wash & iron)",

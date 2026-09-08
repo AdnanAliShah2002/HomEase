@@ -68,6 +68,7 @@ import com.example.ui.theme.SoftOrange
 import com.example.ui.theme.StatusGreen
 import com.example.ui.theme.StatusGreenContainer
 import com.example.ui.theme.StatusYellowContainer
+import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
 import java.text.SimpleDateFormat
@@ -204,7 +205,7 @@ fun HowDidItGoDialog(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceVariantLight),
                     border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
@@ -366,7 +367,7 @@ fun HowDidItGoDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFF1F5F9))
+                        .background(SurfaceVariantLight)
                         .padding(10.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -659,7 +660,7 @@ fun JobDetailDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
+                        .background(SurfaceVariantLight)
                         .border(1.dp, BorderStroke, RoundedCornerShape(12.dp))
                         .padding(14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -973,7 +974,7 @@ fun FaqItem(question: String, answer: String) {
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFF8FAFC))
+            .background(SurfaceVariantLight)
             .clickable { expanded = !expanded }
             .padding(12.dp)
     ) {

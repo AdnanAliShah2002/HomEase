@@ -12,7 +12,6 @@ data class UserEntity(
     val profilePhotoUri: String? = null,
     val cityArea: String = "Lahore - Gulberg",
     val homeAddress: String = "",
-    val notifPref: String = "WHATSAPP", // WHATSAPP, SMS, BOTH
     val categoriesCsv: String = "", // e.g. "plumbing,electrical"
     val yearsExperience: String = "",
     val serviceRadiusKm: Int = 10,

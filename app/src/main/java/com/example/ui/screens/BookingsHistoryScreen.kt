@@ -52,6 +52,7 @@ import com.example.data.db.ServiceRequestEntity
 import com.example.data.localization.AppLanguage
 import com.example.data.localization.Strings
 import com.example.ui.components.JobDetailDialog
+import com.example.ui.theme.BackgroundLight
 import com.example.ui.theme.BorderStroke
 import com.example.ui.theme.DeepIndigo
 import com.example.ui.theme.DeepIndigoContainer
@@ -92,7 +93,7 @@ fun CustomerBookingsView(
     val activeRequests = allRequests.filter { it.status != "COMPLETED" && it.status != "CANCELLED" }
     val pastRequests = allRequests.filter { it.status == "COMPLETED" }
 
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF8FAFC))) {
+    Column(modifier = Modifier.fillMaxSize().background(BackgroundLight)) {
         // Tab Row: Active / Past
         TabRow(
             selectedTabIndex = selectedTab,
@@ -210,7 +211,7 @@ fun ProviderBookingsView(
     val pastJobs = allJobs.filter { it.status == "COMPLETED" }
     val totalEarnings = pastJobs.sumOf { if (it.agreedPriceRs > 0) it.agreedPriceRs else it.budgetRs }
 
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF8FAFC))) {
+    Column(modifier = Modifier.fillMaxSize().background(BackgroundLight)) {
         // Tab Row: Active / Past
         TabRow(
             selectedTabIndex = selectedTab,
@@ -778,7 +779,7 @@ fun EmptyBookingsState(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9)),
+                    .background(DeepIndigoContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

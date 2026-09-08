@@ -63,7 +63,6 @@ class HomeaseRepository(private val database: AppDatabase) {
                     name = "Adnan Shah",
                     cityArea = "Lahore - Gulberg III",
                     homeAddress = "House 42-B, Main Boulevard, Gulberg III",
-                    notifPref = "WHATSAPP",
                     savedAddressesCsv = "Home: House 42-B, Main Boulevard, Gulberg III|Office: 3rd Floor, Siddiq Trade Centre, Gulberg II",
                     status = "ACTIVE"
                 )
@@ -393,10 +392,9 @@ class HomeaseRepository(private val database: AppDatabase) {
         phone: String,
         name: String,
         cityArea: String,
-        notifPref: String,
         savedAddressesCsv: String
     ) {
-        userDao.updateCustomerProfile(phone, name, cityArea, notifPref, savedAddressesCsv)
+        userDao.updateCustomerProfile(phone, name, cityArea, savedAddressesCsv)
     }
 
     suspend fun updateProviderProfile(

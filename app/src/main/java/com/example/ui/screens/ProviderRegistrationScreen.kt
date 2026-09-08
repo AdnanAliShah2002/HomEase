@@ -198,7 +198,6 @@ fun ProviderRegistrationScreen(
             profilePhotoUri = profilePhotoUri,
             cityArea = cityArea.trim(),
             homeAddress = homeAddress.trim(),
-            notifPref = "WHATSAPP",
             categoriesCsv = selectedCategories.joinToString(","),
             yearsExperience = "$experienceYears years",
             serviceRadiusKm = radiusKm.toInt(),

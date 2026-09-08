@@ -1,70 +1,75 @@
 package com.example.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import com.example.data.model.MobileAppTheme
 
-private val HomEaseLightColorScheme = lightColorScheme(
-    primary = DeepIndigo,
-    onPrimary = Color.White,
-    primaryContainer = DeepIndigoContainer,
-    onPrimaryContainer = DeepIndigoDark,
-    
-    secondary = SoftOrange,
-    onSecondary = Color.White,
-    secondaryContainer = SoftOrangeContainer,
-    onSecondaryContainer = SoftOrangeDark,
-    
-    tertiary = DeepIndigoLight,
-    onTertiary = Color.White,
-    
-    background = BackgroundLight,
-    onBackground = TextSlate,
-    
-    surface = SurfaceLight,
-    onSurface = TextSlate,
-    surfaceVariant = SurfaceVariantLight,
-    onSurfaceVariant = TextSlateMuted,
-    
-    outline = BorderStroke,
-    outlineVariant = BorderStrokeFocused
-)
+/**
+ * Dynamic Compose theme wrapper that applies colors from the active MobileAppTheme.
+ * Supports runtime updates triggered remotely via the admin dashboard without a new app build.
+ */
+@Composable
+fun HomEaseDynamicTheme(
+    activeTheme: MobileAppTheme,
+    content: @Composable () -> Unit
+) {
+    // Keep dynamic semantic holder in sync with active theme state
+    DynamicThemeHolder.updateFromTheme(activeTheme)
 
-private val HomEaseDarkColorScheme = darkColorScheme(
-    primary = DeepIndigoLight,
-    onPrimary = Color.White,
-    primaryContainer = DeepIndigoDark,
-    onPrimaryContainer = Color.White,
-    
-    secondary = SoftOrange,
-    onSecondary = Color.Black,
-    secondaryContainer = SoftOrangeDark,
-    onSecondaryContainer = SoftOrangeLight,
-    
-    background = Color(0xFF0F172A),
-    onBackground = Color(0xFFF8FAFC),
-    
-    surface = Color(0xFF1E293B),
-    onSurface = Color(0xFFF8FAFC),
-    surfaceVariant = Color(0xFF334155),
-    onSurfaceVariant = Color(0xFFCBD5E1),
-    
-    outline = Color(0xFF475569)
-)
+    val primary = remember(activeTheme.primaryColor) {
+        parseColorSafe(activeTheme.primaryColor, CoralPrimary)
+    }
+    val accent = remember(activeTheme.accentColor) {
+        parseColorSafe(activeTheme.accentColor, TealAccent)
+    }
+    val bg = remember(activeTheme.backgroundColor) {
+        parseColorSafe(activeTheme.backgroundColor, BackgroundCream)
+    }
+    val text = remember(activeTheme.textColor) {
+        parseColorSafe(activeTheme.textColor, TextWarmDark)
+    }
+
+    val colorScheme = lightColorScheme(
+        primary = primary,
+        onPrimary = Color.White,
+        primaryContainer = primary.copy(alpha = 0.12f),
+        onPrimaryContainer = primary,
+
+        secondary = accent,
+        onSecondary = Color.White,
+        secondaryContainer = accent.copy(alpha = 0.12f),
+        onSecondaryContainer = accent,
+
+        background = bg,
+        onBackground = text,
+
+        surface = Color.White,
+        onSurface = text,
+        surfaceVariant = if (bg == Color.White) Color(0xFFF8FAFC) else bg.copy(alpha = 0.85f),
+        onSurfaceVariant = text.copy(alpha = 0.65f),
+
+        outline = text.copy(alpha = 0.14f),
+        outlineVariant = text.copy(alpha = 0.08f)
+    )
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography,
+        content = content
+    )
+}
 
 @Composable
 fun HomEaseTheme(
     darkTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) HomEaseDarkColorScheme else HomEaseLightColorScheme
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
+    HomEaseDynamicTheme(
+        activeTheme = DynamicThemeHolder.currentTheme,
         content = content
     )
 }
@@ -78,3 +83,4 @@ fun MyApplicationTheme(
 ) {
     HomEaseTheme(darkTheme = darkTheme, content = content)
 }
+

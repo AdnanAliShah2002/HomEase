@@ -74,7 +74,9 @@ import com.example.data.db.UserEntity
 import com.example.data.localization.AppLanguage
 import com.example.data.localization.Strings
 import com.example.data.model.ServiceCatalog
+import com.example.ui.components.AutoLocationFetcher
 import com.example.ui.components.HelpSupportDialog
+import com.example.ui.theme.BackgroundLight
 import com.example.ui.theme.BorderStroke
 import com.example.ui.theme.DeepIndigo
 import com.example.ui.theme.DeepIndigoContainer
@@ -83,6 +85,7 @@ import com.example.ui.theme.SoftOrangeContainer
 import com.example.ui.theme.StatusGreen
 import com.example.ui.theme.StatusGreenContainer
 import com.example.ui.theme.StatusYellowContainer
+import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
 
@@ -95,13 +98,12 @@ fun CustomerProfileView(
     language: AppLanguage,
     onToggleRole: () -> Unit,
     onToggleLanguage: () -> Unit,
-    onSaveProfile: (name: String, cityArea: String, notifPref: String, savedAddresses: String) -> Unit,
+    onSaveProfile: (name: String, cityArea: String, savedAddresses: String) -> Unit,
     onLogout: () -> Unit
 ) {
     var isEditingName by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf(user.name) }
     var cityArea by remember { mutableStateOf(user.cityArea) }
-    var notifPref by remember { mutableStateOf(user.notifPref) }
     var addressesList by remember {
         mutableStateOf(
             if (user.savedAddressesCsv.isNotBlank()) {
@@ -132,7 +134,7 @@ fun CustomerProfileView(
                 val newEntry = "$label: $addr"
                 addressesList.add(newEntry)
                 val combined = addressesList.joinToString("|")
-                onSaveProfile(name, cityArea, notifPref, combined)
+                onSaveProfile(name, cityArea, combined)
                 showAddAddressDialog = false
             },
             onDismiss = { showAddAddressDialog = false }
@@ -142,12 +144,12 @@ fun CustomerProfileView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(BackgroundLight)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
             .testTag("customer_profile_view")
     ) {
-        // Top Header Card with Avatar & Name
+        // Top Header Card with Avatar & Name - centered, polished layout
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
@@ -155,42 +157,59 @@ fun CustomerProfileView(
             border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp, horizontal = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(contentAlignment = Alignment.BottomEnd) {
+                // Centered Avatar with Camera Badge
+                Box(
+                    modifier = Modifier
+                        .size(96.dp)
+                        .padding(bottom = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Box(
                         modifier = Modifier
-                            .size(80.dp)
+                            .size(86.dp)
                             .clip(CircleShape)
-                            .background(DeepIndigoContainer),
+                            .background(DeepIndigoContainer)
+                            .border(2.5.dp, Color(0xFFFBDAD3), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = DeepIndigo,
-                            modifier = Modifier.size(48.dp)
-                        )
+                        if (!user.profilePhotoUri.isNullOrBlank() && user.profilePhotoUri.length <= 4) {
+                            Text(
+                                text = user.profilePhotoUri,
+                                fontSize = 40.sp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = DeepIndigo,
+                                modifier = Modifier.size(50.dp)
+                            )
+                        }
                     }
                     Box(
                         modifier = Modifier
-                            .size(28.dp)
+                            .align(Alignment.BottomEnd)
+                            .size(30.dp)
                             .clip(CircleShape)
                             .background(DeepIndigo)
-                            .padding(4.dp),
+                            .border(2.5.dp, Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.CameraAlt,
                             contentDescription = "Change photo",
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 if (isEditingName) {
                     Row(
@@ -208,7 +227,7 @@ fun CustomerProfileView(
                         IconButton(
                             onClick = {
                                 isEditingName = false
-                                onSaveProfile(name, cityArea, notifPref, addressesList.joinToString("|"))
+                                onSaveProfile(name, cityArea, addressesList.joinToString("|"))
                             }
                         ) {
                             Icon(Icons.Default.Check, contentDescription = "Save", tint = StatusGreen)
@@ -217,18 +236,19 @@ fun CustomerProfileView(
                 } else {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = name,
-                            fontWeight = FontWeight.Black,
+                            fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
                             color = TextSlate
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         IconButton(
                             onClick = { isEditingName = true },
-                            modifier = Modifier.size(24.dp).testTag("edit_customer_name_btn")
+                            modifier = Modifier.size(26.dp).testTag("edit_customer_name_btn")
                         ) {
                             Icon(Icons.Default.Edit, contentDescription = "Edit name", tint = DeepIndigo, modifier = Modifier.size(16.dp))
                         }
@@ -240,7 +260,8 @@ fun CustomerProfileView(
                 // Phone with verified badge
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = user.phone,
@@ -248,12 +269,12 @@ fun CustomerProfileView(
                         fontWeight = FontWeight.Medium,
                         color = TextSlateMuted
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(StatusGreenContainer)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -264,8 +285,8 @@ fun CustomerProfileView(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "OTP Verified",
-                                fontSize = 10.sp,
+                                text = "Verified",
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = StatusGreen
                             )
@@ -277,7 +298,7 @@ fun CustomerProfileView(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // City / Area Section
+        // City & Area Section with Auto-Detection and Manual Override
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -285,71 +306,48 @@ fun CustomerProfileView(
             border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = Strings.get("city_and_area", language),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSlateMuted
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = Strings.get("city_and_area", language),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextSlateMuted
+                    )
+                    Text(
+                        text = if (language == AppLanguage.URDU) "جی پی ایس خودکار" else "GPS Auto-detect",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = DeepIndigo
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
+
+                AutoLocationFetcher(
+                    language = language,
+                    autoFetch = false,
+                    onLocationDetected = { loc ->
+                        cityArea = loc.cityArea
+                        onSaveProfile(name, cityArea, addressesList.joinToString("|"))
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = cityArea,
                     onValueChange = {
                         cityArea = it
-                        onSaveProfile(name, cityArea, notifPref, addressesList.joinToString("|"))
+                        onSaveProfile(name, cityArea, addressesList.joinToString("|"))
                     },
                     modifier = Modifier.fillMaxWidth().testTag("customer_city_input"),
                     leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = DeepIndigo) },
                     shape = RoundedCornerShape(10.dp)
                 )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Notification Preferences
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = Strings.get("notification_preference", language),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSlateMuted
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf("WHATSAPP", "SMS", "BOTH").forEach { pref ->
-                        val isSelected = notifPref.equals(pref, ignoreCase = true)
-                        val label = when (pref) {
-                            "WHATSAPP" -> "WhatsApp"
-                            "SMS" -> "SMS"
-                            else -> Strings.get("both", language)
-                        }
-                        Button(
-                            onClick = {
-                                notifPref = pref
-                                onSaveProfile(name, cityArea, notifPref, addressesList.joinToString("|"))
-                            },
-                            modifier = Modifier.weight(1f).height(40.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSelected) DeepIndigo else Color(0xFFF1F5F9),
-                                contentColor = if (isSelected) Color.White else TextSlate
-                            )
-                        ) {
-                            Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
             }
         }
 
@@ -397,7 +395,7 @@ fun CustomerProfileView(
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFF8FAFC))
+                                .background(SurfaceVariantLight)
                                 .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -418,7 +416,7 @@ fun CustomerProfileView(
                             IconButton(
                                 onClick = {
                                     addressesList.removeAt(index)
-                                    onSaveProfile(name, cityArea, notifPref, addressesList.joinToString("|"))
+                                    onSaveProfile(name, cityArea, addressesList.joinToString("|"))
                                 },
                                 modifier = Modifier.size(24.dp)
                             ) {
@@ -550,7 +548,7 @@ fun ProviderProfileView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(BackgroundLight)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
             .testTag("provider_profile_view")
@@ -563,51 +561,69 @@ fun ProviderProfileView(
             border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp, horizontal = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(contentAlignment = Alignment.BottomEnd) {
+                // Centered Avatar with Camera Badge
+                Box(
+                    modifier = Modifier
+                        .size(96.dp)
+                        .padding(bottom = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Box(
                         modifier = Modifier
-                            .size(80.dp)
+                            .size(86.dp)
                             .clip(CircleShape)
-                            .background(DeepIndigoContainer),
+                            .background(DeepIndigoContainer)
+                            .border(2.5.dp, Color(0xFFFBDAD3), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = DeepIndigo,
-                            modifier = Modifier.size(48.dp)
-                        )
+                        if (!user.profilePhotoUri.isNullOrBlank() && user.profilePhotoUri.length <= 4) {
+                            Text(
+                                text = user.profilePhotoUri,
+                                fontSize = 40.sp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = DeepIndigo,
+                                modifier = Modifier.size(50.dp)
+                            )
+                        }
                     }
                     Box(
                         modifier = Modifier
-                            .size(28.dp)
+                            .align(Alignment.BottomEnd)
+                            .size(30.dp)
                             .clip(CircleShape)
                             .background(DeepIndigo)
-                            .padding(4.dp),
+                            .border(2.5.dp, Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.CameraAlt,
                             contentDescription = "Change photo",
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
                     text = name,
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
                     color = TextSlate
                 )
 
                 if (shopName.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = shopName,
                         fontSize = 13.sp,
@@ -616,13 +632,18 @@ fun ProviderProfileView(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 // Phone & Verified badge
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
                         text = user.phone,
                         fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
                         color = TextSlateMuted
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -630,7 +651,7 @@ fun ProviderProfileView(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(StatusGreenContainer)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -639,8 +660,8 @@ fun ProviderProfileView(
                                 tint = StatusGreen,
                                 modifier = Modifier.size(12.dp)
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text("OTP Verified", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = StatusGreen)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Verified", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = StatusGreen)
                         }
                     }
                 }

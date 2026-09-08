@@ -39,6 +39,14 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -91,6 +99,8 @@ import com.example.ui.theme.DeepIndigoContainer
 import com.example.ui.theme.SoftOrange
 import com.example.ui.theme.SoftOrangeContainer
 import com.example.ui.theme.StatusGreen
+import com.example.ui.theme.StatusGreenContainer
+import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
 import com.example.util.LocationHelper
@@ -108,7 +118,7 @@ fun CustomerHomeScreen(
     onSubmitRating: (jobId: Long, rating: Int, comment: String) -> Unit = { _, _, _ -> },
     onReportIssue: (jobId: Long, category: String, description: String) -> Unit = { _, _, _ -> },
     onAutoCompleteJob: (jobId: Long) -> Unit = {},
-    onUpdateProfile: (name: String, cityArea: String, notifPref: String, savedAddresses: String) -> Unit = { _, _, _, _ -> },
+    onUpdateProfile: (name: String, cityArea: String, savedAddresses: String) -> Unit = { _, _, _ -> },
     onLogout: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -208,7 +218,7 @@ fun CustomerHomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (selectedLocation == loc) DeepIndigoContainer else Color(0xFFF8FAFC))
+                                .background(if (selectedLocation == loc) DeepIndigoContainer else SurfaceVariantLight)
                                 .clickable {
                                     selectedLocation = loc
                                     showLocationDialog = false
@@ -257,7 +267,8 @@ fun CustomerHomeScreen(
                 onToggleRole = onToggleRole,
                 onToggleLanguage = onToggleLanguage,
                 userAvatar = user.profilePhotoUri ?: "👤",
-                onLogout = onLogout
+                onLogout = onLogout,
+                onOpenProfile = { currentNavTab = "profile" }
             )
         },
         bottomBar = {
@@ -294,7 +305,6 @@ fun CustomerHomeScreen(
                         isActive = currentNavTab == "help",
                         onClick = {
                             currentNavTab = "help"
-                            showPaymentDialog = true
                         }
                     )
                     ProfessionalBottomNavItem(
@@ -341,6 +351,14 @@ fun CustomerHomeScreen(
                         onRateJob = { job -> activeJobForRatingDialog = job },
                         onViewLiveJob = onOpenRequestDetails,
                         onStartNewBooking = { onStartNewRequest(null) }
+                    )
+                }
+                "help" -> {
+                    CustomerHelpSupportView(
+                        language = language,
+                        onReportIssue = { category, description ->
+                            onReportIssue(0L, category, description)
+                        }
                     )
                 }
                 "profile" -> {
@@ -449,13 +467,13 @@ fun CustomerHomeScreen(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFF1F5F9)),
+                            .background(SurfaceVariantLight),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = Color(0xFF475569),
+                            tint = TextSlateMuted,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -546,7 +564,7 @@ fun CustomerHomeScreen(
                         Text(
                             text = if (language == AppLanguage.URDU) "250 سے زائد تصدیق شدہ کاریگر" else "Connecting you to 250+ pros",
                             fontSize = 13.sp,
-                            color = Color(0xFFE0E7FF),
+                            color = Color(0xFFFDF0ED),
                             fontWeight = FontWeight.Medium
                         )
 
@@ -647,7 +665,7 @@ fun CustomerHomeScreen(
                                 .fillMaxWidth()
                                 .border(
                                     width = 1.dp,
-                                    color = Color(0xFFF1F5F9),
+                                    color = BorderStroke,
                                     shape = RoundedCornerShape(18.dp)
                                 )
                                 .padding(16.dp),
@@ -665,7 +683,7 @@ fun CustomerHomeScreen(
                                         .height(38.dp)
                                         .clip(RoundedCornerShape(2.dp))
                                         .background(SoftOrange)
-                                )
+                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
 
                                 // Pulsing dot
@@ -691,7 +709,7 @@ fun CustomerHomeScreen(
                                             else -> req.serviceTitle
                                         },
                                         fontSize = 11.sp,
-                                        color = Color(0xFF64748B),
+                                        color = TextSlateMuted,
                                         maxLines = 1
                                     )
                                 }
@@ -700,7 +718,7 @@ fun CustomerHomeScreen(
                             Button(
                                 onClick = { onOpenRequestDetails(req.id) },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFF1F5F9),
+                                    containerColor = SurfaceVariantLight,
                                     contentColor = TextSlate
                                 ),
                                 shape = RoundedCornerShape(10.dp),
@@ -789,7 +807,7 @@ fun ProfessionalCategoryCard(
             .testTag("cat_card_${item.id}"),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF1F5F9)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
@@ -842,7 +860,7 @@ fun ProfessionalBottomNavItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (isActive) DeepIndigo else Color(0xFF94A3B8),
+            tint = if (isActive) DeepIndigo else TextSlateMuted,
             modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.height(3.dp))
@@ -850,7 +868,428 @@ fun ProfessionalBottomNavItem(
             text = label,
             fontSize = 10.sp,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-            color = if (isActive) DeepIndigo else Color(0xFF94A3B8)
+            color = if (isActive) DeepIndigo else TextSlateMuted
         )
+    }
+}
+
+@Composable
+fun CustomerHelpSupportView(
+    language: AppLanguage,
+    onReportIssue: (category: String, description: String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expandedFaqIndex by remember { mutableStateOf<Int?>(null) }
+    var selectedCategory by remember { mutableStateOf("Quality of Work") }
+    var issueDescription by remember { mutableStateOf("") }
+    var showSuccessBanner by remember { mutableStateOf(false) }
+
+    val faqItems = remember(language) {
+        listOf(
+            Pair(
+                if (language == AppLanguage.URDU) "سروس کی درخواست کیسے کی جاتی ہے؟" else "How do I request a service?",
+                if (language == AppLanguage.URDU)
+                    "کیٹیگری منتخب کریں یا اپنا مسئلہ بیان کریں۔ اپنا بجٹ اور مقام درج کریں، اور قریبی تصدیق شدہ کاریگر آپ کی درخواست پر بولیاں لگائیں گے۔"
+                else
+                    "Select a category or use AI problem description. Enter your location and price offer, and nearby verified professionals will bid on your request."
+            ),
+            Pair(
+                if (language == AppLanguage.URDU) "ادائیگی کیسے کی جاتی ہے؟" else "How does payment work?",
+                if (language == AppLanguage.URDU)
+                    "قیمت کا تعین کام سے پہلے باہمی رضامندی سے ہوتا ہے۔ کام تسلی بخش مکمل ہونے کے بعد آپ براہ راست کیش یا آن لائن ادائیگی کر سکتے ہیں۔"
+                else
+                    "Prices are agreed upon before work starts. You pay the provider directly via Cash or digital transfer only after the job is completed to your satisfaction."
+            ),
+            Pair(
+                if (language == AppLanguage.URDU) "کیا کام کی وارنٹی یا ضمانت ہے؟" else "What is HomEase's Quality Guarantee?",
+                if (language == AppLanguage.URDU)
+                    "ہمارے تمام ماہرین شناختی کارڈ سے تصدیق شدہ ہیں۔ اگر کام کے دوران کوئی خرابی پیش آئے تو ہماری سپورٹ ٹیم فوری مدد فراہم کرتی ہے۔"
+                else
+                    "All providers are CNIC-verified and vetted. In the rare event of service dissatisfaction or issues, our support team mediates and provides coverage."
+            ),
+            Pair(
+                if (language == AppLanguage.URDU) "کیا بکنگ منسوخ کی جا سکتی ہے؟" else "Can I cancel or reschedule a booking?",
+                if (language == AppLanguage.URDU)
+                    "جی ہاں، کاریگر کی آمد سے قبل آپ کسی بھی وقت بغیر کسی فیس کے بکنگ منسوخ یا وقت تبدیل کر سکتے ہیں۔"
+                else
+                    "Yes, you can cancel or reschedule any booking free of charge before the provider arrives at your address."
+            ),
+            Pair(
+                if (language == AppLanguage.URDU) "کسی مسئلے یا شکایت کی اطلاع کیسے دیں؟" else "How do I report an issue or dispute?",
+                if (language == AppLanguage.URDU)
+                    "نیچے دیے گئے فارم سے شکایت درج کریں یا ہماری 24/7 ہیلپ لائن 042-111-HOME پر رابطہ کریں۔ ہم 15 منٹ میں مدد فراہم کرتے ہیں۔"
+                else
+                    "Use the issue reporting form below or contact our 24/7 hotline at 042-111-HOME (4663). Our team investigates and resolves disputes quickly."
+            )
+        )
+    }
+
+    val issueCategories = remember(language) {
+        listOf(
+            "Quality of Work" to if (language == AppLanguage.URDU) "کام کا معیار" else "Quality of Work",
+            "Payment/Charges" to if (language == AppLanguage.URDU) "ادائیگی/بل" else "Payment/Billing",
+            "Provider Conduct" to if (language == AppLanguage.URDU) "کاریگر کا رویہ" else "Provider Conduct",
+            "Booking Delay" to if (language == AppLanguage.URDU) "تاخیر" else "Delay",
+            "Other" to if (language == AppLanguage.URDU) "دیگر" else "Other"
+        )
+    }
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .background(BackgroundLight)
+            .padding(16.dp)
+            .testTag("customer_help_screen")
+            .testTag("customer_help_view"),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Header Banner Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(DeepIndigoContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                            contentDescription = null,
+                            tint = DeepIndigo,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = if (language == AppLanguage.URDU) "مدد اور رہنمائی" else "Help & Support",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 20.sp,
+                        color = TextSlate
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (language == AppLanguage.URDU) "24/7 کسٹمر اسسٹنس • اکثر پوچھے جانے والے سوالات" else "24/7 Customer Assistance • FAQs & Problem Resolution",
+                        fontSize = 12.sp,
+                        color = TextSlateMuted
+                    )
+                }
+            }
+        }
+
+        // Quick Contact Channels
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = if (language == AppLanguage.URDU) "فوری رابطہ" else "Quick Contact",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextSlate
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // 24/7 Helpline
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("help_call_hotline_card"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(StatusGreenContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Call,
+                                    contentDescription = "Helpline",
+                                    tint = StatusGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "042-111-HOME",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = TextSlate
+                            )
+                            Text(
+                                text = "24/7 Helpline",
+                                fontSize = 10.sp,
+                                color = TextSlateMuted
+                            )
+                        }
+                    }
+
+                    // WhatsApp Support
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("help_whatsapp_support_card"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(DeepIndigoContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Send,
+                                    contentDescription = "WhatsApp",
+                                    tint = DeepIndigo,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "WhatsApp Support",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = TextSlate
+                            )
+                            Text(
+                                text = "Live Chat",
+                                fontSize = 10.sp,
+                                color = TextSlateMuted
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // FAQs Section
+        item {
+            Text(
+                text = if (language == AppLanguage.URDU) "عام سوالات (FAQ)" else "Frequently Asked Questions",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextSlate
+            )
+        }
+
+        items(faqItems.size) { index ->
+            val (question, answer) = faqItems[index]
+            val isExpanded = expandedFaqIndex == index
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expandedFaqIndex = if (isExpanded) null else index }
+                    .testTag("faq_item_$index"),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = question,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = TextSlate,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = if (isExpanded) "Collapse" else "Expand",
+                            tint = DeepIndigo,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    if (isExpanded) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = answer,
+                            fontSize = 12.sp,
+                            color = Color(0xFF475569),
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // Report an Issue / Contact Us Form
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = null,
+                            tint = DeepIndigo,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (language == AppLanguage.URDU) "مسئلہ یا شکایت درج کریں" else "Report an Issue or Contact Us",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextSlate
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = if (language == AppLanguage.URDU) "مسئلے کی قسم:" else "Select Category:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextSlateMuted
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        issueCategories.take(3).forEach { (catKey, label) ->
+                            FilterChip(
+                                selected = selectedCategory == catKey,
+                                onClick = { selectedCategory = catKey },
+                                label = { Text(label, fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = DeepIndigo,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        issueCategories.drop(3).forEach { (catKey, label) ->
+                            FilterChip(
+                                selected = selectedCategory == catKey,
+                                onClick = { selectedCategory = catKey },
+                                label = { Text(label, fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = DeepIndigo,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = issueDescription,
+                        onValueChange = { issueDescription = it },
+                        label = { Text(if (language == AppLanguage.URDU) "مسئلے کی تفصیل بتائیں" else "Describe your issue") },
+                        placeholder = { Text(if (language == AppLanguage.URDU) "کیا مسئلہ درپیش ہے؟" else "e.g., Provider arrived late, pricing dispute...", fontSize = 12.sp) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                            .testTag("help_issue_description_input"),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    if (showSuccessBanner) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(StatusGreenContainer)
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = StatusGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (language == AppLanguage.URDU)
+                                    "آپ کی شکایت موصول ہو گئی۔ ہماری سپورٹ ٹیم جلد رابطہ کرے گی۔"
+                                else
+                                    "Your report has been submitted! Our support team will contact you within 15 minutes.",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF065F46)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    Button(
+                        onClick = {
+                            if (issueDescription.isNotBlank()) {
+                                onReportIssue(selectedCategory, issueDescription)
+                                showSuccessBanner = true
+                                issueDescription = ""
+                            }
+                        },
+                        enabled = issueDescription.isNotBlank(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                            .testTag("help_submit_issue_button"),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DeepIndigo)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (language == AppLanguage.URDU) "شکایت جمع کروائیں" else "Submit Report",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+        }
     }
 }

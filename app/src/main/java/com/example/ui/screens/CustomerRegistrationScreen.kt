@@ -72,7 +72,6 @@ fun CustomerRegistrationScreen(
     var cityArea by remember { mutableStateOf("Lahore - Gulberg") }
     var cityExpanded by remember { mutableStateOf(false) }
     var homeAddress by remember { mutableStateOf("House 42-B, Main Boulevard, Gulberg III") }
-    var notifPref by remember { mutableStateOf("WHATSAPP") } // WHATSAPP, SMS, BOTH
 
     val cityOptions = listOf(
         "Lahore - Gulberg",
@@ -292,51 +291,6 @@ fun CustomerRegistrationScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             // Notification Preference
-            Text(
-                text = Strings.get("notif_preference", language),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = TextSlate,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White)
-                    .border(1.dp, BorderStroke, RoundedCornerShape(12.dp))
-                    .padding(8.dp)
-            ) {
-                listOf(
-                    "WHATSAPP" to "${Strings.get("notif_whatsapp", language)} (${Strings.get("recommended", language)})",
-                    "SMS" to Strings.get("notif_sms", language),
-                    "BOTH" to Strings.get("notif_both", language)
-                ).forEach { (key, label) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { notifPref = key }
-                            .padding(vertical = 6.dp, horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = notifPref == key,
-                            onClick = { notifPref = key },
-                            colors = RadioButtonDefaults.colors(selectedColor = DeepIndigo)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = label,
-                            fontSize = 14.sp,
-                            color = TextSlate,
-                            fontWeight = if (notifPref == key) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(28.dp))
 
             // Finish Setup CTA
@@ -350,7 +304,6 @@ fun CustomerRegistrationScreen(
                         profilePhotoUri = avatarList.getOrNull(selectedAvatarIndex),
                         cityArea = cityArea,
                         homeAddress = homeAddress,
-                        notifPref = notifPref,
                         status = "ACTIVE"
                     )
                     onComplete(user)

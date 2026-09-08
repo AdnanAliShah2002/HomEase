@@ -27,8 +27,8 @@ interface UserDao {
     @Query("UPDATE users SET avgRating = :avgRating, totalJobs = :totalJobs WHERE phone = :phone")
     suspend fun updateProviderRatingStats(phone: String, avgRating: Double, totalJobs: Int)
 
-    @Query("UPDATE users SET name = :name, cityArea = :cityArea, notifPref = :notifPref, savedAddressesCsv = :savedAddresses WHERE phone = :phone")
-    suspend fun updateCustomerProfile(phone: String, name: String, cityArea: String, notifPref: String, savedAddresses: String)
+    @Query("UPDATE users SET name = :name, cityArea = :cityArea, savedAddressesCsv = :savedAddresses WHERE phone = :phone")
+    suspend fun updateCustomerProfile(phone: String, name: String, cityArea: String, savedAddresses: String)
 
     @Query("UPDATE users SET name = :name, cityArea = :cityArea, categoriesCsv = :categories, yearsExperience = :years, serviceRadiusKm = :radius, bio = :bio, shopName = :shopName, payoutMethod = :payoutMethod, payoutAccountNumber = :payoutAccount WHERE phone = :phone")
     suspend fun updateProviderProfile(

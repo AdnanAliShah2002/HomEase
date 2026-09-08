@@ -82,6 +82,7 @@ import com.example.ui.theme.SoftOrangeContainer
 import com.example.ui.theme.StatusGreen
 import com.example.ui.theme.StatusGreenContainer
 import com.example.ui.theme.StatusYellowContainer
+import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
 
@@ -323,7 +324,9 @@ fun ProviderHomeScreen(
                 language = language,
                 onToggleRole = onToggleRole,
                 onToggleLanguage = onToggleLanguage,
-                onLogout = onLogout
+                userAvatar = provider.profilePhotoUri ?: "👤",
+                onLogout = onLogout,
+                onOpenProfile = { currentNavTab = "profile" }
             )
         },
         bottomBar = {
@@ -741,7 +744,7 @@ fun PendingProviderVerificationCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFF1F5F9))
+                    .background(SurfaceVariantLight)
                     .padding(12.dp)
             ) {
                 Text(
@@ -895,7 +898,7 @@ fun SimplifiedJobPingCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFF8FAFC))
+                        .background(SurfaceVariantLight)
                         .border(1.dp, BorderStroke, RoundedCornerShape(10.dp))
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
@@ -978,7 +981,7 @@ fun SimplifiedJobPingCard(
                         .testTag("reject_job_btn_${job.id}"),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF1F5F9),
+                        containerColor = SurfaceVariantLight,
                         contentColor = TextSlateMuted
                     )
                 ) {

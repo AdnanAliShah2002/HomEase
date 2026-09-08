@@ -68,6 +68,7 @@ import com.example.ui.theme.DeepIndigoContainer
 import com.example.ui.theme.SoftOrange
 import com.example.ui.theme.SoftOrangeContainer
 import com.example.ui.theme.StatusGreen
+import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
 import kotlinx.coroutines.delay
@@ -229,7 +230,7 @@ fun ProviderJobAcceptScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFF8FAFC))
+                            .background(SurfaceVariantLight)
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

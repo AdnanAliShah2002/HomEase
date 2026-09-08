@@ -273,3 +273,35 @@ using (auth.uid() = customer_id);
 -- anon and authenticated client roles have ZERO read/write access.
 -- Only Edge Functions using the service role key (which bypasses RLS by design)
 -- can insert, select, or delete from this table.
+
+-- ============================================================================
+-- APP THEMES TABLE (Dynamic Remote Theming)
+-- ============================================================================
+create table if not exists public.app_themes (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  primary_color text not null,
+  accent_color text not null,
+  background_color text not null,
+  text_color text not null,
+  is_active boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_app_themes_is_active on public.app_themes(is_active);
+
+-- Enable RLS
+alter table public.app_themes enable row level security;
+
+-- Allow anonymous and authenticated read access for active themes
+drop policy if exists "Allow public read of active themes" on public.app_themes;
+create policy "Allow public read of active themes"
+  on public.app_themes for select
+  using (true);
+
+-- Insert default Option D "Coral Sunset" theme
+insert into public.app_themes (name, primary_color, accent_color, background_color, text_color, is_active)
+values ('Coral Sunset', '#DC5F45', '#2A9D8F', '#FFFBF7', '#292524', true)
+on conflict do nothing;
+

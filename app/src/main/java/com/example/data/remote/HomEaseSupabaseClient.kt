@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
 import com.example.data.db.UserEntity
+import com.example.data.model.MobileAppTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -580,6 +581,37 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Fetches the active theme record from the Supabase `app_themes` table.
+     * Uses the anon key for public read access.
+     */
+    suspend fun fetchActiveThemeRemote(): MobileAppTheme? = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/rest/v1/app_themes?is_active=eq.true&select=*&limit=1"
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("apikey", SUPABASE_ANON_KEY)
+                .addHeader("Authorization", "Bearer $SUPABASE_ANON_KEY")
+                .addHeader("Accept", "application/json")
+                .get()
+                .build()
+
+            val response = client.newCall(request).execute()
+            val bodyString = response.body?.string().orEmpty()
+
+            if (response.isSuccessful && bodyString.isNotBlank()) {
+                val array = JSONArray(bodyString)
+                if (array.length() > 0) {
+                    val obj = array.getJSONObject(0)
+                    return@withContext MobileAppTheme.fromJson(obj)
+                }
+            }
+            null
+        } catch (e: Exception) {
+            null
         }
     }
 }

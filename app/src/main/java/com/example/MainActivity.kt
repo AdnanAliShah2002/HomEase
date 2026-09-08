@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -24,7 +25,7 @@ import com.example.ui.screens.ProviderJobAcceptScreen
 import com.example.ui.screens.ProviderRegistrationScreen
 import com.example.ui.screens.RoleSelectionScreen
 import com.example.ui.screens.SplashScreen
-import com.example.ui.theme.BackgroundLight
+import com.example.ui.theme.HomEaseDynamicTheme
 import com.example.ui.theme.HomEaseTheme
 import com.example.ui.viewmodel.AppNavDestination
 import com.example.ui.viewmodel.HomeaseViewModel
@@ -36,10 +37,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            HomEaseTheme {
+            val activeTheme by viewModel.currentTheme.collectAsState()
+            HomEaseDynamicTheme(activeTheme = activeTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = BackgroundLight
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     HomEaseApp(viewModel = viewModel)
                 }
@@ -185,8 +187,8 @@ fun HomEaseApp(viewModel: HomeaseViewModel) {
                 onAutoCompleteJob = { jobId ->
                     viewModel.autoCompleteJobWithoutRating(jobId)
                 },
-                onUpdateProfile = { name, cityArea, notifPref, savedAddresses ->
-                    viewModel.updateCustomerProfile(name, cityArea, notifPref, savedAddresses)
+                onUpdateProfile = { name, cityArea, savedAddresses ->
+                    viewModel.updateCustomerProfile(name, cityArea, savedAddresses)
                 },
                 onLogout = { viewModel.logout() }
             )
@@ -232,7 +234,8 @@ fun HomEaseApp(viewModel: HomeaseViewModel) {
                 onBack = { viewModel.navigateBack() },
                 onSubmitRequest = { req -> viewModel.submitServiceRequest(req) },
                 onSelectOffer = { offer -> viewModel.selectOfferForRequest(offer) },
-                onDoneViewingConfirmed = { viewModel.navigateToHome() }
+                onDoneViewingConfirmed = { viewModel.navigateToHome() },
+                onDetectCategory = { description -> viewModel.detectCategory(description) }
             )
         }
 

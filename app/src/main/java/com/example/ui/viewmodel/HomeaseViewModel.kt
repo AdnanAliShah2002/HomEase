@@ -8,12 +8,16 @@ import com.example.data.db.JobOfferEntity
 import com.example.data.db.ServiceRequestEntity
 import com.example.data.db.UserEntity
 import com.example.data.localization.AppLanguage
+import com.example.data.model.MobileAppTheme
 import com.example.data.model.UserRole
+import com.example.data.remote.CategoryDetectionRemoteService
+import com.example.data.remote.CategoryDetectionResult
 import com.example.data.remote.HomEaseSupabaseClient
 import com.example.data.remote.OtpRemoteService
 import com.example.data.remote.ProviderRemoteService
 import com.example.data.remote.SupabaseSession
 import com.example.data.repository.HomeaseRepository
+import com.example.data.theme.LocalThemeStore
 import com.example.util.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -44,6 +48,14 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     private val otpService = OtpRemoteService()
     private val providerRemoteService = ProviderRemoteService(application)
     private val supabaseClient = HomEaseSupabaseClient.getInstance(application)
+    private val categoryDetectionService = CategoryDetectionRemoteService()
+    private val localThemeStore = LocalThemeStore(application)
+
+    // Dynamic Remote Theming State
+    private val _currentTheme = MutableStateFlow<MobileAppTheme>(
+        localThemeStore.getCachedTheme() ?: MobileAppTheme.DEFAULT_FALLBACK_THEME
+    )
+    val currentTheme: StateFlow<MobileAppTheme> = _currentTheme.asStateFlow()
 
     private val _currentDestination = MutableStateFlow(AppNavDestination.SPLASH)
     val currentDestination: StateFlow<AppNavDestination> = _currentDestination.asStateFlow()
@@ -113,6 +125,37 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     // Customer job awaiting rating / confirmation
     val customerAwaitingRatingJob = repository.getAwaitingConfirmationForCustomer("+923001234567")
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    init {
+        viewModelScope.launch {
+            refreshActiveTheme()
+        }
+    }
+
+    /**
+     * Refreshes active theme from Supabase with local caching and offline fallback.
+     */
+    fun refreshActiveTheme() {
+        viewModelScope.launch {
+            val theme = fetchActiveTheme(supabaseClient)
+            if (theme != null) {
+                _currentTheme.value = theme
+            }
+        }
+    }
+
+    /**
+     * Fetches active theme from Supabase with local caching fallback matching the requested signature.
+     */
+    suspend fun fetchActiveTheme(client: HomEaseSupabaseClient): MobileAppTheme? {
+        return try {
+            val theme = client.fetchActiveThemeRemote()
+            theme?.let { localThemeStore.saveTheme(it) }
+            theme ?: localThemeStore.getCachedTheme() ?: MobileAppTheme.DEFAULT_FALLBACK_THEME
+        } catch (e: Exception) {
+            localThemeStore.getCachedTheme() ?: MobileAppTheme.DEFAULT_FALLBACK_THEME
+        }
+    }
 
     fun setLanguage(newLanguage: AppLanguage) {
         _language.value = newLanguage
@@ -326,6 +369,10 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         _currentDestination.value = AppNavDestination.ROLE_SELECT
     }
 
+    suspend fun detectCategory(description: String): CategoryDetectionResult {
+        return categoryDetectionService.detectCategory(description)
+    }
+
     fun startNewRequestFlow(categoryId: String?) {
         _initialCategoryForRequest.value = categoryId
         _activeLiveRequest.value = null
@@ -438,12 +485,11 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     fun updateCustomerProfile(
         name: String,
         cityArea: String,
-        notifPref: String,
         savedAddressesCsv: String
     ) {
         viewModelScope.launch {
             val phone = _currentPhoneNumber.value
-            repository.updateCustomerProfile(phone, name, cityArea, notifPref, savedAddressesCsv)
+            repository.updateCustomerProfile(phone, name, cityArea, savedAddressesCsv)
             val updated = repository.getUser(phone)
             if (updated != null) {
                 _currentUser.value = updated

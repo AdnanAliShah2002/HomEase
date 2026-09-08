@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         JobRatingEntity::class,
         ServiceCategoryEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
