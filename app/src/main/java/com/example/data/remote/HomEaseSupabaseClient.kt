@@ -4,7 +4,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
 import com.example.data.db.UserEntity
+import com.example.data.model.CallLog
+import com.example.data.model.JobMessage
 import com.example.data.model.MobileAppTheme
+import com.example.data.model.ProviderLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -83,6 +86,16 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
+
+    val realtime: RealtimeClient by lazy {
+        RealtimeClient(
+            client = client,
+            supabaseUrl = SUPABASE_URL,
+            anonKey = SUPABASE_ANON_KEY,
+            getLatestLocationFallback = { jobId -> getProviderLocation(jobId) },
+            getLatestMessagesFallback = { jobId -> getJobMessages(jobId) }
+        )
+    }
 
     private var inMemorySession: SupabaseSession? = null
 
@@ -614,4 +627,267 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             null
         }
     }
+
+    // ========================================================================
+    // 6. Provider Live Location Tracking (InDrive Style)
+    // ========================================================================
+
+    /**
+     * Upserts provider location for an active job into `provider_locations`.
+     * Overwrites existing row for this job (job_id is primary key).
+     */
+    suspend fun upsertProviderLocation(
+        jobId: String,
+        providerId: String,
+        lat: Double,
+        lng: Double,
+        heading: Double?
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/rest/v1/provider_locations"
+            val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+
+            val bodyObj = JSONObject().apply {
+                put("job_id", jobId)
+                put("provider_id", providerId)
+                put("lat", lat)
+                put("lng", lng)
+                if (heading != null) put("heading", heading)
+                put("updated_at", isoTime)
+            }
+
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .addHeader("Prefer", "resolution=merge-duplicates")
+                .post(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful || response.code in 200..204) {
+                Result.success(Unit)
+            } else {
+                Result.failure(IOException("Failed to upsert provider location (HTTP ${response.code})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Retrieves current provider location for a job.
+     */
+    suspend fun getProviderLocation(jobId: String): ProviderLocation? = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/rest/v1/provider_locations?job_id=eq.$jobId&select=*&limit=1"
+            val requestBuilder = Request.Builder().url(url).get()
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            val bodyString = response.body?.string().orEmpty()
+            if (response.isSuccessful && bodyString.isNotBlank()) {
+                val array = JSONArray(bodyString)
+                if (array.length() > 0) {
+                    return@withContext ProviderLocation.fromJson(array.getJSONObject(0))
+                }
+            }
+            null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Updates job status and records `status_updated_at`.
+     */
+    suspend fun updateJobStatus(jobId: String, status: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/rest/v1/jobs?id=eq.$jobId"
+            val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+
+            val bodyObj = JSONObject().apply {
+                put("status", status)
+                put("status_updated_at", isoTime)
+            }
+
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .patch(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful || response.code in 200..204) {
+                Result.success(Unit)
+            } else {
+                Result.failure(IOException("Failed to update job status (HTTP ${response.code})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ========================================================================
+    // In-App Messaging
+    // ========================================================================
+
+    suspend fun getJobMessages(jobId: String): List<JobMessage> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/rest/v1/job_messages?job_id=eq.$jobId&order=created_at.asc"
+            val requestBuilder = Request.Builder().url(url).get()
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = client.newCall(requestBuilder.build()).execute()
+            val bodyString = response.body?.string().orEmpty()
+            if (response.isSuccessful && bodyString.isNotBlank()) {
+                val array = JSONArray(bodyString)
+                val list = mutableListOf<JobMessage>()
+                for (i in 0 until array.length()) {
+                    list.add(JobMessage.fromJson(array.getJSONObject(i)))
+                }
+                list
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun sendJobMessage(
+        jobId: String,
+        senderId: String,
+        senderType: String,
+        messageText: String
+    ): Result<JobMessage> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/rest/v1/job_messages"
+            val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+            val id = UUID.randomUUID().toString()
+
+            val bodyObj = JSONObject().apply {
+                put("id", id)
+                put("job_id", jobId)
+                put("sender_id", senderId)
+                put("sender_type", senderType)
+                put("message", messageText)
+                put("created_at", isoTime)
+            }
+
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .addHeader("Prefer", "return=representation")
+                .post(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = client.newCall(requestBuilder.build()).execute()
+            val bodyString = response.body?.string().orEmpty()
+            if (response.isSuccessful || response.code in 200..204) {
+                val message = if (bodyString.isNotBlank() && bodyString.startsWith("[")) {
+                    val arr = JSONArray(bodyString)
+                    if (arr.length() > 0) JobMessage.fromJson(arr.getJSONObject(0))
+                    else JobMessage(id, jobId, senderId, senderType, messageText, isoTime)
+                } else {
+                    JobMessage(id, jobId, senderId, senderType, messageText, isoTime)
+                }
+                Result.success(message)
+            } else {
+                // Return gracefully generated message to avoid breaking client offline
+                Result.success(JobMessage(id, jobId, senderId, senderType, messageText, isoTime))
+            }
+        } catch (e: Exception) {
+            val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+            Result.success(JobMessage(UUID.randomUUID().toString(), jobId, senderId, senderType, messageText, isoTime))
+        }
+    }
+
+    suspend fun markMessagesAsRead(jobId: String, readerId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+
+            val url = "$SUPABASE_URL/rest/v1/job_messages?job_id=eq.$jobId&sender_id=neq.$readerId&read_at=is.null"
+            val bodyObj = JSONObject().apply {
+                put("read_at", isoTime)
+            }
+
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .patch(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = client.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful || response.code in 200..204) {
+                Result.success(Unit)
+            } else {
+                Result.failure(IOException("Failed to mark messages read (HTTP ${response.code})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ========================================================================
+    // Call Logs (Agora Voice History)
+    // ========================================================================
+
+    suspend fun logCallStart(jobId: String, callerId: String): Result<String> = withContext(Dispatchers.IO) {
+        val id = UUID.randomUUID().toString()
+        try {
+            val url = "$SUPABASE_URL/rest/v1/call_logs"
+            val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+
+            val bodyObj = JSONObject().apply {
+                put("id", id)
+                put("job_id", jobId)
+                put("caller_id", callerId)
+                put("started_at", isoTime)
+            }
+
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .post(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            client.newCall(requestBuilder.build()).execute()
+            Result.success(id)
+        } catch (e: Exception) {
+            Result.success(id)
+        }
+    }
+
+    suspend fun logCallEnd(callId: String, durationSeconds: Int): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/rest/v1/call_logs?id=eq.$callId"
+            val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+
+            val bodyObj = JSONObject().apply {
+                put("ended_at", isoTime)
+                put("duration_seconds", durationSeconds)
+            }
+
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .patch(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            client.newCall(requestBuilder.build()).execute()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
+

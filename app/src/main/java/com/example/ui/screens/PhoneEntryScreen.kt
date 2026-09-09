@@ -65,7 +65,7 @@ fun PhoneEntryScreen(
     onSendCode: (String) -> Unit
 ) {
     var phoneNumber by remember {
-        mutableStateOf(if (role == UserRole.PROVIDER) "3217654321" else "3001234567")
+        mutableStateOf("")
     }
 
     Surface(
@@ -244,28 +244,6 @@ fun PhoneEntryScreen(
                             fontWeight = FontWeight.Medium
                         )
                     }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Quick tester suggestion
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFF1F5F9))
-                        .clickable {
-                            phoneNumber = if (role == UserRole.PROVIDER) "3217654321" else "3001234567"
-                        }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "⚡ Demo number: +92 ${if (role == UserRole.PROVIDER) "321 7654321" else "300 1234567"}",
-                        fontSize = 12.sp,
-                        color = TextSlateMuted,
-                        fontWeight = FontWeight.Medium
-                    )
                 }
             }
 

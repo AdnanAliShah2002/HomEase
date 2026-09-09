@@ -113,15 +113,17 @@ fun CustomerRequestFlowScreen(
     onSubmitRequest: (ServiceRequestEntity) -> Unit,
     onSelectOffer: (JobOfferEntity) -> Unit,
     onDoneViewingConfirmed: () -> Unit,
+    onOpenLiveTracking: (ServiceRequestEntity) -> Unit = {},
     onDetectCategory: (suspend (String) -> CategoryDetectionResult)? = null
 ) {
     // If there is already an active live request being viewed (either searching or accepted)
     if (activeLiveRequest != null) {
-        if (activeLiveRequest.status == "ACCEPTED") {
-            // Screen 10 Step 7: Job Confirmed
+        if (activeLiveRequest.status in listOf("ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS")) {
+            // Screen 10 Step 7: Job Confirmed with Live Tracking Access
             JobConfirmedView(
                 request = activeLiveRequest,
                 language = language,
+                onOpenLiveTracking = onOpenLiveTracking,
                 onDone = onDoneViewingConfirmed
             )
         } else {
@@ -162,11 +164,11 @@ fun CustomerRequestFlowScreen(
         mutableStateOf(currentCat.popularServices.firstOrNull() ?: "General Service")
     }
     var problemDescription by remember {
-        mutableStateOf("Water is dripping from under the sink connection. Needs quick check & fix.")
+        mutableStateOf("")
     }
     var activeCityArea by remember { mutableStateOf(cityArea) }
     var addressInput by remember {
-        mutableStateOf(savedAddress.ifBlank { "House 42-B, Main Boulevard, Gulberg III, Lahore" })
+        mutableStateOf(savedAddress)
     }
 
     // Dynamic reference pricing calculation
@@ -1391,6 +1393,7 @@ fun ProviderOfferCard(
 fun JobConfirmedView(
     request: ServiceRequestEntity,
     language: AppLanguage,
+    onOpenLiveTracking: (ServiceRequestEntity) -> Unit = {},
     onDone: () -> Unit
 ) {
     Scaffold(
@@ -1453,7 +1456,7 @@ fun JobConfirmedView(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = request.selectedProviderName ?: (if (language == AppLanguage.URDU) "محمد راشد (تصدیق شدہ کاریگر)" else "Muhammad Rashid (Verified Pro)"),
+                        text = request.selectedProviderName ?: (if (language == AppLanguage.URDU) "تصدیق شدہ کاریگر" else "Verified Professional"),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextSlate
@@ -1498,12 +1501,41 @@ fun JobConfirmedView(
                 }
             }
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Primary: InDrive-style Live GPS Tracking Button
+            Button(
+                onClick = { onOpenLiveTracking(request) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp)
+                    .testTag("track_job_on_map_btn"),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFDC5F45), // Coral Sunset Primary
+                    contentColor = Color.White
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (language == AppLanguage.URDU) "لائیو نقشے پر ٹریک کریں" else "Track Live on Map",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             PrimaryCtaButton(
                 text = if (language == AppLanguage.URDU) "ہوم اسکرین پر واپس جائیں" else "Back to Home",
                 onClick = onDone,
-                backgroundColor = DeepIndigo,
+                backgroundColor = SurfaceVariantLight,
+                contentColor = TextSlate,
                 testTag = "job_confirmed_done_btn"
             )
         }

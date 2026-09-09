@@ -20,9 +20,80 @@ enum class NotificationPreference {
 enum class RequestStatus {
     SEARCHING,
     ACCEPTED,
+    ON_THE_WAY,
+    ARRIVED,
     IN_PROGRESS,
     COMPLETED,
     CANCELLED
+}
+
+@Serializable
+data class ProviderLocation(
+    @SerialName("job_id") val jobId: String,
+    @SerialName("provider_id") val providerId: String,
+    val lat: Double,
+    val lng: Double,
+    val heading: Double? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
+) {
+    companion object {
+        fun fromJson(obj: org.json.JSONObject): ProviderLocation {
+            return ProviderLocation(
+                jobId = obj.optString("job_id", ""),
+                providerId = obj.optString("provider_id", ""),
+                lat = obj.optDouble("lat", 0.0),
+                lng = obj.optDouble("lng", 0.0),
+                heading = if (obj.has("heading") && !obj.isNull("heading")) obj.optDouble("heading") else null,
+                updatedAt = if (obj.has("updated_at") && !obj.isNull("updated_at")) obj.optString("updated_at") else null
+            )
+        }
+    }
+}
+
+data class JobMessage(
+    val id: String,
+    val jobId: String,
+    val senderId: String,
+    val senderType: String, // "customer" | "provider"
+    val message: String,
+    val createdAt: String,
+    val readAt: String? = null
+) {
+    companion object {
+        fun fromJson(obj: org.json.JSONObject): JobMessage {
+            return JobMessage(
+                id = obj.optString("id", java.util.UUID.randomUUID().toString()),
+                jobId = obj.optString("job_id", ""),
+                senderId = obj.optString("sender_id", ""),
+                senderType = obj.optString("sender_type", "customer"),
+                message = obj.optString("message", ""),
+                createdAt = obj.optString("created_at", ""),
+                readAt = if (obj.has("read_at") && !obj.isNull("read_at")) obj.optString("read_at") else null
+            )
+        }
+    }
+}
+
+data class CallLog(
+    val id: String,
+    val jobId: String,
+    val callerId: String,
+    val startedAt: String,
+    val endedAt: String? = null,
+    val durationSeconds: Int? = null
+) {
+    companion object {
+        fun fromJson(obj: org.json.JSONObject): CallLog {
+            return CallLog(
+                id = obj.optString("id", java.util.UUID.randomUUID().toString()),
+                jobId = obj.optString("job_id", ""),
+                callerId = obj.optString("caller_id", ""),
+                startedAt = obj.optString("started_at", ""),
+                endedAt = if (obj.has("ended_at") && !obj.isNull("ended_at")) obj.optString("ended_at") else null,
+                durationSeconds = if (obj.has("duration_seconds") && !obj.isNull("duration_seconds")) obj.optInt("duration_seconds") else null
+            )
+        }
+    }
 }
 
 enum class OfferStatus {

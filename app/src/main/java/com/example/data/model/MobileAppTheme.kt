@@ -42,6 +42,30 @@ data class MobileAppTheme(
         }
     }
 
+    val primaryColorInt: Int get() = try {
+        android.graphics.Color.parseColor(primaryColor)
+    } catch (e: Exception) {
+        0xFFDC5F45.toInt()
+    }
+
+    val accentColorInt: Int get() = try {
+        android.graphics.Color.parseColor(accentColor)
+    } catch (e: Exception) {
+        0xFF2A9D8F.toInt()
+    }
+
+    val backgroundColorInt: Int get() = try {
+        android.graphics.Color.parseColor(backgroundColor)
+    } catch (e: Exception) {
+        0xFFFFFBF7.toInt()
+    }
+
+    val textColorInt: Int get() = try {
+        android.graphics.Color.parseColor(textColor)
+    } catch (e: Exception) {
+        0xFF292524.toInt()
+    }
+
     companion object {
         val DEFAULT_FALLBACK_THEME = MobileAppTheme(
             id = "default_coral_sunset",

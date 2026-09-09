@@ -4,11 +4,14 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.db.AppDatabase
+import com.example.data.db.JobMessageEntity
 import com.example.data.db.JobOfferEntity
 import com.example.data.db.ServiceRequestEntity
 import com.example.data.db.UserEntity
 import com.example.data.localization.AppLanguage
+import com.example.data.model.JobMessage
 import com.example.data.model.MobileAppTheme
+import com.example.data.model.ProviderLocation
 import com.example.data.model.UserRole
 import com.example.data.remote.CategoryDetectionRemoteService
 import com.example.data.remote.CategoryDetectionResult
@@ -18,11 +21,19 @@ import com.example.data.remote.ProviderRemoteService
 import com.example.data.remote.SupabaseSession
 import com.example.data.repository.HomeaseRepository
 import com.example.data.theme.LocalThemeStore
+import com.example.service.AgoraVoiceManager
+import com.example.service.CallState
+import com.example.service.ProviderLocationService
 import com.example.util.SessionManager
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -39,7 +50,10 @@ enum class AppNavDestination {
     CUSTOMER_HOME,
     PROVIDER_HOME,
     CUSTOMER_REQUEST_FLOW,
-    PROVIDER_JOB_ACCEPT
+    PROVIDER_JOB_ACCEPT,
+    CUSTOMER_LIVE_TRACKING,
+    JOB_CHAT,
+    IN_CALL
 }
 
 class HomeaseViewModel(application: Application) : AndroidViewModel(application) {
@@ -50,6 +64,12 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     private val supabaseClient = HomEaseSupabaseClient.getInstance(application)
     private val categoryDetectionService = CategoryDetectionRemoteService()
     private val localThemeStore = LocalThemeStore(application)
+    private val agoraVoiceManager = AgoraVoiceManager.getInstance(application)
+
+    val callState: StateFlow<CallState> = agoraVoiceManager.callState
+
+    private val _activeChatJob = MutableStateFlow<ServiceRequestEntity?>(null)
+    val activeChatJob: StateFlow<ServiceRequestEntity?> = _activeChatJob.asStateFlow()
 
     // Dynamic Remote Theming State
     private val _currentTheme = MutableStateFlow<MobileAppTheme>(
@@ -69,7 +89,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     private val _isSignInMode = MutableStateFlow(false)
     val isSignInMode: StateFlow<Boolean> = _isSignInMode.asStateFlow()
 
-    private val _currentPhoneNumber = MutableStateFlow("+923001234567")
+    private val _currentPhoneNumber = MutableStateFlow("")
     val currentPhoneNumber: StateFlow<String> = _currentPhoneNumber.asStateFlow()
 
     private val _currentUser = MutableStateFlow<UserEntity?>(null)
@@ -102,29 +122,43 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     private val _fullscreenPingJob = MutableStateFlow<ServiceRequestEntity?>(null)
     val fullscreenPingJob: StateFlow<ServiceRequestEntity?> = _fullscreenPingJob.asStateFlow()
 
+    // Active job being tracked on the Live Map (Customer or Provider view)
+    private val _trackingJob = MutableStateFlow<ServiceRequestEntity?>(null)
+    val trackingJob: StateFlow<ServiceRequestEntity?> = _trackingJob.asStateFlow()
+
     // Customer live requests
-    val customerRequests = repository.getCustomerRequests("+923001234567")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val customerRequests = _currentPhoneNumber.flatMapLatest { phone ->
+        if (phone.isNotBlank()) repository.getCustomerRequests(phone) else flowOf(emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Provider available jobs
     val availableJobs = repository.getAvailableJobs()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Provider active job
-    val providerActiveJob = repository.getActiveJobForProvider("+923217654321")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val providerActiveJob = _currentPhoneNumber.flatMapLatest { phone ->
+        if (phone.isNotBlank()) repository.getActiveJobForProvider(phone) else flowOf(null)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     // Provider past / completed jobs (including awaiting rating)
-    val providerPastJobs = repository.getPastJobsForProvider("+923217654321")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val providerPastJobs = _currentPhoneNumber.flatMapLatest { phone ->
+        if (phone.isNotBlank()) repository.getPastJobsForProvider(phone) else flowOf(emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Provider completed jobs
-    val providerCompletedJobs = repository.getCompletedJobsForProvider("+923217654321")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val providerCompletedJobs = _currentPhoneNumber.flatMapLatest { phone ->
+        if (phone.isNotBlank()) repository.getCompletedJobsForProvider(phone) else flowOf(emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Customer job awaiting rating / confirmation
-    val customerAwaitingRatingJob = repository.getAwaitingConfirmationForCustomer("+923001234567")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val customerAwaitingRatingJob = _currentPhoneNumber.flatMapLatest { phone ->
+        if (phone.isNotBlank()) repository.getAwaitingConfirmationForCustomer(phone) else flowOf(null)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     init {
         viewModelScope.launch {
@@ -167,31 +201,25 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
 
     fun selectRole(role: UserRole) {
         _activeRole.value = role
-        _currentPhoneNumber.value = if (role == UserRole.PROVIDER) "+923217654321" else "+923001234567"
         _currentDestination.value = AppNavDestination.AUTH_CHOICE
     }
 
     fun toggleRole() {
-        if (_activeRole.value == UserRole.CUSTOMER) {
-            _activeRole.value = UserRole.PROVIDER
-            _currentPhoneNumber.value = "+923217654321"
+        val newRole = if (_activeRole.value == UserRole.CUSTOMER) UserRole.PROVIDER else UserRole.CUSTOMER
+        _activeRole.value = newRole
+        val phone = _currentPhoneNumber.value
+        if (phone.isNotBlank()) {
             viewModelScope.launch {
-                val provider = repository.getUser("+923217654321")
-                if (provider != null) {
-                    _currentUser.value = provider
+                val user = repository.getUser(phone)
+                if (user != null) {
+                    _currentUser.value = user
                 }
             }
-            _currentDestination.value = AppNavDestination.PROVIDER_HOME
+        }
+        _currentDestination.value = if (newRole == UserRole.PROVIDER) {
+            AppNavDestination.PROVIDER_HOME
         } else {
-            _activeRole.value = UserRole.CUSTOMER
-            _currentPhoneNumber.value = "+923001234567"
-            viewModelScope.launch {
-                val customer = repository.getUser("+923001234567")
-                if (customer != null) {
-                    _currentUser.value = customer
-                }
-            }
-            _currentDestination.value = AppNavDestination.CUSTOMER_HOME
+            AppNavDestination.CUSTOMER_HOME
         }
     }
 
@@ -211,7 +239,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                     val defaultUser = UserEntity(
                         phone = savedPhone,
                         role = session.role,
-                        name = if (savedRole == UserRole.PROVIDER) "Ustad Muhammad Rashid" else "Adnan Shah",
+                        name = if (savedRole == UserRole.PROVIDER) "Service Provider" else "Customer",
                         cityArea = "Lahore - Gulberg",
                         status = "ACTIVE"
                     )
@@ -385,6 +413,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             val req = repository.getRequestById(requestId)
             if (req != null) {
                 _activeLiveRequest.value = req
+                _trackingJob.value = req
                 repository.getOffersForRequest(requestId).collect { offers ->
                     _incomingOffers.value = offers
                 }
@@ -393,11 +422,210 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         _currentDestination.value = AppNavDestination.CUSTOMER_REQUEST_FLOW
     }
 
+    fun openLiveTracking(job: ServiceRequestEntity) {
+        _trackingJob.value = job
+        _activeLiveRequest.value = job
+        _currentDestination.value = AppNavDestination.CUSTOMER_LIVE_TRACKING
+    }
+
+    fun openChat(job: ServiceRequestEntity) = openJobChat(job)
+
+    fun openJobChat(job: ServiceRequestEntity) {
+        _activeChatJob.value = job
+        _currentDestination.value = AppNavDestination.JOB_CHAT
+        val currentUserId = _currentUser.value?.phone ?: _currentPhoneNumber.value
+        viewModelScope.launch {
+            repository.markMessagesAsRead(job.id.toString(), currentUserId)
+            supabaseClient.markMessagesAsRead(job.id.toString(), currentUserId)
+        }
+    }
+
+    fun startVoiceCall(job: ServiceRequestEntity) {
+        val currentPhone = _currentUser.value?.phone ?: _currentPhoneNumber.value
+        val isProvider = _activeRole.value == UserRole.PROVIDER
+        val targetName = if (isProvider) job.customerName.ifBlank { "Customer" } else (job.selectedProviderName ?: "Service Provider")
+        val targetRole = if (isProvider) "Customer" else "Service Provider"
+        val targetPhone = if (isProvider) job.customerPhone else (job.selectedProviderPhone ?: "")
+
+        agoraVoiceManager.startCall(
+            jobId = job.id.toString(),
+            targetName = targetName,
+            targetRole = targetRole,
+            targetPhone = targetPhone,
+            currentUserId = currentPhone,
+            repository = repository,
+            supabaseClient = supabaseClient
+        )
+        _currentDestination.value = AppNavDestination.IN_CALL
+    }
+
+    fun toggleCallMute() {
+        agoraVoiceManager.toggleMute()
+    }
+
+    fun toggleCallSpeaker() {
+        agoraVoiceManager.toggleSpeaker()
+    }
+
+    fun endVoiceCall() {
+        agoraVoiceManager.endCall(repository, supabaseClient)
+    }
+
+    fun closeCallScreen() {
+        agoraVoiceManager.resetToIdle()
+        navigateBack()
+    }
+
+    fun getJobMessagesFlow(jobId: String): Flow<List<JobMessageEntity>> {
+        val currentUserId = _currentUser.value?.phone ?: _currentPhoneNumber.value
+        viewModelScope.launch {
+            // Initial sync from remote Supabase
+            try {
+                val remoteMessages = supabaseClient.getJobMessages(jobId)
+                if (remoteMessages.isNotEmpty()) {
+                    val entities = remoteMessages.map { m ->
+                        JobMessageEntity(
+                            id = m.id,
+                            jobId = m.jobId,
+                            senderId = m.senderId,
+                            senderType = m.senderType,
+                            message = m.message,
+                            createdAtEpochMs = parseIsoOrNow(m.createdAt),
+                            createdAtIso = m.createdAt,
+                            readAtEpochMs = if (m.readAt != null) parseIsoOrNow(m.readAt) else null
+                        )
+                    }
+                    repository.insertMessages(entities)
+                }
+            } catch (_: Exception) {}
+
+            // Realtime subscription
+            val channel = supabaseClient.realtime.channel("job-chat-$jobId")
+            try {
+                channel.subscribe()
+                channel.postgresChangeFlow<JobMessage>(schema = "public") {
+                    table = "job_messages"
+                    filter = "job_id=eq.$jobId"
+                }.collect { action ->
+                    val m = action.record
+                    val entity = JobMessageEntity(
+                        id = m.id,
+                        jobId = m.jobId,
+                        senderId = m.senderId,
+                        senderType = m.senderType,
+                        message = m.message,
+                        createdAtEpochMs = parseIsoOrNow(m.createdAt),
+                        createdAtIso = m.createdAt,
+                        readAtEpochMs = if (m.readAt != null) parseIsoOrNow(m.readAt) else null
+                    )
+                    repository.insertMessage(entity)
+                }
+            } finally {
+                channel.unsubscribe()
+            }
+        }
+        return repository.getMessagesForJobFlow(jobId)
+    }
+
+    fun sendJobMessage(jobId: String, text: String) {
+        if (text.isBlank()) return
+        val currentUserId = _currentUser.value?.phone ?: _currentPhoneNumber.value
+        val senderType = if (_activeRole.value == UserRole.PROVIDER) "provider" else "customer"
+        val tempId = UUID.randomUUID().toString()
+        val nowMs = System.currentTimeMillis()
+        val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }.format(java.util.Date(nowMs))
+
+        val localEntity = JobMessageEntity(
+            id = tempId,
+            jobId = jobId,
+            senderId = currentUserId,
+            senderType = senderType,
+            message = text.trim(),
+            createdAtEpochMs = nowMs,
+            createdAtIso = isoTime,
+            readAtEpochMs = null
+        )
+
+        viewModelScope.launch {
+            repository.insertMessage(localEntity)
+            val result = supabaseClient.sendJobMessage(jobId, currentUserId, senderType, text.trim())
+            if (result.isSuccess) {
+                val sent = result.getOrNull()
+                if (sent != null && sent.id != tempId) {
+                    val updated = localEntity.copy(id = sent.id, createdAtIso = sent.createdAt)
+                    repository.insertMessage(updated)
+                }
+            }
+        }
+    }
+
+    fun markMessagesAsRead(jobId: String) {
+        val currentUserId = _currentUser.value?.phone ?: _currentPhoneNumber.value
+        viewModelScope.launch {
+            repository.markMessagesAsRead(jobId, currentUserId)
+            supabaseClient.markMessagesAsRead(jobId, currentUserId)
+        }
+    }
+
+    fun getUnreadCountFlow(jobId: String): Flow<Int> {
+        val currentUserId = _currentUser.value?.phone ?: _currentPhoneNumber.value
+        return repository.getUnreadMessageCountFlow(jobId, currentUserId)
+    }
+
+    private fun parseIsoOrNow(iso: String): Long {
+        return try {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+            sdf.parse(iso.take(19))?.time ?: System.currentTimeMillis()
+        } catch (_: Exception) {
+            System.currentTimeMillis()
+        }
+    }
+
+    /**
+     * Subscribes to Realtime location updates for the active job.
+     * Continuously emits smooth moving coordinates as the provider moves.
+     */
+    fun getLiveTrackingLocationFlow(jobId: Long): Flow<ProviderLocation> = flow {
+        // 1. Initial cached position if available
+        val initialLocal = repository.getProviderLocationForJob(jobId.toString())
+        if (initialLocal != null) {
+            emit(
+                ProviderLocation(
+                    jobId = initialLocal.jobId,
+                    providerId = initialLocal.providerId,
+                    lat = initialLocal.lat,
+                    lng = initialLocal.lng,
+                    heading = initialLocal.heading,
+                    updatedAt = initialLocal.updatedAt.toString()
+                )
+            )
+        }
+
+        // 2. Realtime subscription to Supabase provider_locations table
+        val channel = supabaseClient.realtime.channel("job-tracking-$jobId")
+        try {
+            channel.subscribe()
+            channel.postgresChangeFlow<ProviderLocation>(schema = "public") {
+                table = "provider_locations"
+                filter = "job_id=eq.$jobId"
+            }.collect { change ->
+                emit(change.record)
+            }
+        } finally {
+            channel.unsubscribe()
+        }
+    }
+
     fun submitServiceRequest(request: ServiceRequestEntity) {
         viewModelScope.launch {
             val id = repository.createServiceRequest(request)
             val updated = request.copy(id = id)
             _activeLiveRequest.value = updated
+            _trackingJob.value = updated
             // Listen for incoming offers reactively
             repository.getOffersForRequest(id).collect { offers ->
                 _incomingOffers.value = offers
@@ -409,22 +637,27 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val req = _activeLiveRequest.value ?: return@launch
             repository.customerSelectOffer(req.id, offer)
-            _activeLiveRequest.value = req.copy(
+            val accepted = req.copy(
                 status = "ACCEPTED",
                 selectedProviderName = offer.providerName,
                 selectedProviderPhone = offer.providerPhone,
                 agreedPriceRs = offer.counterPriceRs
             )
+            _activeLiveRequest.value = accepted
+            _trackingJob.value = accepted
         }
     }
 
     fun acceptJobAsProvider(job: ServiceRequestEntity) {
         viewModelScope.launch {
-            val provider = _currentUser.value ?: repository.getUser("+923217654321")
+            val phone = _currentPhoneNumber.value
+            val provider = _currentUser.value ?: if (phone.isNotBlank()) repository.getUser(phone) else null
+            val resolvedPhone = provider?.phone ?: phone
+            val resolvedName = provider?.name?.ifBlank { null } ?: "Service Provider"
             repository.acceptJobByProvider(
                 requestId = job.id,
-                providerPhone = provider?.phone ?: "+923217654321",
-                providerName = provider?.name ?: "Ustad Muhammad Rashid",
+                providerPhone = resolvedPhone,
+                providerName = resolvedName,
                 agreedPrice = job.budgetRs
             )
             _fullscreenPingJob.value = null
@@ -439,11 +672,14 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
 
     fun counterJobAsProvider(job: ServiceRequestEntity, counterPrice: Int, note: String? = null) {
         viewModelScope.launch {
-            val provider = _currentUser.value ?: repository.getUser("+923217654321")
+            val phone = _currentPhoneNumber.value
+            val provider = _currentUser.value ?: if (phone.isNotBlank()) repository.getUser(phone) else null
+            val resolvedPhone = provider?.phone ?: phone
+            val resolvedName = provider?.name?.ifBlank { null } ?: "Service Provider"
             repository.submitProviderCounter(
                 requestId = job.id,
-                providerPhone = provider?.phone ?: "+923217654321",
-                providerName = provider?.name ?: "Ustad Muhammad Rashid",
+                providerPhone = resolvedPhone,
+                providerName = resolvedName,
                 counterPrice = counterPrice,
                 note = note
             )
@@ -452,9 +688,57 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /**
+     * Provider taps "On the way":
+     * - Changes job status to ON_THE_WAY
+     * - Launches ProviderLocationService (Foreground Service with persistent notification)
+     * - Updates Supabase status and status_updated_at
+     */
+    fun startProviderJobTrip(job: ServiceRequestEntity) {
+        viewModelScope.launch {
+            repository.markJobOnTheWay(job.id)
+            supabaseClient.updateJobStatus(job.id.toString(), "ON_THE_WAY")
+            val pPhone = job.selectedProviderPhone ?: _currentPhoneNumber.value
+            ProviderLocationService.start(
+                context = getApplication(),
+                jobId = job.id.toString(),
+                providerId = pPhone
+            )
+        }
+    }
+
+    /**
+     * Provider taps "Arrived":
+     * - Changes job status to ARRIVED
+     * - Stops ProviderLocationService
+     * - Updates Supabase status and status_updated_at
+     */
+    fun markProviderJobArrived(job: ServiceRequestEntity) {
+        viewModelScope.launch {
+            repository.markJobArrived(job.id)
+            supabaseClient.updateJobStatus(job.id.toString(), "ARRIVED")
+            ProviderLocationService.stop(getApplication())
+        }
+    }
+
+    /**
+     * Provider taps "Start Job":
+     * - Changes job status to IN_PROGRESS
+     * - Updates Supabase status and status_updated_at
+     */
+    fun startProviderJobWork(job: ServiceRequestEntity) {
+        viewModelScope.launch {
+            repository.markJobInProgress(job.id)
+            supabaseClient.updateJobStatus(job.id.toString(), "IN_PROGRESS")
+            ProviderLocationService.stop(getApplication())
+        }
+    }
+
     fun completeActiveJob(jobId: Long) {
         viewModelScope.launch {
+            ProviderLocationService.stop(getApplication())
             repository.markJobAwaitingConfirmation(jobId)
+            supabaseClient.updateJobStatus(jobId.toString(), "AWAITING_CUSTOMER_CONFIRMATION")
         }
     }
 
@@ -556,6 +840,22 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             AppNavDestination.ROLE_SELECT -> _currentDestination.value = AppNavDestination.LANGUAGE_SELECT
             AppNavDestination.CUSTOMER_REQUEST_FLOW -> _currentDestination.value = AppNavDestination.CUSTOMER_HOME
             AppNavDestination.PROVIDER_JOB_ACCEPT -> _currentDestination.value = AppNavDestination.PROVIDER_HOME
+            AppNavDestination.JOB_CHAT -> {
+                _currentDestination.value = if (_activeRole.value == UserRole.PROVIDER) {
+                    AppNavDestination.PROVIDER_HOME
+                } else {
+                    AppNavDestination.CUSTOMER_LIVE_TRACKING
+                }
+            }
+            AppNavDestination.IN_CALL -> {
+                _currentDestination.value = if (_activeChatJob.value != null) {
+                    AppNavDestination.JOB_CHAT
+                } else if (_activeRole.value == UserRole.PROVIDER) {
+                    AppNavDestination.PROVIDER_HOME
+                } else {
+                    AppNavDestination.CUSTOMER_LIVE_TRACKING
+                }
+            }
             else -> {}
         }
     }

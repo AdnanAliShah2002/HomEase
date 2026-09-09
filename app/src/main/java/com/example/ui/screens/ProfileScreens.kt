@@ -105,14 +105,11 @@ fun CustomerProfileView(
     var name by remember { mutableStateOf(user.name) }
     var cityArea by remember { mutableStateOf(user.cityArea) }
     var addressesList by remember {
-        mutableStateOf(
+        mutableStateOf<MutableList<String>>(
             if (user.savedAddressesCsv.isNotBlank()) {
                 user.savedAddressesCsv.split("|").filter { it.isNotBlank() }.toMutableList()
             } else {
-                mutableListOf(
-                    "Home: House 42-B, Main Boulevard, Gulberg III",
-                    "Office: 3rd Floor, Siddiq Trade Centre, Gulberg II"
-                )
+                mutableListOf<String>()
             }
         )
     }

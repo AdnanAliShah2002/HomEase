@@ -113,31 +113,31 @@ fun ProviderRegistrationScreen(
     var isSubmittedConfirmation by remember { mutableStateOf(false) }
 
     // --- Step 1: Personal Information ---
-    var fullName by remember { mutableStateOf("Ustad Muhammad Rashid") }
+    var fullName by remember { mutableStateOf("") }
     var profilePhotoUri by remember { mutableStateOf<String?>(null) }
-    var cnicNumber by remember { mutableStateOf("35201-8492019-3") }
+    var cnicNumber by remember { mutableStateOf("") }
     var cnicFrontUri by remember { mutableStateOf<String?>(null) }
     var cnicBackUri by remember { mutableStateOf<String?>(null) }
-    var dateOfBirth by remember { mutableStateOf("1988-04-12") }
-    var homeAddress by remember { mutableStateOf("Street 4, House 12, Gulberg III") }
+    var dateOfBirth by remember { mutableStateOf("") }
+    var homeAddress by remember { mutableStateOf("") }
     var cityArea by remember { mutableStateOf("Lahore - Gulberg") }
 
     // --- Step 2: Professional Information ---
-    val selectedCategories = remember { mutableStateListOf("plumbing", "electrical") }
-    var experienceYears by remember { mutableStateOf("8") }
-    var radiusKm by remember { mutableFloatStateOf(12f) }
-    var shopName by remember { mutableStateOf("Rashid Sanitary & Electric Works") }
+    val selectedCategories = remember { mutableStateListOf<String>() }
+    var experienceYears by remember { mutableStateOf("") }
+    var radiusKm by remember { mutableFloatStateOf(10f) }
+    var shopName by remember { mutableStateOf("") }
     var businessPhotoUri by remember { mutableStateOf<String?>(null) }
-    var bio by remember { mutableStateOf("Over 8 years solving residential plumbing leaks, geyser fittings, and household wiring safely.") }
+    var bio by remember { mutableStateOf("") }
 
     // --- Step 3: Verification (Optional at this stage) ---
-    var referenceName by remember { mutableStateOf("Haji Muhammad Tariq") }
-    var referencePhone by remember { mutableStateOf("03009876543") }
+    var referenceName by remember { mutableStateOf("") }
+    var referencePhone by remember { mutableStateOf("") }
 
     // --- Step 4: Payout Preference & Consent ---
     var payoutMethod by remember { mutableStateOf("JazzCash") } // Cash, JazzCash, EasyPaisa
-    var payoutAccountNumber by remember { mutableStateOf("03001234567") }
-    var consentAgreed by remember { mutableStateOf(true) }
+    var payoutAccountNumber by remember { mutableStateOf("") }
+    var consentAgreed by remember { mutableStateOf(false) }
 
     // Photo picker launchers
     val profilePhotoPicker = rememberLauncherForActivityResult(

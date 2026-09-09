@@ -1,5 +1,11 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,6 +37,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Work
@@ -101,7 +109,12 @@ fun ProviderHomeScreen(
     onAcceptJob: (ServiceRequestEntity) -> Unit,
     onRejectJob: (ServiceRequestEntity) -> Unit,
     onCounterJob: (ServiceRequestEntity, Int, String?) -> Unit,
+    onStartTrip: (ServiceRequestEntity) -> Unit = {},
+    onArrived: (ServiceRequestEntity) -> Unit = {},
+    onStartWork: (ServiceRequestEntity) -> Unit = {},
     onCompleteActiveJob: (Long) -> Unit,
+    onOpenChat: (ServiceRequestEntity) -> Unit = {},
+    onStartCall: (ServiceRequestEntity) -> Unit = {},
     onUpdateProfile: (
         name: String,
         cityArea: String,
@@ -115,6 +128,7 @@ fun ProviderHomeScreen(
     ) -> Unit = { _, _, _, _, _, _, _, _, _ -> },
     onLogout: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     var isOnline by remember { mutableStateOf(provider.isOnline) }
     var counterTargetJob by remember { mutableStateOf<ServiceRequestEntity?>(null) }
     var counterPriceInput by remember { mutableStateOf("") }
@@ -122,6 +136,18 @@ fun ProviderHomeScreen(
     var showCompleteConfirmation by remember { mutableStateOf(false) }
     var currentNavTab by remember { mutableStateOf("jobs") }
     val isApproved = provider.status == "APPROVED"
+
+    var showLocationPermissionExplanation by remember { mutableStateOf(false) }
+    var pendingTripJob by remember { mutableStateOf<ServiceRequestEntity?>(null) }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ ->
+        pendingTripJob?.let { job ->
+            onStartTrip(job)
+            pendingTripJob = null
+        }
+    }
 
     // Counter Dialog with clear contrast and mathematical increments
     if (counterTargetJob != null) {
@@ -317,6 +343,73 @@ fun ProviderHomeScreen(
         )
     }
 
+    if (showLocationPermissionExplanation && pendingTripJob != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showLocationPermissionExplanation = false
+                pendingTripJob = null
+            },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.NearMe,
+                        contentDescription = null,
+                        tint = DeepIndigo,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (language == AppLanguage.URDU) "لائیو لوکیشن شیئرنگ" else "Live Location Sharing",
+                        fontWeight = FontWeight.Bold,
+                        color = TextSlate,
+                        fontSize = 18.sp
+                    )
+                }
+            },
+            text = {
+                Text(
+                    text = if (language == AppLanguage.URDU)
+                        "کسٹمر کو آپ کے سفر کی لائیو ٹریکنگ دکھانے کے لیے، ہوم ایز آپ کی لوکیشن کو پس منظر میں شیئر کرے گا۔ ٹریکنگ کے دوران ایک مستقل نوٹیفکیشن ظاہر رہے گا، اور آپ کے پہنچنے پر ٹریکنگ خود بخود بند ہو جائے گی۔"
+                    else
+                        "To provide the customer with InDrive-style live tracking of your arrival, HomEase will share your location while you are on the way. A persistent notification will remain visible, and location sharing stops immediately when you tap 'Arrived'.",
+                    fontSize = 14.sp,
+                    color = TextSlate,
+                    lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLocationPermissionExplanation = false
+                        val perms = mutableListOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                            perms.add(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                        locationPermissionLauncher.launch(perms.toTypedArray())
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = DeepIndigo),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(
+                        text = if (language == AppLanguage.URDU) "اجازت دیں اور شروع کریں" else "Allow & Start Trip",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showLocationPermissionExplanation = false
+                    pendingTripJob = null
+                }) {
+                    Text(text = Strings.get("cancel", language), color = TextSlateMuted)
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             HomEaseTopBar(
@@ -456,47 +549,32 @@ fun ProviderHomeScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Verification Status Bar + Sandbox Simulator Switch
+                    // Verification Status Bar
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(if (isApproved) StatusGreenContainer else StatusYellowContainer)
                             .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (isApproved) Icons.Default.CheckCircle else Icons.Default.HourglassTop,
-                                contentDescription = null,
-                                tint = if (isApproved) StatusGreen else Color(0xFFB45309),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (isApproved) "Status: Approved & Verified" else "Status: Pending Review (No Live Jobs)",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isApproved) Color(0xFF065F46) else Color(0xFF92400E)
-                            )
-                        }
-
-                        // Simulation toggle to allow testing both Pending and Approved states
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (isApproved) Color.White else DeepIndigo)
-                                .clickable { onToggleVerification() }
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = if (isApproved) "Simulate Pending" else "Simulate Approved",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isApproved) TextSlate else Color.White
-                            )
-                        }
+                        Icon(
+                            imageVector = if (isApproved) Icons.Default.CheckCircle else Icons.Default.HourglassTop,
+                            contentDescription = null,
+                            tint = if (isApproved) StatusGreen else Color(0xFFB45309),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isApproved) {
+                                if (language == AppLanguage.URDU) "حیثیت: تصدیق شدہ کاریگر" else "Status: Approved & Verified"
+                            } else {
+                                if (language == AppLanguage.URDU) "حیثیت: جائزہ جاری ہے" else "Status: Under Review"
+                            },
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isApproved) Color(0xFF065F46) else Color(0xFF92400E)
+                        )
                     }
                 }
             }
@@ -533,7 +611,23 @@ fun ProviderHomeScreen(
                             SimplifiedActiveJobCard(
                                 job = activeJob,
                                 language = language,
-                                onComplete = { showCompleteConfirmation = true }
+                                onStartTrip = {
+                                    val hasFine = ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.ACCESS_FINE_LOCATION
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                    if (hasFine) {
+                                        onStartTrip(activeJob)
+                                    } else {
+                                        pendingTripJob = activeJob
+                                        showLocationPermissionExplanation = true
+                                    }
+                                },
+                                onArrived = { onArrived(activeJob) },
+                                onStartWork = { onStartWork(activeJob) },
+                                onComplete = { showCompleteConfirmation = true },
+                                onOpenChat = { onOpenChat(activeJob) },
+                                onStartCall = { onStartCall(activeJob) }
                             )
                         }
                     }
@@ -786,13 +880,12 @@ fun PendingProviderVerificationCard(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Fast simulation trigger for evaluating the approved state
             PrimaryCtaButton(
-                text = "⚡ Simulate Admin Approval (Sandbox Mode)",
+                text = if (language == AppLanguage.URDU) "حیثیت دوبارہ چیک کریں" else "Check Verification Status",
                 onClick = onSimulateApproval,
                 backgroundColor = DeepIndigo,
                 isProviderStyle = true,
-                testTag = "simulate_approval_btn"
+                testTag = "check_status_btn"
             )
         }
     }
@@ -1003,14 +1096,20 @@ fun SimplifiedJobPingCard(
 }
 
 /**
- * Noticeably simpler Active Job Card with direct Call & Complete buttons.
+ * Noticeably simpler Active Job Card with direct Call, Trip Tracking, & Complete buttons.
  */
 @Composable
 fun SimplifiedActiveJobCard(
     job: ServiceRequestEntity,
     language: AppLanguage,
-    onComplete: () -> Unit
+    onStartTrip: () -> Unit = {},
+    onArrived: () -> Unit = {},
+    onStartWork: () -> Unit = {},
+    onComplete: () -> Unit = {},
+    onOpenChat: () -> Unit = {},
+    onStartCall: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1020,32 +1119,80 @@ fun SimplifiedActiveJobCard(
         border = androidx.compose.foundation.BorderStroke(2.dp, DeepIndigo)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
+            // Top Status & Agreed Price Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = job.serviceTitle,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextSlate
+                // Trip Status Chip
+                val (statusText, statusBg, statusColor) = when (job.status.uppercase()) {
+                    "ON_THE_WAY" -> Triple(
+                        if (language == AppLanguage.URDU) "راستے میں ہے • لائیو ٹریکنگ" else "ON THE WAY • LIVE SHARING",
+                        Color(0xFFDCFCE7),
+                        StatusGreen
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${if (language == AppLanguage.URDU) "کسٹمر:" else "Customer:"} ${job.customerName}",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = DeepIndigo
+                    "ARRIVED" -> Triple(
+                        if (language == AppLanguage.URDU) "پتہ پر پہنچ چکے ہیں" else "ARRIVED AT LOCATION",
+                        Color(0xFFE0F2FE),
+                        DeepIndigo
+                    )
+                    "IN_PROGRESS" -> Triple(
+                        if (language == AppLanguage.URDU) "کام جاری ہے" else "WORK IN PROGRESS",
+                        Color(0xFFFEF3C7),
+                        Color(0xFFB45309)
+                    )
+                    "AWAITING_CUSTOMER_CONFIRMATION" -> Triple(
+                        if (language == AppLanguage.URDU) "کسٹمر کی تصدیق کا انتظار" else "AWAITING CONFIRMATION",
+                        Color(0xFFF1F5F9),
+                        TextSlateMuted
+                    )
+                    else -> Triple(
+                        if (language == AppLanguage.URDU) "روانگی کے لیے تیار" else "READY FOR DEPARTURE",
+                        DeepIndigoContainer,
+                        DeepIndigo
                     )
                 }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(statusBg)
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = statusText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+
                 val agreedOrBudget = if (job.agreedPriceRs > 0) job.agreedPriceRs else job.budgetRs
                 Text(
                     text = "Rs $agreedOrBudget",
-                    fontSize = 26.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Black,
                     color = StatusGreen
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Column {
+                Text(
+                    text = job.serviceTitle,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextSlate
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${if (language == AppLanguage.URDU) "کسٹمر:" else "Customer:"} ${job.customerName}",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = DeepIndigo
                 )
             }
 
@@ -1079,60 +1226,200 @@ fun SimplifiedActiveJobCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Direct Call & WhatsApp Contact Buttons (54dp height)
+            // Direct Communication Buttons (Voice Call & Chat)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Button(
-                    onClick = { /* Simulated Call */ },
-                    modifier = Modifier.weight(1f).height(52.dp),
+                    onClick = onStartCall,
+                    modifier = Modifier.weight(1f).height(50.dp).testTag("provider_call_customer_btn"),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = DeepIndigo)
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusGreen)
                 ) {
-                    Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (language == AppLanguage.URDU) "کال کریں" else "CALL", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(if (language == AppLanguage.URDU) "صوتی کال" else "VOICE CALL", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
 
                 Button(
-                    onClick = { /* Simulated WhatsApp */ },
-                    modifier = Modifier.weight(1f).height(52.dp),
+                    onClick = onOpenChat,
+                    modifier = Modifier.weight(1f).height(50.dp).testTag("provider_chat_customer_btn"),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366))
+                    colors = ButtonDefaults.buttonColors(containerColor = DeepIndigo)
                 ) {
-                    Icon(Icons.Default.Message, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Message, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("WHATSAPP", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(if (language == AppLanguage.URDU) "چیٹ کریں" else "JOB CHAT", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Secondary WhatsApp & Phone Options
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val phone = job.customerPhone.replace("+", "")
+                        val url = "https://api.whatsapp.com/send?phone=$phone"
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.weight(1f).height(40.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF25D366))
+                ) {
+                    Text("WhatsApp", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1E7E34))
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val phone = job.customerPhone
+                        val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:$phone"))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.weight(1f).height(40.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1))
+                ) {
+                    Text(if (language == AppLanguage.URDU) "سیلولر ڈائلر" else "Cellular Dial", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSlate)
                 }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Mark as Completed Button (60dp height)
-            Button(
-                onClick = onComplete,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-                    .testTag("provider_complete_job_btn"),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = StatusGreen,
-                    contentColor = Color.White
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = Strings.get("job_completed", language),
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            // ================================================================
+            // Contextual Trip Progression Action Button
+            // ================================================================
+            when (job.status.uppercase()) {
+                "ACCEPTED" -> {
+                    Button(
+                        onClick = onStartTrip,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("provider_on_the_way_btn"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFDC5F45), // Coral Sunset Primary
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Navigation,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (language == AppLanguage.URDU) "راستے میں ہیں (شروع کریں)" else "On the way",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                "ON_THE_WAY" -> {
+                    Button(
+                        onClick = onArrived,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("provider_arrived_btn"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF2A9D8F), // Muted Teal Accent
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (language == AppLanguage.URDU) "پتہ پر پہنچ گئے ہیں" else "Arrived",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                "ARRIVED" -> {
+                    Button(
+                        onClick = onStartWork,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("provider_start_work_btn"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DeepIndigo,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Work,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (language == AppLanguage.URDU) "کام شروع کریں" else "Start Work",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                "IN_PROGRESS" -> {
+                    Button(
+                        onClick = onComplete,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(58.dp)
+                            .testTag("provider_complete_job_btn"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = StatusGreen,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = Strings.get("job_completed", language),
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                else -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF1F5F9))
+                            .padding(14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (language == AppLanguage.URDU) "کسٹمر کی تصدیق کا انتظار ہے..." else "Awaiting customer confirmation...",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = TextSlateMuted
+                        )
+                    }
+                }
             }
         }
     }

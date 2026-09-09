@@ -67,11 +67,11 @@ fun CustomerRegistrationScreen(
     language: AppLanguage,
     onComplete: (UserEntity) -> Unit
 ) {
-    var fullName by remember { mutableStateOf("Adnan Shah") }
+    var fullName by remember { mutableStateOf("") }
     var selectedAvatarIndex by remember { mutableStateOf(0) }
     var cityArea by remember { mutableStateOf("Lahore - Gulberg") }
     var cityExpanded by remember { mutableStateOf(false) }
-    var homeAddress by remember { mutableStateOf("House 42-B, Main Boulevard, Gulberg III") }
+    var homeAddress by remember { mutableStateOf("") }
 
     val cityOptions = listOf(
         "Lahore - Gulberg",
@@ -166,7 +166,7 @@ fun CustomerRegistrationScreen(
             OutlinedTextField(
                 value = fullName,
                 onValueChange = { fullName = it },
-                placeholder = { Text("e.g. Adnan Shah", color = TextSlateMuted) },
+                placeholder = { Text(if (language == AppLanguage.URDU) "مثلاً محمد علی" else "e.g. Muhammad Ali", color = TextSlateMuted) },
                 singleLine = true,
                 textStyle = androidx.compose.ui.text.TextStyle(color = TextSlate, fontSize = 15.sp),
                 modifier = Modifier

@@ -115,6 +115,7 @@ fun CustomerHomeScreen(
     onToggleLanguage: () -> Unit,
     onStartNewRequest: (String?) -> Unit,
     onOpenRequestDetails: (Long) -> Unit,
+    onOpenLiveTracking: (ServiceRequestEntity) -> Unit = {},
     onSubmitRating: (jobId: Long, rating: Int, comment: String) -> Unit = { _, _, _ -> },
     onReportIssue: (jobId: Long, category: String, description: String) -> Unit = { _, _, _ -> },
     onAutoCompleteJob: (jobId: Long) -> Unit = {},
@@ -715,20 +716,42 @@ fun CustomerHomeScreen(
                                 }
                             }
 
+                            val isTrackable = req.status in listOf("ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS")
                             Button(
-                                onClick = { onOpenRequestDetails(req.id) },
+                                onClick = {
+                                    if (isTrackable) {
+                                        onOpenLiveTracking(req)
+                                    } else {
+                                        onOpenRequestDetails(req.id)
+                                    }
+                                },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = SurfaceVariantLight,
-                                    contentColor = TextSlate
+                                    containerColor = if (isTrackable) Color(0xFFDC5F45) else SurfaceVariantLight,
+                                    contentColor = if (isTrackable) Color.White else TextSlate
                                 ),
                                 shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                modifier = Modifier.testTag("track_active_request_btn")
                             ) {
-                                Text(
-                                    text = Strings.get("view_progress", language),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                if (isTrackable) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (language == AppLanguage.URDU) "لائیو ٹریکنگ" else "Track Live",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                } else {
+                                    Text(
+                                        text = Strings.get("view_progress", language),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }

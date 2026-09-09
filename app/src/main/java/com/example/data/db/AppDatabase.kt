@@ -11,9 +11,12 @@ import androidx.room.RoomDatabase
         ServiceRequestEntity::class,
         JobOfferEntity::class,
         JobRatingEntity::class,
-        ServiceCategoryEntity::class
+        ServiceCategoryEntity::class,
+        ProviderLocationEntity::class,
+        JobMessageEntity::class,
+        CallLogEntity::class
     ],
-    version = 5,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -22,6 +25,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun jobOfferDao(): JobOfferDao
     abstract fun jobRatingDao(): JobRatingDao
     abstract fun serviceCategoryDao(): ServiceCategoryDao
+    abstract fun providerLocationDao(): ProviderLocationDao
+    abstract fun jobMessageDao(): JobMessageDao
+    abstract fun callLogDao(): CallLogDao
 
     companion object {
         @Volatile
@@ -34,7 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "homease_database"
                 )
-                .fallbackToDestructiveMigration()
+                .fallbackToDestructiveMigration(true)
                 .build()
                 INSTANCE = instance
                 instance

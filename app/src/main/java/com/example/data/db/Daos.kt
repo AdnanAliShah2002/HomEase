@@ -27,6 +27,12 @@ interface UserDao {
     @Query("UPDATE users SET avgRating = :avgRating, totalJobs = :totalJobs WHERE phone = :phone")
     suspend fun updateProviderRatingStats(phone: String, avgRating: Double, totalJobs: Int)
 
+    @Query("DELETE FROM users WHERE phone IN ('+923001234567', '+923217654321', '+923334567890', '+923456789012')")
+    suspend fun deleteDemoUsers()
+
+    @Query("DELETE FROM users WHERE phone = :phone")
+    suspend fun deleteUserByPhone(phone: String)
+
     @Query("UPDATE users SET name = :name, cityArea = :cityArea, savedAddressesCsv = :savedAddresses WHERE phone = :phone")
     suspend fun updateCustomerProfile(phone: String, name: String, cityArea: String, savedAddresses: String)
 
@@ -56,7 +62,7 @@ interface ServiceRequestDao {
     @Query("SELECT * FROM service_requests WHERE status = 'SEARCHING' ORDER BY createdAt DESC")
     fun getAvailableJobsFlow(): Flow<List<ServiceRequestEntity>>
 
-    @Query("SELECT * FROM service_requests WHERE selectedProviderPhone = :providerPhone AND status IN ('ACCEPTED', 'IN_PROGRESS') ORDER BY createdAt DESC LIMIT 1")
+    @Query("SELECT * FROM service_requests WHERE selectedProviderPhone = :providerPhone AND status IN ('ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS', 'accepted', 'on_the_way', 'arrived', 'in_progress') ORDER BY createdAt DESC LIMIT 1")
     fun getActiveJobForProviderFlow(providerPhone: String): Flow<ServiceRequestEntity?>
 
     @Query("SELECT * FROM service_requests WHERE selectedProviderPhone = :providerPhone AND status IN ('COMPLETED', 'AWAITING_CUSTOMER_CONFIRMATION') ORDER BY createdAt DESC")
@@ -86,6 +92,9 @@ interface ServiceRequestDao {
     @Query("UPDATE service_requests SET status = :status, selectedProviderPhone = :providerPhone, selectedProviderName = :providerName, agreedPriceRs = :price WHERE id = :id")
     suspend fun acceptJob(id: Long, status: String, providerPhone: String, providerName: String, price: Int)
 
+    @Query("UPDATE service_requests SET status = :status, statusUpdatedAt = :statusUpdatedAt WHERE id = :id")
+    suspend fun updateJobStatusWithTimestamp(id: Long, status: String, statusUpdatedAt: Long)
+
     @Query("UPDATE service_requests SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: Long, status: String)
 
@@ -106,6 +115,9 @@ interface ServiceRequestDao {
 
     @Query("UPDATE service_requests SET agreedPriceRs = 1500 WHERE agreedPriceRs > 100000")
     suspend fun sanitizeCorruptedAgreedPrices()
+
+    @Query("DELETE FROM service_requests WHERE customerPhone IN ('+923001234567', '+923217654321') OR selectedProviderPhone IN ('+923001234567', '+923217654321')")
+    suspend fun deleteDemoRequests()
 }
 
 @Dao
@@ -133,6 +145,9 @@ interface JobOfferDao {
 
     @Query("UPDATE job_offers SET counterPriceRs = 1500 WHERE counterPriceRs > 100000")
     suspend fun sanitizeCorruptedOffers()
+
+    @Query("DELETE FROM job_offers WHERE providerPhone IN ('+923001234567', '+923217654321', '+923334567890', '+923456789012')")
+    suspend fun deleteDemoOffers()
 }
 
 @Dao
@@ -172,4 +187,59 @@ interface JobRatingDao {
 
     @Query("SELECT COUNT(*) FROM job_ratings WHERE providerPhone = :providerPhone")
     suspend fun getRatingCountForProvider(providerPhone: String): Int
+
+    @Query("DELETE FROM job_ratings WHERE customerPhone IN ('+923001234567', '+923217654321') OR providerPhone IN ('+923001234567', '+923217654321')")
+    suspend fun deleteDemoRatings()
 }
+
+@Dao
+interface ProviderLocationDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertLocation(location: ProviderLocationEntity)
+
+    @Query("SELECT * FROM provider_locations WHERE jobId = :jobId LIMIT 1")
+    fun getLocationForJobFlow(jobId: String): Flow<ProviderLocationEntity?>
+
+    @Query("SELECT * FROM provider_locations WHERE jobId = :jobId LIMIT 1")
+    suspend fun getLocationForJob(jobId: String): ProviderLocationEntity?
+
+    @Query("DELETE FROM provider_locations WHERE jobId = :jobId")
+    suspend fun deleteLocationForJob(jobId: String)
+}
+
+@Dao
+interface JobMessageDao {
+    @Query("SELECT * FROM job_messages WHERE jobId = :jobId ORDER BY createdAtEpochMs ASC")
+    fun getMessagesForJobFlow(jobId: String): Flow<List<JobMessageEntity>>
+
+    @Query("SELECT * FROM job_messages WHERE jobId = :jobId ORDER BY createdAtEpochMs ASC")
+    suspend fun getMessagesForJob(jobId: String): List<JobMessageEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessage(message: JobMessageEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessages(messages: List<JobMessageEntity>)
+
+    @Query("UPDATE job_messages SET readAtEpochMs = :readAt WHERE jobId = :jobId AND senderId != :currentUserId AND readAtEpochMs IS NULL")
+    suspend fun markMessagesAsRead(jobId: String, currentUserId: String, readAt: Long = System.currentTimeMillis())
+
+    @Query("SELECT COUNT(*) FROM job_messages WHERE jobId = :jobId AND senderId != :currentUserId AND readAtEpochMs IS NULL")
+    fun getUnreadCountFlow(jobId: String, currentUserId: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM job_messages WHERE jobId = :jobId AND senderId != :currentUserId AND readAtEpochMs IS NULL")
+    suspend fun getUnreadCount(jobId: String, currentUserId: String): Int
+}
+
+@Dao
+interface CallLogDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCallLog(callLog: CallLogEntity)
+
+    @Query("UPDATE call_logs SET endedAtEpochMs = :endedAt, durationSeconds = :durationSeconds WHERE id = :id")
+    suspend fun updateCallLog(id: String, endedAt: Long, durationSeconds: Int)
+
+    @Query("SELECT * FROM call_logs WHERE jobId = :jobId ORDER BY startedAtEpochMs DESC")
+    fun getCallLogsForJobFlow(jobId: String): Flow<List<CallLogEntity>>
+}
+

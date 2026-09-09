@@ -1,8 +1,11 @@
 package com.example.data.repository
 
 import com.example.data.db.AppDatabase
+import com.example.data.db.CallLogEntity
+import com.example.data.db.JobMessageEntity
 import com.example.data.db.JobOfferEntity
 import com.example.data.db.JobRatingEntity
+import com.example.data.db.ProviderLocationEntity
 import com.example.data.db.ServiceCategoryEntity
 import com.example.data.db.ServiceRequestEntity
 import com.example.data.db.UserEntity
@@ -19,6 +22,9 @@ class HomeaseRepository(private val database: AppDatabase) {
     private val offerDao = database.jobOfferDao()
     private val jobRatingDao = database.jobRatingDao()
     private val categoryDao = database.serviceCategoryDao()
+    private val locationDao = database.providerLocationDao()
+    private val jobMessageDao = database.jobMessageDao()
+    private val callLogDao = database.callLogDao()
 
     init {
         CoroutineScope(Dispatchers.IO).launch {
@@ -53,136 +59,12 @@ class HomeaseRepository(private val database: AppDatabase) {
         // Seed service categories with reference pricing ranges
         seedCategoriesIfEmpty()
 
-        val existingCustomer = userDao.getUserByPhone("+923001234567")
-        if (existingCustomer == null) {
-            // Seed demo customer
-            userDao.insertUser(
-                UserEntity(
-                    phone = "+923001234567",
-                    role = "CUSTOMER",
-                    name = "Adnan Shah",
-                    cityArea = "Lahore - Gulberg III",
-                    homeAddress = "House 42-B, Main Boulevard, Gulberg III",
-                    savedAddressesCsv = "Home: House 42-B, Main Boulevard, Gulberg III|Office: 3rd Floor, Siddiq Trade Centre, Gulberg II",
-                    status = "ACTIVE"
-                )
-            )
-            // Seed demo provider
-            userDao.insertUser(
-                UserEntity(
-                    phone = "+923217654321",
-                    role = "PROVIDER",
-                    name = "Ustad Muhammad Rashid",
-                    cityArea = "Lahore - Gulberg II",
-                    categoriesCsv = "plumbing,electrical",
-                    yearsExperience = "8 years",
-                    serviceRadiusKm = 12,
-                    cnicNumber = "35201-8492019-3",
-                    shopName = "Rashid Sanitary & Electric Store",
-                    bio = "Experienced technician specializing in sanitary fittings, water heaters, AC repairs, and home wiring. Available across Gulberg & Model Town.",
-                    payoutMethod = "JazzCash",
-                    payoutAccountNumber = "03217654321",
-                    status = "APPROVED",
-                    isOnline = true,
-                    avgRating = 4.9,
-                    totalJobs = 14
-                )
-            )
+        // Clean up any legacy demo / sandbox accounts or requests to maintain clean production state
+        userDao.deleteDemoUsers()
+        requestDao.deleteDemoRequests()
+        offerDao.deleteDemoOffers()
+        jobRatingDao.deleteDemoRatings()
 
-            // Seed an initial sample active request so provider home screen shows real data
-            val sampleRequestId = requestDao.insertRequest(
-                ServiceRequestEntity(
-                    customerPhone = "+923001234567",
-                    customerName = "Adnan Shah",
-                    categoryId = "plumbing",
-                    categoryTitle = "Plumbing",
-                    serviceTitle = "Kitchen Sink Pipe Leakage",
-                    description = "Water leaking under kitchen sink trap. Needs quick seal or replacement pipe.",
-                    cityArea = "Gulberg III, Lahore",
-                    fullAddress = "House 42-B, Main Boulevard, Gulberg III, Lahore",
-                    budgetRs = 1500,
-                    status = "SEARCHING"
-                )
-            )
-
-            // Seed a sample offer
-            offerDao.insertOffer(
-                JobOfferEntity(
-                    requestId = sampleRequestId,
-                    providerPhone = "+923217654321",
-                    providerName = "Ustad Muhammad Rashid",
-                    counterPriceRs = 1500,
-                    distanceKm = 1.4,
-                    providerRating = 4.9,
-                    status = "PENDING"
-                )
-            )
-
-            // Seed sample past bookings for customer & provider history
-            val pastJobId = requestDao.insertRequest(
-                ServiceRequestEntity(
-                    customerPhone = "+923001234567",
-                    customerName = "Adnan Shah",
-                    categoryId = "electrical",
-                    categoryTitle = "Electrical",
-                    serviceTitle = "Ceiling Fan Capacitor & Bearing",
-                    description = "Master bedroom ceiling fan slow speed and squeaking noise.",
-                    cityArea = "Gulberg III, Lahore",
-                    fullAddress = "House 42-B, Gulberg III, Lahore",
-                    budgetRs = 1200,
-                    agreedPriceRs = 1200,
-                    status = "COMPLETED",
-                    selectedProviderPhone = "+923217654321",
-                    selectedProviderName = "Ustad Muhammad Rashid",
-                    createdAt = System.currentTimeMillis() - 86400000L * 3, // 3 days ago
-                    completedAt = System.currentTimeMillis() - 86400000L * 3 + 3600000L,
-                    ratingGiven = 5,
-                    ratingComment = "Very punctual and fixed the fan bearing smoothly. Highly recommended!"
-                )
-            )
-
-            jobRatingDao.insertRating(
-                JobRatingEntity(
-                    jobId = pastJobId,
-                    providerPhone = "+923217654321",
-                    customerPhone = "+923001234567",
-                    rating = 5,
-                    comment = "Very punctual and fixed the fan bearing smoothly. Highly recommended!"
-                )
-            )
-
-            val pastJobId2 = requestDao.insertRequest(
-                ServiceRequestEntity(
-                    customerPhone = "+923001234567",
-                    customerName = "Adnan Shah",
-                    categoryId = "appliances",
-                    categoryTitle = "AC & Appliances",
-                    serviceTitle = "Inverter AC Gas Refill & Cleaning",
-                    description = "Split AC cooling decreased before summer. General service needed.",
-                    cityArea = "Gulberg III, Lahore",
-                    fullAddress = "House 42-B, Gulberg III, Lahore",
-                    budgetRs = 3500,
-                    agreedPriceRs = 3500,
-                    status = "COMPLETED",
-                    selectedProviderPhone = "+923217654321",
-                    selectedProviderName = "Ustad Muhammad Rashid",
-                    createdAt = System.currentTimeMillis() - 86400000L * 7,
-                    completedAt = System.currentTimeMillis() - 86400000L * 7 + 7200000L,
-                    ratingGiven = 5,
-                    ratingComment = "Excellent AC service. Gas pressures verified and cools great."
-                )
-            )
-
-            jobRatingDao.insertRating(
-                JobRatingEntity(
-                    jobId = pastJobId2,
-                    providerPhone = "+923217654321",
-                    customerPhone = "+923001234567",
-                    rating = 5,
-                    comment = "Excellent AC service. Gas pressures verified and cools great."
-                )
-            )
-        }
     }
 
     // User Operations
@@ -212,62 +94,7 @@ class HomeaseRepository(private val database: AppDatabase) {
         requestDao.getRequestById(id)
 
     suspend fun createServiceRequest(request: ServiceRequestEntity): Long {
-        val id = requestDao.insertRequest(request)
-        val askingPrice = if (request.customerAskingPrice > 0) request.customerAskingPrice else request.budgetRs
-        val isInspectionNeeded = request.categoryId in listOf("plumbing", "electrical", "appliance_repair", "carpentry", "painting")
-
-        // Automatically simulate nearby provider responses for InDrive bidding experience
-        CoroutineScope(Dispatchers.IO).launch {
-            delay(1500)
-            // Provider 1: Accepts directly at customer's listed asking price
-            offerDao.insertOffer(
-                JobOfferEntity(
-                    requestId = id,
-                    providerPhone = "+923334567890",
-                    providerName = "Kashif Ali (Master Plumber)",
-                    counterPriceRs = askingPrice,
-                    offerPriceRs = askingPrice,
-                    distanceKm = 1.2,
-                    providerRating = 4.9,
-                    status = "pending",
-                    offerNote = "Accepted at your asking price of Rs $askingPrice"
-                )
-            )
-            delay(2000)
-            // Provider 2: Counter offer or inspection quote
-            val provider2Price = if (isInspectionNeeded && askingPrice > 800) 300 else (askingPrice * 1.15).toInt().coerceAtLeast(300)
-            val provider2Note = if (isInspectionNeeded && askingPrice > 800) "Rs 300 to inspect and quote" else "Available immediately in 20 mins"
-            offerDao.insertOffer(
-                JobOfferEntity(
-                    requestId = id,
-                    providerPhone = "+923456789012",
-                    providerName = "Tariq Mahmood Services",
-                    counterPriceRs = provider2Price,
-                    offerPriceRs = provider2Price,
-                    distanceKm = 2.5,
-                    providerRating = 4.8,
-                    status = "pending",
-                    offerNote = provider2Note
-                )
-            )
-            delay(2000)
-            // Provider 3: Competitive counter offer
-            val provider3Price = (askingPrice * 1.1).toInt().coerceAtLeast(250)
-            offerDao.insertOffer(
-                JobOfferEntity(
-                    requestId = id,
-                    providerPhone = "+923217654321",
-                    providerName = "Ustad Muhammad Rashid",
-                    counterPriceRs = provider3Price,
-                    offerPriceRs = provider3Price,
-                    distanceKm = 1.8,
-                    providerRating = 4.9,
-                    status = "pending",
-                    offerNote = "Experienced technician with all original spare parts"
-                )
-            )
-        }
-        return id
+        return requestDao.insertRequest(request)
     }
 
     suspend fun acceptJobByProvider(requestId: Long, providerPhone: String, providerName: String, agreedPrice: Int) {
@@ -328,6 +155,32 @@ class HomeaseRepository(private val database: AppDatabase) {
     suspend fun getCategoryById(id: String): ServiceCategoryEntity? =
         categoryDao.getCategoryById(id)
 
+    fun getProviderLocationForJobFlow(jobId: String): Flow<ProviderLocationEntity?> =
+        locationDao.getLocationForJobFlow(jobId)
+
+    suspend fun getProviderLocationForJob(jobId: String): ProviderLocationEntity? =
+        locationDao.getLocationForJob(jobId)
+
+    suspend fun saveProviderLocation(location: ProviderLocationEntity) {
+        locationDao.upsertLocation(location)
+    }
+
+    suspend fun updateJobStatus(requestId: Long, status: String) {
+        requestDao.updateJobStatusWithTimestamp(requestId, status, System.currentTimeMillis())
+    }
+
+    suspend fun markJobOnTheWay(requestId: Long) {
+        requestDao.updateJobStatusWithTimestamp(requestId, "ON_THE_WAY", System.currentTimeMillis())
+    }
+
+    suspend fun markJobArrived(requestId: Long) {
+        requestDao.updateJobStatusWithTimestamp(requestId, "ARRIVED", System.currentTimeMillis())
+    }
+
+    suspend fun markJobInProgress(requestId: Long) {
+        requestDao.updateJobStatusWithTimestamp(requestId, "IN_PROGRESS", System.currentTimeMillis())
+    }
+
     suspend fun completeJob(requestId: Long) {
         requestDao.updateStatus(requestId, "COMPLETED")
     }
@@ -341,7 +194,7 @@ class HomeaseRepository(private val database: AppDatabase) {
         val now = System.currentTimeMillis()
         requestDao.completeJobWithRating(requestId, rating, comment, now)
 
-        val providerPhone = job.selectedProviderPhone ?: "+923217654321"
+        val providerPhone = job.selectedProviderPhone ?: return
         // Insert rating entity
         jobRatingDao.insertRating(
             JobRatingEntity(
@@ -365,10 +218,10 @@ class HomeaseRepository(private val database: AppDatabase) {
         val job = requestDao.getRequestById(requestId) ?: return
         val now = System.currentTimeMillis()
         requestDao.autoCompleteJobWithoutRating(requestId, now)
-        val providerPhone = job.selectedProviderPhone ?: "+923217654321"
+        val providerPhone = job.selectedProviderPhone ?: return
         val count = jobRatingDao.getRatingCountForProvider(providerPhone)
         val currentProvider = userDao.getUserByPhone(providerPhone)
-        val currentAvg = currentProvider?.avgRating ?: 4.9
+        val currentAvg = currentProvider?.avgRating ?: 5.0
         userDao.updateProviderRatingStats(providerPhone, currentAvg, count + 1)
     }
 
@@ -425,4 +278,39 @@ class HomeaseRepository(private val database: AppDatabase) {
 
     fun getOffersForRequest(requestId: Long): Flow<List<JobOfferEntity>> =
         offerDao.getOffersForRequestFlow(requestId)
+
+    // ========================================================================
+    // In-App Messaging & Calling
+    // ========================================================================
+
+    fun getMessagesForJobFlow(jobId: String): Flow<List<JobMessageEntity>> =
+        jobMessageDao.getMessagesForJobFlow(jobId)
+
+    suspend fun getMessagesForJob(jobId: String): List<JobMessageEntity> =
+        jobMessageDao.getMessagesForJob(jobId)
+
+    suspend fun insertMessage(message: JobMessageEntity) =
+        jobMessageDao.insertMessage(message)
+
+    suspend fun insertMessages(messages: List<JobMessageEntity>) =
+        jobMessageDao.insertMessages(messages)
+
+    suspend fun markMessagesAsRead(jobId: String, currentUserId: String) =
+        jobMessageDao.markMessagesAsRead(jobId, currentUserId)
+
+    fun getUnreadMessageCountFlow(jobId: String, currentUserId: String): Flow<Int> =
+        jobMessageDao.getUnreadCountFlow(jobId, currentUserId)
+
+    suspend fun getUnreadMessageCount(jobId: String, currentUserId: String): Int =
+        jobMessageDao.getUnreadCount(jobId, currentUserId)
+
+    suspend fun insertCallLog(callLog: CallLogEntity) =
+        callLogDao.insertCallLog(callLog)
+
+    suspend fun updateCallLog(id: String, endedAt: Long, durationSeconds: Int) =
+        callLogDao.updateCallLog(id, endedAt, durationSeconds)
+
+    fun getCallLogsForJobFlow(jobId: String): Flow<List<CallLogEntity>> =
+        callLogDao.getCallLogsForJobFlow(jobId)
 }
+

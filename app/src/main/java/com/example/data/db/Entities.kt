@@ -28,10 +28,10 @@ data class UserEntity(
     val payoutAccountNumber: String = "",
     val consentAgreed: Boolean = true,
     val status: String = "PENDING", // PENDING, ACTIVE, APPROVED
-    val isOnline: Boolean = true,
-    val avgRating: Double = 4.9,
-    val totalJobs: Int = 12,
-    val savedAddressesCsv: String = "Home: House 42-B, Main Boulevard, Gulberg III|Office: 3rd Floor, Siddiq Trade Centre, Gulberg II"
+    val isOnline: Boolean = false,
+    val avgRating: Double = 5.0,
+    val totalJobs: Int = 0,
+    val savedAddressesCsv: String = ""
 )
 
 @Entity(tableName = "service_requests")
@@ -48,16 +48,28 @@ data class ServiceRequestEntity(
     val fullAddress: String,
     val budgetRs: Int,
     val customerAskingPrice: Int = budgetRs,
-    val status: String = "SEARCHING", // SEARCHING, ACCEPTED, IN_PROGRESS, AWAITING_CUSTOMER_CONFIRMATION, COMPLETED, CANCELLED
+    val status: String = "SEARCHING", // SEARCHING, ACCEPTED, ON_THE_WAY, ARRIVED, IN_PROGRESS, AWAITING_CUSTOMER_CONFIRMATION, COMPLETED, CANCELLED
     val selectedProviderPhone: String? = null,
     val selectedProviderName: String? = null,
     val agreedPriceRs: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
+    val statusUpdatedAt: Long? = null,
     val completedAt: Long? = null,
     val ratingGiven: Int? = null,
     val ratingComment: String? = null,
     val issueCategory: String? = null,
     val issueDescription: String? = null
+)
+
+@Entity(tableName = "provider_locations")
+data class ProviderLocationEntity(
+    @PrimaryKey
+    val jobId: String,
+    val providerId: String,
+    val lat: Double,
+    val lng: Double,
+    val heading: Double? = null,
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
 @Entity(tableName = "job_offers")
@@ -100,3 +112,28 @@ data class JobRatingEntity(
     val comment: String = "",
     val createdAt: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "job_messages")
+data class JobMessageEntity(
+    @PrimaryKey
+    val id: String,
+    val jobId: String,
+    val senderId: String,
+    val senderType: String, // "customer" | "provider"
+    val message: String,
+    val createdAtEpochMs: Long = System.currentTimeMillis(),
+    val createdAtIso: String = "",
+    val readAtEpochMs: Long? = null
+)
+
+@Entity(tableName = "call_logs")
+data class CallLogEntity(
+    @PrimaryKey
+    val id: String,
+    val jobId: String,
+    val callerId: String,
+    val startedAtEpochMs: Long = System.currentTimeMillis(),
+    val endedAtEpochMs: Long? = null,
+    val durationSeconds: Int? = null
+)
+

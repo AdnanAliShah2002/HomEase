@@ -17,7 +17,10 @@ import com.example.ui.screens.AuthChoiceScreen
 import com.example.ui.screens.CustomerHomeScreen
 import com.example.ui.screens.CustomerRegistrationScreen
 import com.example.ui.screens.CustomerRequestFlowScreen
+import com.example.ui.screens.InCallScreen
+import com.example.ui.screens.JobChatScreen
 import com.example.ui.screens.LanguageSelectScreen
+import com.example.ui.screens.LiveTrackingMapScreen
 import com.example.ui.screens.OtpVerificationScreen
 import com.example.ui.screens.PhoneEntryScreen
 import com.example.ui.screens.ProviderHomeScreen
@@ -67,6 +70,9 @@ fun HomEaseApp(viewModel: HomeaseViewModel) {
     val providerActiveJob by viewModel.providerActiveJob.collectAsState()
     val providerPastJobs by viewModel.providerPastJobs.collectAsState()
     val providerCompletedJobs by viewModel.providerCompletedJobs.collectAsState()
+    val trackingJob by viewModel.trackingJob.collectAsState()
+    val activeChatJob by viewModel.activeChatJob.collectAsState()
+    val activeTheme by viewModel.currentTheme.collectAsState()
     val fullscreenPingJob by viewModel.fullscreenPingJob.collectAsState()
     val isSendingOtp by viewModel.isSendingOtp.collectAsState()
     val otpSendError by viewModel.otpSendError.collectAsState()
@@ -76,24 +82,24 @@ fun HomEaseApp(viewModel: HomeaseViewModel) {
     val fallbackCustomer = UserEntity(
         phone = currentPhoneNumber,
         role = "CUSTOMER",
-        name = "Adnan Shah",
-        cityArea = "Lahore - Gulberg III",
-        homeAddress = "House 42-B, Main Boulevard, Gulberg III",
+        name = "Customer",
+        cityArea = "Lahore - Gulberg",
+        homeAddress = "",
         status = "ACTIVE"
     )
 
     val fallbackProvider = UserEntity(
         phone = currentPhoneNumber,
         role = "PROVIDER",
-        name = "Ustad Muhammad Rashid",
-        cityArea = "Lahore - Gulberg II",
-        categoriesCsv = "plumbing,electrical",
-        yearsExperience = "8 years",
-        serviceRadiusKm = 12,
-        cnicNumber = "35201-8492019-3",
-        shopName = "Rashid Sanitary Works",
+        name = "Service Provider",
+        cityArea = "Lahore - Gulberg",
+        categoriesCsv = "",
+        yearsExperience = "",
+        serviceRadiusKm = 10,
+        cnicNumber = "",
+        shopName = "",
         status = "PENDING",
-        isOnline = true
+        isOnline = false
     )
 
     when (destination) {
@@ -178,6 +184,7 @@ fun HomEaseApp(viewModel: HomeaseViewModel) {
                 onToggleLanguage = { viewModel.toggleLanguage() },
                 onStartNewRequest = { catId -> viewModel.startNewRequestFlow(catId) },
                 onOpenRequestDetails = { reqId -> viewModel.openRequestDetails(reqId) },
+                onOpenLiveTracking = { job -> viewModel.openLiveTracking(job) },
                 onSubmitRating = { jobId, rating, comment ->
                     viewModel.submitCustomerRating(jobId, rating, comment)
                 },
@@ -211,7 +218,12 @@ fun HomEaseApp(viewModel: HomeaseViewModel) {
                 onAcceptJob = { job -> viewModel.acceptJobAsProvider(job) },
                 onRejectJob = { job -> viewModel.rejectJobAsProvider(job) },
                 onCounterJob = { job, counterPrice, note -> viewModel.counterJobAsProvider(job, counterPrice, note) },
+                onStartTrip = { job -> viewModel.startProviderJobTrip(job) },
+                onArrived = { job -> viewModel.markProviderJobArrived(job) },
+                onStartWork = { job -> viewModel.startProviderJobWork(job) },
                 onCompleteActiveJob = { jobId -> viewModel.completeActiveJob(jobId) },
+                onOpenChat = { job -> viewModel.openChat(job) },
+                onStartCall = { job -> viewModel.startVoiceCall(job) },
                 onUpdateProfile = { name, cityArea, categoriesCsv, yearsExp, radius, bio, shopName, payoutMethod, payoutAcc ->
                     viewModel.updateProviderProfile(
                         name, cityArea, categoriesCsv, yearsExp, radius, bio, shopName, payoutMethod, payoutAcc
@@ -225,8 +237,8 @@ fun HomEaseApp(viewModel: HomeaseViewModel) {
             CustomerRequestFlowScreen(
                 initialCategoryId = initialCatId,
                 customerPhone = currentUser?.phone ?: currentPhoneNumber,
-                customerName = currentUser?.name ?: "Adnan Shah",
-                savedAddress = currentUser?.homeAddress ?: "House 42-B, Main Boulevard, Gulberg III, Lahore",
+                customerName = currentUser?.name ?: "Customer",
+                savedAddress = currentUser?.homeAddress ?: "",
                 cityArea = currentUser?.cityArea ?: "Lahore - Gulberg",
                 language = language,
                 activeLiveRequest = activeLiveRequest,
@@ -235,7 +247,49 @@ fun HomEaseApp(viewModel: HomeaseViewModel) {
                 onSubmitRequest = { req -> viewModel.submitServiceRequest(req) },
                 onSelectOffer = { offer -> viewModel.selectOfferForRequest(offer) },
                 onDoneViewingConfirmed = { viewModel.navigateToHome() },
+                onOpenLiveTracking = { job -> viewModel.openLiveTracking(job) },
                 onDetectCategory = { description -> viewModel.detectCategory(description) }
+            )
+        }
+
+        AppNavDestination.CUSTOMER_LIVE_TRACKING -> {
+            val jobToTrack = trackingJob ?: activeLiveRequest ?: customerRequests.firstOrNull {
+                it.status in listOf("ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS")
+            }
+            if (jobToTrack != null) {
+                LiveTrackingMapScreen(
+                    job = jobToTrack,
+                    viewModel = viewModel,
+                    theme = activeTheme,
+                    language = language,
+                    onBack = { viewModel.navigateToHome() },
+                    onOpenChat = { viewModel.openChat(jobToTrack) },
+                    onStartCall = { viewModel.startVoiceCall(jobToTrack) }
+                )
+            } else {
+                viewModel.navigateToHome()
+            }
+        }
+
+        AppNavDestination.JOB_CHAT -> {
+            val chatJob = activeChatJob ?: trackingJob ?: activeLiveRequest ?: providerActiveJob ?: customerRequests.firstOrNull()
+            if (chatJob != null) {
+                JobChatScreen(
+                    job = chatJob,
+                    viewModel = viewModel,
+                    onBack = { viewModel.navigateBack() },
+                    onStartCall = { viewModel.startVoiceCall(chatJob) }
+                )
+            } else {
+                viewModel.navigateBack()
+            }
+        }
+
+        AppNavDestination.IN_CALL -> {
+            InCallScreen(
+                viewModel = viewModel,
+                onMinimize = { viewModel.navigateBack() },
+                onCallClosed = { viewModel.closeCallScreen() }
             )
         }
 
