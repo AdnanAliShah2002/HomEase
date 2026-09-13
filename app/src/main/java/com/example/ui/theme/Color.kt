@@ -36,6 +36,9 @@ val StatusYellowContainer = Color(0xFFFFFBEB)
 val StatusRed = Color(0xFFEF4444)
 val StatusRedContainer = Color(0xFFFEF2F2)
 
+// Common modern UI accents
+val EmeraldGreen = Color(0xFF059669)
+
 /**
  * Dynamic runtime theme state holder.
  * Backed by Compose mutableStateOf properties, allowing any composable reading

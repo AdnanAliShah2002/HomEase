@@ -432,4 +432,83 @@ using (
   exists (select 1 from public.jobs where id = job_id and (customer_id = auth.uid() or provider_id = auth.uid()))
 );
 
+-- ========================================================================
+-- FCM PUSH NOTIFICATIONS & DEVICE TOKENS
+-- ========================================================================
+
+create table if not exists public.device_tokens (
+  id uuid primary key default gen_random_uuid(),
+  phone text not null,
+  role text not null default 'customer', -- 'customer' | 'provider'
+  fcm_token text unique not null,
+  categories text[], -- for providers: e.g. ARRAY['plumbing', 'electrical']
+  is_online boolean not null default true,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_device_tokens_phone on public.device_tokens(phone);
+create index if not exists idx_device_tokens_role on public.device_tokens(role);
+create index if not exists idx_device_tokens_online on public.device_tokens(is_online);
+
+alter table public.users add column if not exists fcm_token text;
+alter table public.service_providers add column if not exists fcm_token text;
+
+alter table public.device_tokens enable row level security;
+
+drop policy if exists "Allow public upsert own device token" on public.device_tokens;
+create policy "Allow public upsert own device token"
+  on public.device_tokens for all
+  using (true)
+  with check (true);
+
+-- Enable Realtime for instant jobs & offers notifications
+alter publication supabase_realtime add table public.jobs;
+alter publication supabase_realtime add table public.job_offers;
+
+-- Trigger Function for notify-job-event Edge Function
+create or replace function public.dispatch_job_fcm_notification()
+returns trigger as $$
+declare
+  payload jsonb;
+  target_url text;
+begin
+  payload := jsonb_build_object(
+    'type', TG_OP,
+    'table', TG_TABLE_NAME,
+    'record', row_to_json(NEW),
+    'old_record', case when TG_OP = 'UPDATE' then row_to_json(OLD) else null end
+  );
+
+  target_url := current_setting('app.settings.supabase_url', true);
+  if target_url is null or target_url = '' then
+    target_url := 'https://nsqrfagylbqrwlbvnsug.supabase.co';
+  end if;
+
+  if exists (select 1 from pg_extension where extname = 'pg_net') then
+    perform net.http_post(
+      url := target_url || '/functions/v1/notify-job-event',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json'
+      ),
+      body := payload
+    );
+  end if;
+
+  return NEW;
+exception when others then
+  return NEW;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_job_changed_notify on public.jobs;
+create trigger on_job_changed_notify
+  after insert or update on public.jobs
+  for each row execute function public.dispatch_job_fcm_notification();
+
+drop trigger if exists on_job_offer_changed_notify on public.job_offers;
+create trigger on_job_offer_changed_notify
+  after insert or update on public.job_offers
+  for each row execute function public.dispatch_job_fcm_notification();
+
+
 

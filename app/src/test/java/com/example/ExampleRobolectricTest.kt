@@ -70,8 +70,8 @@ class ExampleRobolectricTest {
 
   @Test
   fun `verify end-to-end job completion and rating recalculation`() = runBlocking {
-    val providerPhone = "+923001234567"
-    val customerPhone = "+923007654321"
+    val providerPhone = "+923005551122"
+    val customerPhone = "+923005552233"
 
     val provider = UserEntity(
         phone = providerPhone,

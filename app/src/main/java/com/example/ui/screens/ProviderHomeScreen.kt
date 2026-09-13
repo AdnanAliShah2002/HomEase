@@ -2,6 +2,8 @@ package com.example.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import java.text.NumberFormat
+import java.util.Locale
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -1170,11 +1172,14 @@ fun SimplifiedActiveJobCard(
                 }
 
                 val agreedOrBudget = if (job.agreedPriceRs > 0) job.agreedPriceRs else job.budgetRs
+                val formattedPrice = NumberFormat.getNumberInstance(Locale.US).format(agreedOrBudget)
                 Text(
-                    text = "Rs $agreedOrBudget",
-                    fontSize = 24.sp,
+                    text = "Rs $formattedPrice",
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
-                    color = StatusGreen
+                    color = StatusGreen,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
 

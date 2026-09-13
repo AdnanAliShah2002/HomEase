@@ -44,7 +44,7 @@ object Strings {
         // Phone Entry
         "phone_entry_title" to "Enter your phone number",
         "phone_entry_sub" to "We will send a 4-digit verification code via WhatsApp",
-        "phone_placeholder" to "300 1234567",
+        "phone_placeholder" to "3XX XXXXXXX",
         "send_code" to "Send code via WhatsApp",
         "sending_code" to "Sending code via WhatsApp...",
         "whatsapp_notice" to "We will text a 4-digit verification code to this number via WhatsApp.",
@@ -386,7 +386,7 @@ object Strings {
         // Phone Entry
         "phone_entry_title" to "اپنا فون نمبر درج کریں",
         "phone_entry_sub" to "ہم واٹس ایپ کے ذریعے 4 ہندسوں کا تصدیقی کوڈ بھیجیں گے",
-        "phone_placeholder" to "300 1234567",
+        "phone_placeholder" to "3XX XXXXXXX",
         "send_code" to "واٹس ایپ کے ذریعے کوڈ بھیجیں",
         "sending_code" to "واٹس ایپ پر کوڈ بھیجا جا رہا ہے...",
         "whatsapp_notice" to "ہم واٹس ایپ کے ذریعے 4 ہندسوں کا تصدیقی کوڈ بھیجیں گے۔",

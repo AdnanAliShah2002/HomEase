@@ -93,6 +93,38 @@ class HomeaseRepository(private val database: AppDatabase) {
     suspend fun getRequestById(id: Long): ServiceRequestEntity? =
         requestDao.getRequestById(id)
 
+    suspend fun getRequestByRemoteId(remoteId: String): ServiceRequestEntity? =
+        requestDao.getRequestByRemoteId(remoteId)
+
+    suspend fun syncRemoteJob(job: ServiceRequestEntity): Long {
+        val remoteId = job.remoteId
+        if (!remoteId.isNullOrBlank()) {
+            val existing = requestDao.getRequestByRemoteId(remoteId)
+            if (existing != null) {
+                val updated = job.copy(id = existing.id)
+                requestDao.updateRequest(updated)
+                return existing.id
+            }
+        }
+        return requestDao.insertRequest(job)
+    }
+
+    suspend fun syncRemoteOffer(offer: JobOfferEntity): Long {
+        val remoteOfferId = offer.remoteOfferId
+        if (!remoteOfferId.isNullOrBlank()) {
+            val existing = offerDao.getOfferByRemoteOfferId(remoteOfferId)
+            if (existing != null) {
+                val updated = offer.copy(id = existing.id)
+                offerDao.updateOfferStatus(existing.id, offer.status)
+                return existing.id
+            }
+        }
+        return offerDao.insertOffer(offer)
+    }
+
+    suspend fun getOffersForRequestSync(requestId: Long): List<JobOfferEntity> =
+        offerDao.getOffersForRequest(requestId)
+
     suspend fun createServiceRequest(request: ServiceRequestEntity): Long {
         return requestDao.insertRequest(request)
     }
@@ -118,6 +150,25 @@ class HomeaseRepository(private val database: AppDatabase) {
         )
         offerDao.markOfferAccepted(offer.id)
         offerDao.expireOtherOffersForRequest(requestId, offer.id)
+
+        // Seed initial provider location nearby the customer so live tracking map works immediately
+        try {
+            val req = requestDao.getRequestById(requestId)
+            val baseLat = req?.lat ?: 31.5204
+            val baseLng = req?.lng ?: 74.3587
+            locationDao.upsertLocation(
+                ProviderLocationEntity(
+                    jobId = requestId.toString(),
+                    providerId = offer.providerPhone,
+                    lat = baseLat + 0.012,
+                    lng = baseLng + 0.009,
+                    heading = 45.0,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+        } catch (_: Exception) {
+            // Ignore if error
+        }
     }
 
     suspend fun customerSelectOffer(offer: JobOfferEntity) {
@@ -245,9 +296,11 @@ class HomeaseRepository(private val database: AppDatabase) {
         phone: String,
         name: String,
         cityArea: String,
-        savedAddressesCsv: String
+        savedAddressesCsv: String,
+        lat: Double? = null,
+        lng: Double? = null
     ) {
-        userDao.updateCustomerProfile(phone, name, cityArea, savedAddressesCsv)
+        userDao.updateCustomerProfile(phone, name, cityArea, savedAddressesCsv, lat, lng)
     }
 
     suspend fun updateProviderProfile(
@@ -260,7 +313,9 @@ class HomeaseRepository(private val database: AppDatabase) {
         bio: String,
         shopName: String,
         payoutMethod: String,
-        payoutAccountNumber: String
+        payoutAccountNumber: String,
+        lat: Double? = null,
+        lng: Double? = null
     ) {
         userDao.updateProviderProfile(
             phone = phone,
@@ -272,7 +327,9 @@ class HomeaseRepository(private val database: AppDatabase) {
             bio = bio,
             shopName = shopName,
             payoutMethod = payoutMethod,
-            payoutAccount = payoutAccountNumber
+            payoutAccount = payoutAccountNumber,
+            lat = lat,
+            lng = lng
         )
     }
 

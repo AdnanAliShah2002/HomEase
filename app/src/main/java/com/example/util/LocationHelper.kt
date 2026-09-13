@@ -125,12 +125,35 @@ object LocationHelper {
         }
     }
 
-    @Suppress("DEPRECATION")
-    private suspend fun reverseGeocode(
+    suspend fun reverseGeocode(
         context: Context,
         latitude: Double,
         longitude: Double
     ): UserLocationResult = withContext(Dispatchers.IO) {
+        // 1. Primary: Use Geoapify Reverse Geocoding API with user key
+        try {
+            val geoapifyResult = GeoapifyService.reverseGeocode(latitude, longitude)
+            if (geoapifyResult != null && geoapifyResult.formatted.isNotBlank()) {
+                val cityArea = when {
+                    geoapifyResult.suburb.isNotBlank() && geoapifyResult.city.isNotBlank() ->
+                        "${geoapifyResult.suburb}, ${geoapifyResult.city}"
+                    geoapifyResult.city.isNotBlank() -> geoapifyResult.city
+                    geoapifyResult.addressLine2.isNotBlank() -> geoapifyResult.addressLine2
+                    else -> geoapifyResult.displayTitle
+                }
+                return@withContext UserLocationResult(
+                    latitude = latitude,
+                    longitude = longitude,
+                    fullAddress = geoapifyResult.formatted,
+                    cityArea = cityArea,
+                    cityName = geoapifyResult.city.ifBlank { "Islamabad" }
+                )
+            }
+        } catch (_: Exception) {
+            // Fallback to Android Geocoder or sector map
+        }
+
+        // 2. Secondary: System Geocoder
         try {
             if (Geocoder.isPresent()) {
                 val geocoder = Geocoder(context, Locale.getDefault())
@@ -139,7 +162,7 @@ object LocationHelper {
                     val addr = addresses[0]
                     val street = addr.getAddressLine(0) ?: ""
                     val subLoc = addr.subLocality ?: addr.subAdminArea ?: ""
-                    val locality = addr.locality ?: addr.adminArea ?: "Lahore"
+                    val locality = addr.locality ?: addr.adminArea ?: "Islamabad"
                     val cityArea = if (subLoc.isNotBlank()) "$subLoc, $locality" else locality
                     val fullAddress = if (street.isNotBlank()) street else cityArea
                     return@withContext UserLocationResult(
@@ -155,40 +178,52 @@ object LocationHelper {
             // Geocoder service may not be running in emulator
         }
 
-        // Smart fallback to Pakistani city & local area
+        // Smart fallback to Pakistani city & local area with high fidelity for Islamabad/Rawalpindi
         val estimatedArea = estimatePakistanCity(latitude, longitude)
         val formattedCoords = String.format(Locale.US, "%.4f, %.4f", latitude, longitude)
         UserLocationResult(
             latitude = latitude,
             longitude = longitude,
-            fullAddress = "Main Boulevard, $estimatedArea ($formattedCoords)",
+            fullAddress = "$estimatedArea ($formattedCoords)",
             cityArea = estimatedArea,
             cityName = estimatedArea.substringAfterLast(",").trim()
         )
     }
 
-    private fun estimatePakistanCity(lat: Double, lng: Double): String {
-        // Approximate coordinates for major cities
-        val cities = listOf(
-            Triple(31.5204, 74.3587, "Gulberg III, Lahore"),
+    fun estimatePakistanCity(lat: Double, lng: Double): String {
+        // Detailed coordinates for Islamabad, Rawalpindi, and key Pakistani centers
+        val sectors = listOf(
+            Triple(33.7294, 73.0754, "Sector F-6, Islamabad"),
+            Triple(33.7215, 73.0558, "Sector F-7 / Jinnah Super, Islamabad"),
+            Triple(33.7088, 73.0384, "Sector F-8, Islamabad"),
+            Triple(33.6934, 73.0118, "Sector F-10 / Markaz, Islamabad"),
             Triple(33.6844, 73.0479, "Blue Area, Islamabad"),
-            Triple(33.5651, 73.0169, "Saddar, Rawalpindi"),
+            Triple(33.6912, 73.0315, "Sector G-8 / G-9, Islamabad"),
+            Triple(33.6685, 73.0765, "Sector I-8 Markaz, Islamabad"),
+            Triple(33.6420, 73.0780, "Faizabad Interchange, Islamabad"),
+            Triple(33.5651, 73.0169, "Saddar / Bank Road, Rawalpindi"),
+            Triple(33.6358, 73.0645, "Satellite Town / Commercial Market, Rawalpindi"),
+            Triple(33.5890, 73.0510, "Chandni Chowk, Murree Road, Rawalpindi"),
+            Triple(33.5255, 73.0942, "Bahria Town Phase 4, Rawalpindi"),
+            Triple(33.5042, 73.1360, "DHA Phase 2, Islamabad/Rawalpindi"),
+            Triple(33.5970, 73.0440, "Liaquat Bagh, Rawalpindi"),
+            Triple(31.5204, 74.3587, "Gulberg III, Lahore"),
+            Triple(31.4697, 74.2728, "Johar Town, Lahore"),
+            Triple(31.5820, 74.3294, "DHA Phase 5, Lahore"),
             Triple(24.8607, 67.0011, "Clifton, Karachi"),
             Triple(31.4504, 73.1350, "D Ground, Faisalabad"),
             Triple(30.1575, 71.5249, "Cantt, Multan"),
-            Triple(34.0151, 71.5249, "University Town, Peshawar"),
-            Triple(32.1877, 74.1945, "Model Town, Gujranwala"),
-            Triple(32.4945, 74.5229, "Cantt, Sialkot")
+            Triple(34.0151, 71.5249, "University Town, Peshawar")
         )
 
-        var closest = cities.first()
+        var closest = sectors.first()
         var minDistance = Double.MAX_VALUE
 
-        for (city in cities) {
-            val d = hypot(lat - city.first, lng - city.second)
+        for (item in sectors) {
+            val d = hypot(lat - item.first, lng - item.second)
             if (d < minDistance) {
                 minDistance = d
-                closest = city
+                closest = item
             }
         }
 

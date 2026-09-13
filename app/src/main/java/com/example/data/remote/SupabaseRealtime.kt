@@ -49,6 +49,7 @@ class RealtimeChannel(
     private var activeFilter = PostgresChangeFilter()
     private val _locationFlow = MutableSharedFlow<PostgresAction<ProviderLocation>>(replay = 1)
     private val _messageFlow = MutableSharedFlow<PostgresAction<JobMessage>>(replay = 1)
+    private val _jsonFlow = MutableSharedFlow<PostgresAction<JSONObject>>(replay = 1)
     private var lastEmittedLocation: ProviderLocation? = null
     private val emittedMessageIds = mutableSetOf<String>()
 
@@ -58,10 +59,10 @@ class RealtimeChannel(
         configure: PostgresChangeFilter.() -> Unit
     ): Flow<PostgresAction<T>> {
         activeFilter.configure()
-        return if (activeFilter.table == "job_messages") {
-            _messageFlow.asSharedFlow() as Flow<PostgresAction<T>>
-        } else {
-            _locationFlow.asSharedFlow() as Flow<PostgresAction<T>>
+        return when (activeFilter.table) {
+            "job_messages" -> _messageFlow.asSharedFlow() as Flow<PostgresAction<T>>
+            "provider_locations" -> _locationFlow.asSharedFlow() as Flow<PostgresAction<T>>
+            else -> _jsonFlow.asSharedFlow() as Flow<PostgresAction<T>>
         }
     }
 
@@ -108,8 +109,13 @@ class RealtimeChannel(
 
     private fun joinChannel(ws: WebSocket) {
         try {
+            val topicStr = if (activeFilter.filter.isNotBlank()) {
+                "realtime:public:${activeFilter.table}:${activeFilter.filter}"
+            } else {
+                "realtime:public:${activeFilter.table}"
+            }
             val joinPayload = JSONObject().apply {
-                put("topic", "realtime:public:${activeFilter.table}:${activeFilter.filter}")
+                put("topic", topicStr)
                 put("event", "phx_join")
                 put("payload", JSONObject().apply {
                     put("config", JSONObject().apply {
@@ -164,12 +170,20 @@ class RealtimeChannel(
                 val recordObj = data.optJSONObject("record") ?: return
                 val type = data.optString("type", "UPDATE")
 
-                if (activeFilter.table == "job_messages") {
-                    val message = JobMessage.fromJson(recordObj)
-                    emitMessage(message, type)
-                } else {
-                    val location = ProviderLocation.fromJson(recordObj)
-                    emitLocation(location, type)
+                when (activeFilter.table) {
+                    "job_messages" -> {
+                        val message = JobMessage.fromJson(recordObj)
+                        emitMessage(message, type)
+                    }
+                    "provider_locations" -> {
+                        val location = ProviderLocation.fromJson(recordObj)
+                        emitLocation(location, type)
+                    }
+                    else -> {
+                        scope.launch {
+                            _jsonFlow.emit(PostgresAction(record = recordObj, eventType = type))
+                        }
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -242,8 +256,13 @@ class RealtimeChannel(
         heartbeatJob?.cancel()
         pollingJob?.cancel()
         try {
+            val topicStr = if (activeFilter.filter.isNotBlank()) {
+                "realtime:public:${activeFilter.table}:${activeFilter.filter}"
+            } else {
+                "realtime:public:${activeFilter.table}"
+            }
             val leavePayload = JSONObject().apply {
-                put("topic", "realtime:public:${activeFilter.table}:${activeFilter.filter}")
+                put("topic", topicStr)
                 put("event", "phx_leave")
                 put("payload", JSONObject())
                 put("ref", refCounter.getAndIncrement().toString())

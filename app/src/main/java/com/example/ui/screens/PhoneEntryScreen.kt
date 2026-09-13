@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -161,14 +162,9 @@ fun PhoneEntryScreen(
                         placeholder = {
                             Text(
                                 text = Strings.get("phone_placeholder", language),
-                                color = TextSlateMuted
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Phone,
-                                contentDescription = null,
-                                tint = DeepIndigo
+                                color = TextSlateMuted.copy(alpha = 0.6f),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Normal
                             )
                         },
                         trailingIcon = {
@@ -188,7 +184,7 @@ fun PhoneEntryScreen(
                         textStyle = androidx.compose.ui.text.TextStyle(
                             color = TextSlate,
                             fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         ),
                         modifier = Modifier
                             .weight(1f)
@@ -209,21 +205,33 @@ fun PhoneEntryScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // WhatsApp info banner
+                // WhatsApp info banner - soft neutral styling
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFECFDF5))
-                        .padding(12.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFF8FAFC))
+                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
-                    Text(
-                        text = "💬 " + Strings.get("whatsapp_notice", language),
-                        color = Color(0xFF047857),
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = DeepIndigo,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = Strings.get("whatsapp_notice", language),
+                            color = TextSlate,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
 
                 if (!errorMessage.isNullOrBlank()) {

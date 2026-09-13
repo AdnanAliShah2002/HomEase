@@ -88,6 +88,7 @@ import com.example.data.localization.AppLanguage
 import com.example.data.localization.Strings
 import com.example.data.model.ServiceCatalog
 import com.example.ui.components.AutoLocationFetcher
+import com.example.ui.components.LocationPickerInput
 import com.example.ui.components.HomeaseLogoMark
 import com.example.ui.components.PrimaryCtaButton
 import com.example.ui.theme.BackgroundLight
@@ -120,7 +121,9 @@ fun ProviderRegistrationScreen(
     var cnicBackUri by remember { mutableStateOf<String?>(null) }
     var dateOfBirth by remember { mutableStateOf("") }
     var homeAddress by remember { mutableStateOf("") }
-    var cityArea by remember { mutableStateOf("Lahore - Gulberg") }
+    var cityArea by remember { mutableStateOf("Islamabad - Blue Area") }
+    var providerLat by remember { mutableStateOf<Double?>(null) }
+    var providerLng by remember { mutableStateOf<Double?>(null) }
 
     // --- Step 2: Professional Information ---
     val selectedCategories = remember { mutableStateListOf<String>() }
@@ -214,7 +217,9 @@ fun ProviderRegistrationScreen(
             payoutAccountNumber = if (payoutMethod == "Cash") "" else payoutAccountNumber.trim(),
             consentAgreed = consentAgreed,
             status = "PENDING",
-            isOnline = false
+            isOnline = false,
+            lat = providerLat,
+            lng = providerLng
         )
     }
 
@@ -690,32 +695,23 @@ fun ProviderRegistrationScreen(
 
                                 Spacer(modifier = Modifier.height(14.dp))
 
-                                // Home Address
-                                OutlinedTextField(
-                                    value = homeAddress,
-                                    onValueChange = { homeAddress = it },
-                                    label = { Text(Strings.get("home_address", language) + " *") },
-                                    placeholder = { Text(Strings.get("home_address_hint", language)) },
-                                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = DeepIndigo) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("provider_address_input"),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = DeepIndigo,
-                                        unfocusedBorderColor = BorderStroke
-                                    )
-                                )
-
-                                Spacer(modifier = Modifier.height(14.dp))
-
-                                // City / Area + AutoLocation
-                                AutoLocationFetcher(
-                                    onLocationDetected = { loc ->
-                                        cityArea = loc.cityArea
-                                        if (loc.fullAddress.isNotBlank()) {
-                                            homeAddress = loc.fullAddress
-                                        }
+                                // Home Address & Service Base Location (InDrive/Uber style Autocomplete & Map Pin Picker)
+                                LocationPickerInput(
+                                    label = Strings.get("home_address", language),
+                                    hint = Strings.get("home_address_hint", language),
+                                    addressValue = homeAddress,
+                                    cityAreaValue = cityArea,
+                                    latitude = providerLat,
+                                    longitude = providerLng,
+                                    language = language,
+                                    testTagPrefix = "provider_address",
+                                    isRequired = true,
+                                    showGpsShortcut = true,
+                                    onLocationSelected = { address, city, lat, lng ->
+                                        homeAddress = address
+                                        cityArea = city
+                                        providerLat = lat
+                                        providerLng = lng
                                     }
                                 )
                             }

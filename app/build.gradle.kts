@@ -14,7 +14,7 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.homease.kzvtwr"
+    applicationId = "com.fyntryx.homease"
     minSdk = 24
     targetSdk = 36
     versionCode = 1
@@ -78,6 +78,7 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.messaging)
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   // implementation(libs.androidx.camera.camera2)
@@ -118,6 +119,9 @@ dependencies {
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
   implementation(libs.play.services.location)
+  // implementation(libs.google.places)
+  // implementation(libs.play.services.maps)
+  // implementation(libs.maps.compose)
   implementation(libs.retrofit)
   implementation(libs.agora.rtc)
   testImplementation(libs.androidx.compose.ui.test.junit4)

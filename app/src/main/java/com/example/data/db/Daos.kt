@@ -33,10 +33,17 @@ interface UserDao {
     @Query("DELETE FROM users WHERE phone = :phone")
     suspend fun deleteUserByPhone(phone: String)
 
-    @Query("UPDATE users SET name = :name, cityArea = :cityArea, savedAddressesCsv = :savedAddresses WHERE phone = :phone")
-    suspend fun updateCustomerProfile(phone: String, name: String, cityArea: String, savedAddresses: String)
+    @Query("UPDATE users SET name = :name, cityArea = :cityArea, savedAddressesCsv = :savedAddresses, lat = COALESCE(:lat, lat), lng = COALESCE(:lng, lng) WHERE phone = :phone")
+    suspend fun updateCustomerProfile(
+        phone: String,
+        name: String,
+        cityArea: String,
+        savedAddresses: String,
+        lat: Double? = null,
+        lng: Double? = null
+    )
 
-    @Query("UPDATE users SET name = :name, cityArea = :cityArea, categoriesCsv = :categories, yearsExperience = :years, serviceRadiusKm = :radius, bio = :bio, shopName = :shopName, payoutMethod = :payoutMethod, payoutAccountNumber = :payoutAccount WHERE phone = :phone")
+    @Query("UPDATE users SET name = :name, cityArea = :cityArea, categoriesCsv = :categories, yearsExperience = :years, serviceRadiusKm = :radius, bio = :bio, shopName = :shopName, payoutMethod = :payoutMethod, payoutAccountNumber = :payoutAccount, lat = COALESCE(:lat, lat), lng = COALESCE(:lng, lng) WHERE phone = :phone")
     suspend fun updateProviderProfile(
         phone: String,
         name: String,
@@ -47,7 +54,9 @@ interface UserDao {
         bio: String,
         shopName: String,
         payoutMethod: String,
-        payoutAccount: String
+        payoutAccount: String,
+        lat: Double? = null,
+        lng: Double? = null
     )
 }
 
@@ -79,6 +88,9 @@ interface ServiceRequestDao {
 
     @Query("SELECT * FROM service_requests WHERE id = :id LIMIT 1")
     suspend fun getRequestById(id: Long): ServiceRequestEntity?
+
+    @Query("SELECT * FROM service_requests WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun getRequestByRemoteId(remoteId: String): ServiceRequestEntity?
 
     @Query("SELECT * FROM service_requests WHERE id = :id LIMIT 1")
     fun getRequestByIdFlow(id: Long): Flow<ServiceRequestEntity?>
@@ -134,13 +146,16 @@ interface JobOfferDao {
     @Query("SELECT * FROM job_offers WHERE id = :id LIMIT 1")
     suspend fun getOfferById(id: Long): JobOfferEntity?
 
+    @Query("SELECT * FROM job_offers WHERE remoteOfferId = :remoteOfferId LIMIT 1")
+    suspend fun getOfferByRemoteOfferId(remoteOfferId: String): JobOfferEntity?
+
     @Query("UPDATE job_offers SET status = :status WHERE id = :id")
     suspend fun updateOfferStatus(id: Long, status: String)
 
     @Query("UPDATE job_offers SET status = 'accepted' WHERE id = :offerId")
     suspend fun markOfferAccepted(offerId: Long)
 
-    @Query("UPDATE job_offers SET status = 'expired' WHERE requestId = :requestId AND id != :acceptedOfferId AND status = 'pending'")
+    @Query("UPDATE job_offers SET status = 'rejected' WHERE requestId = :requestId AND id != :acceptedOfferId AND status = 'pending'")
     suspend fun expireOtherOffersForRequest(requestId: Long, acceptedOfferId: Long)
 
     @Query("UPDATE job_offers SET counterPriceRs = 1500 WHERE counterPriceRs > 100000")

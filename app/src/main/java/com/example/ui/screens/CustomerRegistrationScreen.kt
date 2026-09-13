@@ -50,6 +50,7 @@ import com.example.data.db.UserEntity
 import com.example.data.localization.AppLanguage
 import com.example.data.localization.Strings
 import com.example.ui.components.AutoLocationFetcher
+import com.example.ui.components.LocationPickerInput
 import com.example.ui.components.HomeaseLogoMark
 import com.example.ui.components.PrimaryCtaButton
 import com.example.ui.theme.BackgroundLight
@@ -69,9 +70,11 @@ fun CustomerRegistrationScreen(
 ) {
     var fullName by remember { mutableStateOf("") }
     var selectedAvatarIndex by remember { mutableStateOf(0) }
-    var cityArea by remember { mutableStateOf("Lahore - Gulberg") }
+    var cityArea by remember { mutableStateOf("Islamabad - Blue Area") }
     var cityExpanded by remember { mutableStateOf(false) }
     var homeAddress by remember { mutableStateOf("") }
+    var customerLat by remember { mutableStateOf<Double?>(null) }
+    var customerLng by remember { mutableStateOf<Double?>(null) }
 
     val cityOptions = listOf(
         "Lahore - Gulberg",
@@ -186,106 +189,24 @@ fun CustomerRegistrationScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // City / Area Dropdown
-            Text(
-                text = Strings.get("city_area", language) + " *",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = TextSlate,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            ExposedDropdownMenuBox(
-                expanded = cityExpanded,
-                onExpandedChange = { cityExpanded = !cityExpanded },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedTextField(
-                    value = cityArea,
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cityExpanded) },
-                    textStyle = androidx.compose.ui.text.TextStyle(color = TextSlate, fontSize = 15.sp),
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth()
-                        .testTag("city_area_dropdown"),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextSlate,
-                        unfocusedTextColor = TextSlate,
-                        cursorColor = DeepIndigo,
-                        focusedBorderColor = DeepIndigo,
-                        unfocusedBorderColor = BorderStroke,
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White
-                    )
-                )
-                ExposedDropdownMenu(
-                    expanded = cityExpanded,
-                    onDismissRequest = { cityExpanded = false }
-                ) {
-                    cityOptions.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = {
-                                cityArea = option
-                                cityExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Home Address (Optional)
-            Text(
-                text = Strings.get("home_address", language) + " (${Strings.get("optional", language)})",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = TextSlate,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Automatic Location Detection
-            AutoLocationFetcher(
-                autoFetch = true,
+            // Primary Location Input (InDrive / Uber style search autocomplete & center-pin map picker)
+            LocationPickerInput(
+                label = Strings.get("home_address", language),
+                hint = Strings.get("home_address_hint", language),
+                addressValue = homeAddress,
+                cityAreaValue = cityArea,
+                latitude = customerLat,
+                longitude = customerLng,
                 language = language,
-                onLocationDetected = { loc ->
-                    homeAddress = loc.fullAddress
-                    val matchedOption = cityOptions.firstOrNull { option ->
-                        option.contains(loc.cityName, ignoreCase = true) ||
-                        loc.cityArea.contains(option.substringBefore(" -"), ignoreCase = true)
-                    }
-                    if (matchedOption != null) {
-                        cityArea = matchedOption
-                    }
+                testTagPrefix = "customer_address",
+                isRequired = false,
+                showGpsShortcut = true,
+                onLocationSelected = { address, city, lat, lng ->
+                    homeAddress = address
+                    cityArea = city
+                    customerLat = lat
+                    customerLng = lng
                 }
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-            OutlinedTextField(
-                value = homeAddress,
-                onValueChange = { homeAddress = it },
-                placeholder = { Text(Strings.get("home_address_hint", language), color = TextSlateMuted) },
-                singleLine = false,
-                maxLines = 2,
-                textStyle = androidx.compose.ui.text.TextStyle(color = TextSlate, fontSize = 15.sp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("customer_address_input"),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = TextSlate,
-                    unfocusedTextColor = TextSlate,
-                    cursorColor = DeepIndigo,
-                    focusedBorderColor = DeepIndigo,
-                    unfocusedBorderColor = BorderStroke,
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
-                )
             )
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -304,7 +225,9 @@ fun CustomerRegistrationScreen(
                         profilePhotoUri = avatarList.getOrNull(selectedAvatarIndex),
                         cityArea = cityArea,
                         homeAddress = homeAddress,
-                        status = "ACTIVE"
+                        status = "ACTIVE",
+                        lat = customerLat,
+                        lng = customerLng
                     )
                     onComplete(user)
                 },

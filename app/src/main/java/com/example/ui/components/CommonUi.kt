@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -71,6 +72,7 @@ fun PrimaryCtaButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    isLoading: Boolean = false,
     backgroundColor: Color = SoftOrange,
     contentColor: Color = Color.White,
     isProviderStyle: Boolean = false,
@@ -78,7 +80,7 @@ fun PrimaryCtaButton(
 ) {
     Button(
         onClick = onClick,
-        enabled = enabled,
+        enabled = enabled && !isLoading,
         modifier = modifier
             .fillMaxWidth()
             .height(if (isProviderStyle) 58.dp else 52.dp)
@@ -92,11 +94,19 @@ fun PrimaryCtaButton(
             disabledContentColor = Color.White
         )
     ) {
-        Text(
-            text = text,
-            fontSize = if (isProviderStyle) 17.sp else 15.sp,
-            fontWeight = FontWeight.Bold
-        )
+        if (isLoading) {
+            CircularProgressIndicator(
+                color = contentColor,
+                strokeWidth = 2.5.dp,
+                modifier = Modifier.size(22.dp)
+            )
+        } else {
+            Text(
+                text = text,
+                fontSize = if (isProviderStyle) 17.sp else 15.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
@@ -167,35 +177,28 @@ fun HomEaseTopBar(
 
                 if (showRoleSwitcher) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    // Role switch pill (Customer <-> Provider)
-                    Row(
+                    // Circular role switch button (matches 38dp circle shape of language toggle & profile icon)
+                    Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
+                            .size(38.dp)
+                            .clip(CircleShape)
                             .background(
                                 if (currentRole == UserRole.PROVIDER) DeepIndigo else SurfaceVariantLight
                             )
                             .border(
                                 width = 1.dp,
                                 color = if (currentRole == UserRole.PROVIDER) DeepIndigo else BorderStroke,
-                                shape = RoundedCornerShape(20.dp)
+                                shape = CircleShape
                             )
                             .clickable { onToggleRole() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
                             .testTag("role_switcher"),
-                        verticalAlignment = Alignment.CenterVertically
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (currentRole == UserRole.PROVIDER) Icons.Default.Handyman else Icons.Default.Home,
-                            contentDescription = "Role",
+                            contentDescription = if (currentRole == UserRole.PROVIDER) "Switch to Customer" else "Switch to Provider",
                             tint = if (currentRole == UserRole.PROVIDER) Color.White else DeepIndigo,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (currentRole == UserRole.PROVIDER) "Pro" else "User",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (currentRole == UserRole.PROVIDER) Color.White else DeepIndigo
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }

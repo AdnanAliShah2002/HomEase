@@ -2,310 +2,300 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import com.example.data.db.UserEntity
-import com.example.ui.screens.AuthChoiceScreen
-import com.example.ui.screens.CustomerHomeScreen
-import com.example.ui.screens.CustomerRegistrationScreen
-import com.example.ui.screens.CustomerRequestFlowScreen
-import com.example.ui.screens.InCallScreen
-import com.example.ui.screens.JobChatScreen
-import com.example.ui.screens.LanguageSelectScreen
-import com.example.ui.screens.LiveTrackingMapScreen
-import com.example.ui.screens.OtpVerificationScreen
-import com.example.ui.screens.PhoneEntryScreen
-import com.example.ui.screens.ProviderHomeScreen
-import com.example.ui.screens.ProviderJobAcceptScreen
-import com.example.ui.screens.ProviderRegistrationScreen
-import com.example.ui.screens.RoleSelectionScreen
-import com.example.ui.screens.SplashScreen
-import com.example.ui.theme.HomEaseDynamicTheme
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.data.localization.AppLanguage
+import com.example.data.model.UserRole
+import com.example.ui.screens.*
 import com.example.ui.theme.HomEaseTheme
 import com.example.ui.viewmodel.AppNavDestination
 import com.example.ui.viewmodel.HomeaseViewModel
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: HomeaseViewModel by viewModels()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Create notification channels for local notifications
+        com.example.service.HomEaseFirebaseMessagingService.createNotificationChannels(this)
+
+        val notifJobId = intent?.getStringExtra("job_id")
+        val notifType = intent?.getStringExtra("notification_type")
+
         setContent {
-            val activeTheme by viewModel.currentTheme.collectAsState()
-            HomEaseDynamicTheme(activeTheme = activeTheme) {
+            val viewModel: HomeaseViewModel = viewModel()
+            val currentDestination by viewModel.currentDestination.collectAsStateWithLifecycle()
+            val language by viewModel.language.collectAsStateWithLifecycle()
+            val activeRole by viewModel.activeRole.collectAsStateWithLifecycle()
+            val isSignInMode by viewModel.isSignInMode.collectAsStateWithLifecycle()
+            val currentPhoneNumber by viewModel.currentPhoneNumber.collectAsStateWithLifecycle()
+            val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+            val isSendingOtp by viewModel.isSendingOtp.collectAsStateWithLifecycle()
+            val otpSendError by viewModel.otpSendError.collectAsStateWithLifecycle()
+            val isVerifyingOtp by viewModel.isVerifyingOtp.collectAsStateWithLifecycle()
+            val otpVerifyError by viewModel.otpVerifyError.collectAsStateWithLifecycle()
+            val activeLiveRequest by viewModel.activeLiveRequest.collectAsStateWithLifecycle()
+            val initialCategoryForRequest by viewModel.initialCategoryForRequest.collectAsStateWithLifecycle()
+            val incomingOffers by viewModel.incomingOffers.collectAsStateWithLifecycle()
+            val fullscreenPingJob by viewModel.fullscreenPingJob.collectAsStateWithLifecycle()
+            val isSubmittingRequest by viewModel.isSubmittingRequest.collectAsStateWithLifecycle()
+            val requestSubmissionError by viewModel.requestSubmissionError.collectAsStateWithLifecycle()
+            val currentTheme by viewModel.currentTheme.collectAsStateWithLifecycle()
+            val trackingJob by viewModel.trackingJob.collectAsStateWithLifecycle()
+            val activeChatJob by viewModel.activeChatJob.collectAsStateWithLifecycle()
+
+            val customerRequests by viewModel.customerRequests.collectAsStateWithLifecycle()
+            val availableJobs by viewModel.availableJobs.collectAsStateWithLifecycle()
+            val providerActiveJob by viewModel.providerActiveJob.collectAsStateWithLifecycle()
+            val providerPastJobs by viewModel.providerPastJobs.collectAsStateWithLifecycle()
+            val providerCompletedJobs by viewModel.providerCompletedJobs.collectAsStateWithLifecycle()
+            val customerAwaitingRatingJob by viewModel.customerAwaitingRatingJob.collectAsStateWithLifecycle()
+
+            // Handle notification clicks once ViewModel is ready
+            LaunchedEffectOnce(notifJobId) {
+                if (notifJobId != null) {
+                    viewModel.handleNotificationClick(notifJobId, notifType)
+                }
+            }
+
+            HomEaseTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    HomEaseApp(viewModel = viewModel)
+                    // System back button handling
+                    BackHandler(enabled = currentDestination != AppNavDestination.SPLASH &&
+                            currentDestination != AppNavDestination.CUSTOMER_HOME &&
+                            currentDestination != AppNavDestination.PROVIDER_HOME) {
+                        viewModel.navigateBack()
+                    }
+
+                    when (currentDestination) {
+                        AppNavDestination.SPLASH -> {
+                            SplashScreen(
+                                language = language,
+                                onTimeout = { viewModel.onSplashFinished() }
+                            )
+                        }
+
+                        AppNavDestination.LANGUAGE_SELECT -> {
+                            LanguageSelectScreen(
+                                currentLanguage = language,
+                                onLanguageSelected = { lang -> viewModel.onLanguageSelected(lang) },
+                                onSkip = { viewModel.onSkipLanguage() }
+                            )
+                        }
+
+                        AppNavDestination.ROLE_SELECT -> {
+                            RoleSelectionScreen(
+                                language = language,
+                                onRoleSelected = { role -> viewModel.selectRole(role) }
+                            )
+                        }
+
+                        AppNavDestination.AUTH_CHOICE -> {
+                            AuthChoiceScreen(
+                                role = activeRole,
+                                language = language,
+                                onCreateAccount = { viewModel.startCreateAccount() },
+                                onSignIn = { viewModel.startSignIn() }
+                            )
+                        }
+
+                        AppNavDestination.PHONE_ENTRY -> {
+                            PhoneEntryScreen(
+                                role = activeRole,
+                                isSignIn = isSignInMode,
+                                language = language,
+                                isLoading = isSendingOtp,
+                                errorMessage = otpSendError,
+                                onBack = { viewModel.navigateBack() },
+                                onSendCode = { phone -> viewModel.onSendCode(phone) }
+                            )
+                        }
+
+                        AppNavDestination.OTP_VERIFICATION -> {
+                            OtpVerificationScreen(
+                                phoneNumber = currentPhoneNumber,
+                                language = language,
+                                isLoading = isVerifyingOtp,
+                                errorMessage = otpVerifyError,
+                                onBack = { viewModel.navigateBack() },
+                                onResend = { viewModel.resendOtpCode() },
+                                onVerified = { code -> viewModel.onOtpVerified(code) }
+                            )
+                        }
+
+                        AppNavDestination.CUSTOMER_REGISTRATION -> {
+                            CustomerRegistrationScreen(
+                                phoneNumber = currentPhoneNumber,
+                                language = language,
+                                onComplete = { user -> viewModel.completeCustomerRegistration(user) }
+                            )
+                        }
+
+                        AppNavDestination.PROVIDER_REGISTRATION -> {
+                            ProviderRegistrationScreen(
+                                phoneNumber = currentPhoneNumber,
+                                language = language,
+                                onComplete = { user -> viewModel.completeProviderRegistration(user) }
+                            )
+                        }
+
+                        AppNavDestination.CUSTOMER_HOME -> {
+                            val user = currentUser ?: com.example.data.db.UserEntity(
+                                phone = currentPhoneNumber.ifBlank { "03001234567" },
+                                role = "CUSTOMER",
+                                name = "Customer",
+                                cityArea = "Gulberg III, Lahore"
+                            )
+                            CustomerHomeScreen(
+                                user = user,
+                                activeRequests = customerRequests,
+                                awaitingRatingJob = customerAwaitingRatingJob,
+                                language = language,
+                                onToggleRole = { viewModel.toggleRole() },
+                                onToggleLanguage = { viewModel.toggleLanguage() },
+                                onStartNewRequest = { catId -> viewModel.startNewRequestFlow(catId) },
+                                onOpenRequestDetails = { reqId -> viewModel.openRequestDetails(reqId) },
+                                onOpenLiveTracking = { job -> viewModel.openLiveTracking(job) },
+                                onSubmitRating = { jobId, rating, comment -> viewModel.submitCustomerRating(jobId, rating, comment) },
+                                onReportIssue = { jobId, category, description -> viewModel.reportCustomerIssue(jobId, category, description) },
+                                onAutoCompleteJob = { jobId -> viewModel.autoCompleteJobWithoutRating(jobId) },
+                                onUpdateProfile = { name, cityArea, savedAddresses -> viewModel.updateCustomerProfile(name, cityArea, savedAddresses) },
+                                onLogout = { viewModel.logout() }
+                            )
+                        }
+
+                        AppNavDestination.PROVIDER_HOME -> {
+                            val provider = currentUser ?: com.example.data.db.UserEntity(
+                                phone = currentPhoneNumber.ifBlank { "03009876543" },
+                                role = "PROVIDER",
+                                name = "Service Provider",
+                                cityArea = "Gulberg III, Lahore",
+                                isOnline = true
+                            )
+                            ProviderHomeScreen(
+                                provider = provider,
+                                incomingJobs = availableJobs,
+                                activeJob = providerActiveJob,
+                                pastJobs = providerPastJobs,
+                                completedJobs = providerCompletedJobs,
+                                language = language,
+                                onToggleRole = { viewModel.toggleRole() },
+                                onToggleLanguage = { viewModel.toggleLanguage() },
+                                onToggleOnline = { online -> viewModel.toggleProviderOnline(online) },
+                                onToggleVerification = { viewModel.toggleProviderVerificationStatus() },
+                                onAcceptJob = { job -> viewModel.acceptJobAsProvider(job) },
+                                onRejectJob = { job -> viewModel.rejectJobAsProvider(job) },
+                                onCounterJob = { job, counterPrice, note -> viewModel.counterJobAsProvider(job, counterPrice, note) },
+                                onStartTrip = { job -> viewModel.startProviderJobTrip(job) },
+                                onArrived = { job -> viewModel.markProviderJobArrived(job) },
+                                onStartWork = { job -> viewModel.startProviderJobWork(job) },
+                                onCompleteActiveJob = { jobId -> viewModel.completeActiveJob(jobId) },
+                                onOpenChat = { job -> viewModel.openJobChat(job) },
+                                onStartCall = { job -> viewModel.startVoiceCall(job) },
+                                onUpdateProfile = { name, cityArea, categoriesCsv, exp, radiusKm, bio, shopName, payoutMethod, payoutAccountNumber ->
+                                    viewModel.updateProviderProfile(name, cityArea, categoriesCsv, exp, radiusKm, bio, shopName, payoutMethod, payoutAccountNumber)
+                                },
+                                onLogout = { viewModel.logout() }
+                            )
+                        }
+
+                        AppNavDestination.CUSTOMER_REQUEST_FLOW -> {
+                            val user = currentUser
+                            CustomerRequestFlowScreen(
+                                initialCategoryId = initialCategoryForRequest,
+                                customerPhone = user?.phone ?: currentPhoneNumber,
+                                customerName = user?.name ?: "Customer",
+                                savedAddress = user?.homeAddress ?: "Gulberg III, Lahore",
+                                cityArea = user?.cityArea ?: "Gulberg III, Lahore",
+                                language = language,
+                                activeLiveRequest = activeLiveRequest,
+                                incomingOffers = incomingOffers,
+                                isSubmitting = isSubmittingRequest,
+                                submissionError = requestSubmissionError,
+                                onDismissError = { viewModel.clearRequestSubmissionError() },
+                                onBack = { viewModel.navigateBack() },
+                                onSubmitRequest = { req -> viewModel.submitServiceRequest(req) },
+                                onSelectOffer = { offer -> viewModel.selectOfferForRequest(offer) },
+                                onDoneViewingConfirmed = { viewModel.navigateToHome() },
+                                onOpenLiveTracking = { job -> viewModel.openLiveTracking(job) }
+                            )
+                        }
+
+                        AppNavDestination.PROVIDER_JOB_ACCEPT -> {
+                            val pingJob = fullscreenPingJob ?: availableJobs.firstOrNull()
+                            if (pingJob != null) {
+                                ProviderJobAcceptScreen(
+                                    job = pingJob,
+                                    language = language,
+                                    onAccept = { job -> viewModel.acceptJobAsProvider(job) },
+                                    onReject = { job -> viewModel.rejectJobAsProvider(job) },
+                                    onCounter = { job, price, note -> viewModel.counterJobAsProvider(job, price, note) }
+                                )
+                            } else {
+                                viewModel.navigateToHome()
+                            }
+                        }
+
+                        AppNavDestination.CUSTOMER_LIVE_TRACKING -> {
+                            val job = trackingJob ?: customerRequests.firstOrNull { it.status in listOf("ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS") }
+                            if (job != null) {
+                                LiveTrackingMapScreen(
+                                    job = job,
+                                    viewModel = viewModel,
+                                    theme = currentTheme,
+                                    language = language,
+                                    onBack = { viewModel.navigateBack() },
+                                    onOpenChat = { viewModel.openJobChat(job) },
+                                    onStartCall = { viewModel.startVoiceCall(job) }
+                                )
+                            } else {
+                                viewModel.navigateToHome()
+                            }
+                        }
+
+                        AppNavDestination.JOB_CHAT -> {
+                            val job = activeChatJob
+                            if (job != null) {
+                                JobChatScreen(
+                                    job = job,
+                                    viewModel = viewModel,
+                                    onBack = { viewModel.navigateBack() },
+                                    onStartCall = { viewModel.startVoiceCall(job) }
+                                )
+                            } else {
+                                viewModel.navigateBack()
+                            }
+                        }
+
+                        AppNavDestination.IN_CALL -> {
+                            InCallScreen(
+                                viewModel = viewModel,
+                                onMinimize = { viewModel.closeCallScreen() },
+                                onCallClosed = { viewModel.closeCallScreen() }
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-@Composable
-fun HomEaseApp(viewModel: HomeaseViewModel) {
-    val destination by viewModel.currentDestination.collectAsState()
-    val language by viewModel.language.collectAsState()
-    val activeRole by viewModel.activeRole.collectAsState()
-    val isSignInMode by viewModel.isSignInMode.collectAsState()
-    val currentPhoneNumber by viewModel.currentPhoneNumber.collectAsState()
-    val currentUser by viewModel.currentUser.collectAsState()
-    val activeLiveRequest by viewModel.activeLiveRequest.collectAsState()
-    val initialCatId by viewModel.initialCategoryForRequest.collectAsState()
-    val incomingOffers by viewModel.incomingOffers.collectAsState()
-    val customerRequests by viewModel.customerRequests.collectAsState()
-    val customerAwaitingRatingJob by viewModel.customerAwaitingRatingJob.collectAsState()
-    val availableJobs by viewModel.availableJobs.collectAsState()
-    val providerActiveJob by viewModel.providerActiveJob.collectAsState()
-    val providerPastJobs by viewModel.providerPastJobs.collectAsState()
-    val providerCompletedJobs by viewModel.providerCompletedJobs.collectAsState()
-    val trackingJob by viewModel.trackingJob.collectAsState()
-    val activeChatJob by viewModel.activeChatJob.collectAsState()
-    val activeTheme by viewModel.currentTheme.collectAsState()
-    val fullscreenPingJob by viewModel.fullscreenPingJob.collectAsState()
-    val isSendingOtp by viewModel.isSendingOtp.collectAsState()
-    val otpSendError by viewModel.otpSendError.collectAsState()
-    val isVerifyingOtp by viewModel.isVerifyingOtp.collectAsState()
-    val otpVerifyError by viewModel.otpVerifyError.collectAsState()
-
-    val fallbackCustomer = UserEntity(
-        phone = currentPhoneNumber,
-        role = "CUSTOMER",
-        name = "Customer",
-        cityArea = "Lahore - Gulberg",
-        homeAddress = "",
-        status = "ACTIVE"
-    )
-
-    val fallbackProvider = UserEntity(
-        phone = currentPhoneNumber,
-        role = "PROVIDER",
-        name = "Service Provider",
-        cityArea = "Lahore - Gulberg",
-        categoriesCsv = "",
-        yearsExperience = "",
-        serviceRadiusKm = 10,
-        cnicNumber = "",
-        shopName = "",
-        status = "PENDING",
-        isOnline = false
-    )
-
-    when (destination) {
-        AppNavDestination.SPLASH -> {
-            SplashScreen(
-                language = language,
-                onTimeout = { viewModel.onSplashFinished() }
-            )
-        }
-
-        AppNavDestination.LANGUAGE_SELECT -> {
-            LanguageSelectScreen(
-                currentLanguage = language,
-                onLanguageSelected = { viewModel.onLanguageSelected(it) },
-                onSkip = { viewModel.onSkipLanguage() }
-            )
-        }
-
-        AppNavDestination.ROLE_SELECT -> {
-            RoleSelectionScreen(
-                language = language,
-                onRoleSelected = { viewModel.selectRole(it) }
-            )
-        }
-
-        AppNavDestination.AUTH_CHOICE -> {
-            AuthChoiceScreen(
-                role = activeRole,
-                language = language,
-                onCreateAccount = { viewModel.startCreateAccount() },
-                onSignIn = { viewModel.startSignIn() }
-            )
-        }
-
-        AppNavDestination.PHONE_ENTRY -> {
-            PhoneEntryScreen(
-                role = activeRole,
-                isSignIn = isSignInMode,
-                language = language,
-                isLoading = isSendingOtp,
-                errorMessage = otpSendError,
-                onBack = { viewModel.navigateBack() },
-                onSendCode = { phone -> viewModel.onSendCode(phone) }
-            )
-        }
-
-        AppNavDestination.OTP_VERIFICATION -> {
-            OtpVerificationScreen(
-                phoneNumber = currentPhoneNumber,
-                language = language,
-                isLoading = isVerifyingOtp,
-                errorMessage = otpVerifyError,
-                onBack = { viewModel.navigateBack() },
-                onResend = { viewModel.resendOtpCode() },
-                onVerified = { code -> viewModel.onOtpVerified(code) }
-            )
-        }
-
-        AppNavDestination.CUSTOMER_REGISTRATION -> {
-            CustomerRegistrationScreen(
-                phoneNumber = currentPhoneNumber,
-                language = language,
-                onComplete = { user -> viewModel.completeCustomerRegistration(user) }
-            )
-        }
-
-        AppNavDestination.PROVIDER_REGISTRATION -> {
-            ProviderRegistrationScreen(
-                phoneNumber = currentPhoneNumber,
-                language = language,
-                onComplete = { user -> viewModel.completeProviderRegistration(user) }
-            )
-        }
-
-        AppNavDestination.CUSTOMER_HOME -> {
-            CustomerHomeScreen(
-                user = currentUser ?: fallbackCustomer,
-                activeRequests = customerRequests,
-                awaitingRatingJob = customerAwaitingRatingJob,
-                language = language,
-                onToggleRole = { viewModel.toggleRole() },
-                onToggleLanguage = { viewModel.toggleLanguage() },
-                onStartNewRequest = { catId -> viewModel.startNewRequestFlow(catId) },
-                onOpenRequestDetails = { reqId -> viewModel.openRequestDetails(reqId) },
-                onOpenLiveTracking = { job -> viewModel.openLiveTracking(job) },
-                onSubmitRating = { jobId, rating, comment ->
-                    viewModel.submitCustomerRating(jobId, rating, comment)
-                },
-                onReportIssue = { jobId, category, description ->
-                    viewModel.reportCustomerIssue(jobId, category, description)
-                },
-                onAutoCompleteJob = { jobId ->
-                    viewModel.autoCompleteJobWithoutRating(jobId)
-                },
-                onUpdateProfile = { name, cityArea, savedAddresses ->
-                    viewModel.updateCustomerProfile(name, cityArea, savedAddresses)
-                },
-                onLogout = { viewModel.logout() }
-            )
-        }
-
-        AppNavDestination.PROVIDER_HOME -> {
-            val currentProvider = currentUser ?: fallbackProvider
-            val isApproved = currentProvider.status == "APPROVED"
-            ProviderHomeScreen(
-                provider = currentProvider,
-                incomingJobs = if (isApproved) availableJobs else emptyList(),
-                activeJob = if (isApproved) providerActiveJob else null,
-                pastJobs = providerPastJobs,
-                completedJobs = providerCompletedJobs,
-                language = language,
-                onToggleRole = { viewModel.toggleRole() },
-                onToggleLanguage = { viewModel.toggleLanguage() },
-                onToggleOnline = { isOnline -> viewModel.toggleProviderOnline(isOnline) },
-                onToggleVerification = { viewModel.toggleProviderVerificationStatus() },
-                onAcceptJob = { job -> viewModel.acceptJobAsProvider(job) },
-                onRejectJob = { job -> viewModel.rejectJobAsProvider(job) },
-                onCounterJob = { job, counterPrice, note -> viewModel.counterJobAsProvider(job, counterPrice, note) },
-                onStartTrip = { job -> viewModel.startProviderJobTrip(job) },
-                onArrived = { job -> viewModel.markProviderJobArrived(job) },
-                onStartWork = { job -> viewModel.startProviderJobWork(job) },
-                onCompleteActiveJob = { jobId -> viewModel.completeActiveJob(jobId) },
-                onOpenChat = { job -> viewModel.openChat(job) },
-                onStartCall = { job -> viewModel.startVoiceCall(job) },
-                onUpdateProfile = { name, cityArea, categoriesCsv, yearsExp, radius, bio, shopName, payoutMethod, payoutAcc ->
-                    viewModel.updateProviderProfile(
-                        name, cityArea, categoriesCsv, yearsExp, radius, bio, shopName, payoutMethod, payoutAcc
-                    )
-                },
-                onLogout = { viewModel.logout() }
-            )
-        }
-
-        AppNavDestination.CUSTOMER_REQUEST_FLOW -> {
-            CustomerRequestFlowScreen(
-                initialCategoryId = initialCatId,
-                customerPhone = currentUser?.phone ?: currentPhoneNumber,
-                customerName = currentUser?.name ?: "Customer",
-                savedAddress = currentUser?.homeAddress ?: "",
-                cityArea = currentUser?.cityArea ?: "Lahore - Gulberg",
-                language = language,
-                activeLiveRequest = activeLiveRequest,
-                incomingOffers = incomingOffers,
-                onBack = { viewModel.navigateBack() },
-                onSubmitRequest = { req -> viewModel.submitServiceRequest(req) },
-                onSelectOffer = { offer -> viewModel.selectOfferForRequest(offer) },
-                onDoneViewingConfirmed = { viewModel.navigateToHome() },
-                onOpenLiveTracking = { job -> viewModel.openLiveTracking(job) },
-                onDetectCategory = { description -> viewModel.detectCategory(description) }
-            )
-        }
-
-        AppNavDestination.CUSTOMER_LIVE_TRACKING -> {
-            val jobToTrack = trackingJob ?: activeLiveRequest ?: customerRequests.firstOrNull {
-                it.status in listOf("ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS")
-            }
-            if (jobToTrack != null) {
-                LiveTrackingMapScreen(
-                    job = jobToTrack,
-                    viewModel = viewModel,
-                    theme = activeTheme,
-                    language = language,
-                    onBack = { viewModel.navigateToHome() },
-                    onOpenChat = { viewModel.openChat(jobToTrack) },
-                    onStartCall = { viewModel.startVoiceCall(jobToTrack) }
-                )
-            } else {
-                viewModel.navigateToHome()
-            }
-        }
-
-        AppNavDestination.JOB_CHAT -> {
-            val chatJob = activeChatJob ?: trackingJob ?: activeLiveRequest ?: providerActiveJob ?: customerRequests.firstOrNull()
-            if (chatJob != null) {
-                JobChatScreen(
-                    job = chatJob,
-                    viewModel = viewModel,
-                    onBack = { viewModel.navigateBack() },
-                    onStartCall = { viewModel.startVoiceCall(chatJob) }
-                )
-            } else {
-                viewModel.navigateBack()
-            }
-        }
-
-        AppNavDestination.IN_CALL -> {
-            InCallScreen(
-                viewModel = viewModel,
-                onMinimize = { viewModel.navigateBack() },
-                onCallClosed = { viewModel.closeCallScreen() }
-            )
-        }
-
-        AppNavDestination.PROVIDER_JOB_ACCEPT -> {
-            val pingJob = fullscreenPingJob ?: availableJobs.firstOrNull()
-            if (pingJob != null) {
-                ProviderJobAcceptScreen(
-                    job = pingJob,
-                    language = language,
-                    onAccept = { job -> viewModel.acceptJobAsProvider(job) },
-                    onReject = { job -> viewModel.rejectJobAsProvider(job) },
-                    onCounter = { job, price, note -> viewModel.counterJobAsProvider(job, price, note) }
-                )
-            } else {
-                viewModel.navigateToHome()
-            }
-        }
+@androidx.compose.runtime.Composable
+private fun LaunchedEffectOnce(key: Any?, block: suspend () -> Unit) {
+    androidx.compose.runtime.LaunchedEffect(key) {
+        block()
     }
 }

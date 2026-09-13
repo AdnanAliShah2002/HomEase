@@ -23,10 +23,37 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
+
         <service
             android:name="com.example.service.ProviderLocationService"
             android:foregroundServiceType="location"
             android:exported="false" />
+
+        <service
+            android:name="com.example.service.HomEaseFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Completely disable Firebase automatic background messaging service and registration in streaming/sandbox environments -->
+        <service
+            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+            android:enabled="false"
+            tools:replace="android:enabled" />
+
+        <receiver
+            android:name="com.google.firebase.iid.FirebaseInstanceIdReceiver"
+            android:enabled="false"
+            tools:replace="android:enabled" />
+
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_analytics_collection_deactivated"
+            android:value="true" />
 
         <activity
             android:name=".MainActivity"
@@ -35,7 +62,6 @@
             android:theme="@style/Theme.MyApplication">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

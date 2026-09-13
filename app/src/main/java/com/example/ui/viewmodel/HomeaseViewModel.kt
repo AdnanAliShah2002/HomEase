@@ -26,6 +26,8 @@ import com.example.service.CallState
 import com.example.service.ProviderLocationService
 import com.example.util.SessionManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +38,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.UUID
 
 enum class AppNavDestination {
@@ -122,6 +126,77 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     private val _fullscreenPingJob = MutableStateFlow<ServiceRequestEntity?>(null)
     val fullscreenPingJob: StateFlow<ServiceRequestEntity?> = _fullscreenPingJob.asStateFlow()
 
+    // Request Submission State (Customer)
+    private val _isSubmittingRequest = MutableStateFlow(false)
+    val isSubmittingRequest: StateFlow<Boolean> = _isSubmittingRequest.asStateFlow()
+
+    private val _requestSubmissionError = MutableStateFlow<String?>(null)
+    val requestSubmissionError: StateFlow<String?> = _requestSubmissionError.asStateFlow()
+
+    // Provider Action State (Accept / Counter)
+    private val _isProviderActionLoading = MutableStateFlow(false)
+    val isProviderActionLoading: StateFlow<Boolean> = _isProviderActionLoading.asStateFlow()
+
+    private val _providerActionError = MutableStateFlow<String?>(null)
+    val providerActionError: StateFlow<String?> = _providerActionError.asStateFlow()
+
+    private val _fcmToken = MutableStateFlow("")
+    val fcmToken: StateFlow<String> = _fcmToken.asStateFlow()
+
+    fun updateFcmToken(token: String) {
+        _fcmToken.value = token
+        viewModelScope.launch {
+            val phone = _currentPhoneNumber.value
+            val role = if (_activeRole.value == UserRole.PROVIDER) "provider" else "customer"
+            if (phone.isNotBlank()) {
+                val user = _currentUser.value ?: repository.getUser(phone)
+                val categories = user?.categoriesCsv?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
+                val isOnline = user?.isOnline ?: true
+                supabaseClient.registerDeviceToken(
+                    phone = phone,
+                    role = role,
+                    fcmToken = token,
+                    categories = categories,
+                    isOnline = isOnline
+                )
+            }
+        }
+    }
+
+    fun handleNotificationClick(jobId: String, notificationType: String?) {
+        viewModelScope.launch {
+            val localJob = repository.getRequestByRemoteId(jobId) ?: repository.getRequestById(jobId.toLongOrNull() ?: -1L)
+            if (localJob != null) {
+                when (notificationType) {
+                    "job_ping" -> {
+                        _fullscreenPingJob.value = localJob
+                        _currentDestination.value = AppNavDestination.PROVIDER_JOB_ACCEPT
+                    }
+                    "offer_received" -> {
+                        openRequestDetails(localJob.id)
+                    }
+                    "offer_accepted", "status_update" -> {
+                        openLiveTracking(localJob)
+                    }
+                    "new_message" -> {
+                        openJobChat(localJob)
+                    }
+                    else -> {
+                        openLiveTracking(localJob)
+                    }
+                }
+            }
+        }
+    }
+
+    fun clearRequestSubmissionError() {
+        _requestSubmissionError.value = null
+    }
+
+    fun clearProviderActionError() {
+        _providerActionError.value = null
+    }
+
     // Active job being tracked on the Live Map (Customer or Provider view)
     private val _trackingJob = MutableStateFlow<ServiceRequestEntity?>(null)
     val trackingJob: StateFlow<ServiceRequestEntity?> = _trackingJob.asStateFlow()
@@ -161,6 +236,15 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     init {
+        // Initialize token from SharedPreferences or generate stable local device token if FCM is unavailable
+        val prefs = getApplication<Application>().getSharedPreferences("homease_prefs", android.content.Context.MODE_PRIVATE)
+        val existingToken = prefs.getString("fcm_token", null) ?: run {
+            val fallback = "dev_token_" + UUID.randomUUID().toString().replace("-", "").take(16)
+            prefs.edit().putString("fcm_token", fallback).apply()
+            fallback
+        }
+        _fcmToken.value = existingToken
+
         viewModelScope.launch {
             refreshActiveTheme()
         }
@@ -620,15 +704,175 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    private fun jsonToServiceRequestEntity(obj: JSONObject): ServiceRequestEntity {
+        val remoteId = obj.optString("id")
+        val customerPhone = obj.optString("customer_phone", "")
+        val customerName = obj.optString("customer_name", "Customer")
+        val category = obj.optString("category", "General")
+        val categoryId = obj.optString("category_id", "general")
+        val serviceTitle = obj.optString("service_title", "Service Request")
+        val description = obj.optString("description", "")
+        val cityArea = obj.optString("city_area", "")
+        val fullAddress = obj.optString("full_address", "")
+        val budgetRs = obj.optInt("budget_rs", 1500)
+        val statusRaw = obj.optString("status", "searching").uppercase()
+        val status = when (statusRaw) {
+            "SEARCHING" -> "SEARCHING"
+            "ACCEPTED" -> "ACCEPTED"
+            "ON_THE_WAY" -> "ON_THE_WAY"
+            "ARRIVED" -> "ARRIVED"
+            "IN_PROGRESS" -> "IN_PROGRESS"
+            "AWAITING_CUSTOMER_CONFIRMATION" -> "AWAITING_CUSTOMER_CONFIRMATION"
+            "COMPLETED" -> "COMPLETED"
+            "CANCELLED" -> "CANCELLED"
+            else -> statusRaw
+        }
+        val providerPhone = obj.optString("provider_phone").ifBlank { null }
+        val providerName = obj.optString("provider_name").ifBlank { null }
+        val agreedPriceRs = obj.optInt("agreed_price_rs", budgetRs)
+
+        return ServiceRequestEntity(
+            id = 0,
+            customerPhone = customerPhone,
+            customerName = customerName,
+            categoryId = categoryId,
+            categoryTitle = category,
+            serviceTitle = serviceTitle,
+            description = description,
+            cityArea = cityArea,
+            fullAddress = fullAddress,
+            budgetRs = budgetRs,
+            customerAskingPrice = budgetRs,
+            status = status,
+            selectedProviderPhone = providerPhone,
+            selectedProviderName = providerName,
+            agreedPriceRs = agreedPriceRs,
+            remoteId = remoteId
+        )
+    }
+
+    private fun jsonToJobOfferEntity(obj: JSONObject, localRequestId: Long): JobOfferEntity {
+        val remoteOfferId = obj.optString("id")
+        val providerPhone = obj.optString("provider_phone", "")
+        val providerName = obj.optString("provider_name", "Provider")
+        val offerPrice = obj.optInt("offer_price_rs", 0)
+        val counterPrice = obj.optInt("counter_price_rs", offerPrice)
+        val distanceKm = obj.optDouble("distance_km", 1.5)
+        val rating = obj.optDouble("provider_rating", 4.8)
+        val status = obj.optString("status", "pending")
+        val offerNote = obj.optString("offer_note").ifBlank { null }
+
+        return JobOfferEntity(
+            id = 0,
+            requestId = localRequestId,
+            providerPhone = providerPhone,
+            providerName = providerName,
+            counterPriceRs = counterPrice,
+            offerPriceRs = offerPrice,
+            distanceKm = distanceKm,
+            providerRating = rating,
+            status = status,
+            offerNote = offerNote,
+            remoteOfferId = remoteOfferId
+        )
+    }
+
     fun submitServiceRequest(request: ServiceRequestEntity) {
         viewModelScope.launch {
-            val id = repository.createServiceRequest(request)
-            val updated = request.copy(id = id)
-            _activeLiveRequest.value = updated
-            _trackingJob.value = updated
-            // Listen for incoming offers reactively
-            repository.getOffersForRequest(id).collect { offers ->
-                _incomingOffers.value = offers
+            _isSubmittingRequest.value = true
+            _requestSubmissionError.value = null
+
+            // 1. Primary write to Supabase must happen first and be awaited
+            val createResult = supabaseClient.createJob(
+                customerPhone = request.customerPhone,
+                customerName = request.customerName,
+                category = request.categoryTitle,
+                categoryId = request.categoryId,
+                serviceTitle = request.serviceTitle,
+                description = request.description,
+                cityArea = request.cityArea,
+                fullAddress = request.fullAddress,
+                budgetRs = request.budgetRs
+            )
+
+            // 2. If the Supabase write fails, show a visible error and DO NOT fall back to local-only
+            if (createResult.isFailure) {
+                val err = createResult.exceptionOrNull()?.message ?: "Failed to post job to network"
+                _isSubmittingRequest.value = false
+                _requestSubmissionError.value = "Connection error: Could not submit request. Check your internet connection and try again ($err)."
+                return@launch
+            }
+
+            val remoteJobId = createResult.getOrThrow()
+
+            // 3. Only save to local Room cache AFTER successful Supabase write
+            val syncedEntity = request.copy(
+                remoteId = remoteJobId,
+                status = "SEARCHING"
+            )
+            val localId = repository.syncRemoteJob(syncedEntity)
+            val activeEntity = syncedEntity.copy(id = localId)
+
+            _isSubmittingRequest.value = false
+            _activeLiveRequest.value = activeEntity
+            _trackingJob.value = activeEntity
+
+            // Listen for incoming offers reactively from local Room
+            launch {
+                repository.getOffersForRequest(localId).collect { offers ->
+                    _incomingOffers.value = offers
+                }
+            }
+
+            // Realtime WebSocket channel for instant offer push (0ms delay)
+            val offersChannel = supabaseClient.realtime.channel("job-offers-$remoteJobId")
+            offersChannel.subscribe()
+            val offersRealtimeJob = launch {
+                offersChannel.postgresChangeFlow<JSONObject>("public") {
+                    table = "job_offers"
+                    filter = "job_id=eq.$remoteJobId"
+                }.collect { action ->
+                    try {
+                        val offerEntity = jsonToJobOfferEntity(action.record, localId)
+                        repository.syncRemoteOffer(offerEntity)
+                    } catch (_: Exception) {}
+                }
+            }
+
+            // Dispatch notification event to notify matching providers via Edge Function / FCM
+            launch {
+                try {
+                    val jobJson = JSONObject().apply {
+                        put("id", remoteJobId)
+                        put("category", request.categoryTitle)
+                        put("category_id", request.categoryId)
+                        put("service_title", request.serviceTitle)
+                        put("budget_rs", request.budgetRs)
+                        put("city_area", request.cityArea)
+                        put("customer_phone", request.customerPhone)
+                        put("status", "searching")
+                    }
+                    supabaseClient.dispatchNotificationEvent("INSERT", "jobs", jobJson)
+                } catch (_: Exception) {}
+            }
+
+            // Gentle fallback sync (every 15s instead of busy-polling) to safeguard in case of network drops
+            launch {
+                while (_activeLiveRequest.value?.status == "SEARCHING" && _activeLiveRequest.value?.remoteId == remoteJobId) {
+                    try {
+                        val offersResult = supabaseClient.getOffersForJob(remoteJobId)
+                        if (offersResult.isSuccess) {
+                            val offersList = offersResult.getOrThrow()
+                            for (offerJson in offersList) {
+                                val offerEntity = jsonToJobOfferEntity(offerJson, localId)
+                                repository.syncRemoteOffer(offerEntity)
+                            }
+                        }
+                    } catch (_: Exception) {}
+                    delay(15000L)
+                }
+                offersChannel.unsubscribe()
+                offersRealtimeJob.cancel()
             }
         }
     }
@@ -636,30 +880,79 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     fun selectOfferForRequest(offer: JobOfferEntity) {
         viewModelScope.launch {
             val req = _activeLiveRequest.value ?: return@launch
+            _isSubmittingRequest.value = true
+            _requestSubmissionError.value = null
+
+            val remoteJobId = req.remoteId ?: req.id.toString()
+            val remoteOfferId = offer.remoteOfferId ?: offer.id.toString()
+            val agreedPrice = if (offer.offerPriceRs > 0) offer.offerPriceRs else offer.counterPriceRs
+
+            // Primary blocking update to Supabase
+            val acceptResult = supabaseClient.acceptJobOffer(
+                jobId = remoteJobId,
+                offerId = remoteOfferId,
+                providerId = null,
+                providerPhone = offer.providerPhone,
+                providerName = offer.providerName,
+                agreedPriceRs = agreedPrice
+            )
+
+            if (acceptResult.isFailure) {
+                val err = acceptResult.exceptionOrNull()?.message ?: "Failed to accept offer on network"
+                _isSubmittingRequest.value = false
+                _requestSubmissionError.value = "Failed to accept offer on network: $err"
+                return@launch
+            }
+
+            // Sync to local Room after remote success
             repository.customerSelectOffer(req.id, offer)
             val accepted = req.copy(
                 status = "ACCEPTED",
                 selectedProviderName = offer.providerName,
                 selectedProviderPhone = offer.providerPhone,
-                agreedPriceRs = offer.counterPriceRs
+                agreedPriceRs = agreedPrice
             )
             _activeLiveRequest.value = accepted
             _trackingJob.value = accepted
+            _isSubmittingRequest.value = false
         }
     }
 
     fun acceptJobAsProvider(job: ServiceRequestEntity) {
         viewModelScope.launch {
+            _isProviderActionLoading.value = true
+            _providerActionError.value = null
+
             val phone = _currentPhoneNumber.value
             val provider = _currentUser.value ?: if (phone.isNotBlank()) repository.getUser(phone) else null
             val resolvedPhone = provider?.phone ?: phone
             val resolvedName = provider?.name?.ifBlank { null } ?: "Service Provider"
+            val remoteJobId = job.remoteId ?: job.id.toString()
+
+            // Primary blocking write to Supabase
+            val acceptResult = supabaseClient.acceptJobDirectly(
+                jobId = remoteJobId,
+                providerId = provider?.phone,
+                providerPhone = resolvedPhone,
+                providerName = resolvedName,
+                priceRs = job.budgetRs
+            )
+
+            if (acceptResult.isFailure) {
+                val err = acceptResult.exceptionOrNull()?.message ?: "Failed to accept job on network"
+                _isProviderActionLoading.value = false
+                _providerActionError.value = "Failed to accept job: $err"
+                return@launch
+            }
+
+            // Update local Room
             repository.acceptJobByProvider(
                 requestId = job.id,
                 providerPhone = resolvedPhone,
                 providerName = resolvedName,
                 agreedPrice = job.budgetRs
             )
+            _isProviderActionLoading.value = false
             _fullscreenPingJob.value = null
             _currentDestination.value = AppNavDestination.PROVIDER_HOME
         }
@@ -672,17 +965,53 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
 
     fun counterJobAsProvider(job: ServiceRequestEntity, counterPrice: Int, note: String? = null) {
         viewModelScope.launch {
+            _isProviderActionLoading.value = true
+            _providerActionError.value = null
+
             val phone = _currentPhoneNumber.value
             val provider = _currentUser.value ?: if (phone.isNotBlank()) repository.getUser(phone) else null
             val resolvedPhone = provider?.phone ?: phone
             val resolvedName = provider?.name?.ifBlank { null } ?: "Service Provider"
-            repository.submitProviderCounter(
+            val remoteJobId = job.remoteId ?: job.id.toString()
+
+            // Primary blocking write to Supabase public.job_offers
+            val offerResult = supabaseClient.submitJobOffer(
+                jobId = remoteJobId,
+                providerId = provider?.phone,
+                providerPhone = resolvedPhone,
+                providerName = resolvedName,
+                offerPriceRs = counterPrice,
+                counterPriceRs = counterPrice,
+                distanceKm = 1.5,
+                providerRating = provider?.avgRating ?: 4.8,
+                offerNote = note
+            )
+
+            if (offerResult.isFailure) {
+                val err = offerResult.exceptionOrNull()?.message ?: "Failed to submit counter offer"
+                _isProviderActionLoading.value = false
+                _providerActionError.value = "Failed to submit counter offer: $err"
+                return@launch
+            }
+
+            val remoteOfferId = offerResult.getOrThrow()
+
+            // Save to local Room
+            val offerWithRemote = JobOfferEntity(
                 requestId = job.id,
                 providerPhone = resolvedPhone,
                 providerName = resolvedName,
-                counterPrice = counterPrice,
-                note = note
+                counterPriceRs = counterPrice,
+                offerPriceRs = counterPrice,
+                distanceKm = 1.5,
+                providerRating = provider?.avgRating ?: 4.8,
+                status = "pending",
+                offerNote = note,
+                remoteOfferId = remoteOfferId
             )
+            repository.syncRemoteOffer(offerWithRemote)
+
+            _isProviderActionLoading.value = false
             _fullscreenPingJob.value = null
             _currentDestination.value = AppNavDestination.PROVIDER_HOME
         }
@@ -696,12 +1025,13 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
      */
     fun startProviderJobTrip(job: ServiceRequestEntity) {
         viewModelScope.launch {
+            val remoteId = job.remoteId ?: job.id.toString()
             repository.markJobOnTheWay(job.id)
-            supabaseClient.updateJobStatus(job.id.toString(), "ON_THE_WAY")
+            supabaseClient.updateJobStatus(remoteId, "on_the_way")
             val pPhone = job.selectedProviderPhone ?: _currentPhoneNumber.value
             ProviderLocationService.start(
                 context = getApplication(),
-                jobId = job.id.toString(),
+                jobId = remoteId,
                 providerId = pPhone
             )
         }
@@ -715,8 +1045,9 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
      */
     fun markProviderJobArrived(job: ServiceRequestEntity) {
         viewModelScope.launch {
+            val remoteId = job.remoteId ?: job.id.toString()
             repository.markJobArrived(job.id)
-            supabaseClient.updateJobStatus(job.id.toString(), "ARRIVED")
+            supabaseClient.updateJobStatus(remoteId, "arrived")
             ProviderLocationService.stop(getApplication())
         }
     }
@@ -728,17 +1059,20 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
      */
     fun startProviderJobWork(job: ServiceRequestEntity) {
         viewModelScope.launch {
+            val remoteId = job.remoteId ?: job.id.toString()
             repository.markJobInProgress(job.id)
-            supabaseClient.updateJobStatus(job.id.toString(), "IN_PROGRESS")
+            supabaseClient.updateJobStatus(remoteId, "in_progress")
             ProviderLocationService.stop(getApplication())
         }
     }
 
     fun completeActiveJob(jobId: Long) {
         viewModelScope.launch {
+            val job = repository.getRequestById(jobId)
+            val remoteId = job?.remoteId ?: jobId.toString()
             ProviderLocationService.stop(getApplication())
             repository.markJobAwaitingConfirmation(jobId)
-            supabaseClient.updateJobStatus(jobId.toString(), "AWAITING_CUSTOMER_CONFIRMATION")
+            supabaseClient.updateJobStatus(remoteId, "awaiting_customer_confirmation")
         }
     }
 
@@ -769,11 +1103,13 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     fun updateCustomerProfile(
         name: String,
         cityArea: String,
-        savedAddressesCsv: String
+        savedAddressesCsv: String,
+        lat: Double? = null,
+        lng: Double? = null
     ) {
         viewModelScope.launch {
             val phone = _currentPhoneNumber.value
-            repository.updateCustomerProfile(phone, name, cityArea, savedAddressesCsv)
+            repository.updateCustomerProfile(phone, name, cityArea, savedAddressesCsv, lat, lng)
             val updated = repository.getUser(phone)
             if (updated != null) {
                 _currentUser.value = updated
@@ -790,7 +1126,9 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         bio: String,
         shopName: String,
         payoutMethod: String,
-        payoutAccountNumber: String
+        payoutAccountNumber: String,
+        lat: Double? = null,
+        lng: Double? = null
     ) {
         viewModelScope.launch {
             val phone = _currentPhoneNumber.value
@@ -804,7 +1142,9 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                 bio = bio,
                 shopName = shopName,
                 payoutMethod = payoutMethod,
-                payoutAccountNumber = payoutAccountNumber
+                payoutAccountNumber = payoutAccountNumber,
+                lat = lat,
+                lng = lng
             )
             val updated = repository.getUser(phone)
             if (updated != null) {
@@ -813,10 +1153,83 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    private var providerJobsRealtimeChannel: com.example.data.remote.RealtimeChannel? = null
+    private var providerJobRealtimeJob: kotlinx.coroutines.Job? = null
+    private var providerJobPollingJob: kotlinx.coroutines.Job? = null
+
     fun toggleProviderOnline(isOnline: Boolean) {
         viewModelScope.launch {
             val phone = _currentPhoneNumber.value
             repository.setProviderOnline(phone, isOnline)
+
+            // Sync online status and FCM token to device_tokens
+            val token = _fcmToken.value
+            val user = _currentUser.value ?: repository.getUser(phone)
+            val categories = user?.categoriesCsv?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
+            if (phone.isNotBlank()) {
+                supabaseClient.registerDeviceToken(
+                    phone = phone,
+                    role = "provider",
+                    fcmToken = token,
+                    categories = categories,
+                    isOnline = isOnline
+                )
+            }
+
+            providerJobsRealtimeChannel?.unsubscribe()
+            providerJobRealtimeJob?.cancel()
+            providerJobPollingJob?.cancel()
+
+            if (isOnline) {
+                // 1. Instant Realtime WebSocket subscription for open jobs
+                val channel = supabaseClient.realtime.channel("provider-open-jobs")
+                providerJobsRealtimeChannel = channel
+                channel.subscribe()
+
+                providerJobRealtimeJob = launch {
+                    channel.postgresChangeFlow<JSONObject>("public") {
+                        table = "jobs"
+                        filter = ""
+                    }.collect { action ->
+                        try {
+                            val record = action.record
+                            val status = record.optString("status", "")
+                            if (status.equals("SEARCHING", ignoreCase = true)) {
+                                val entity = jsonToServiceRequestEntity(record)
+                                val localId = repository.syncRemoteJob(entity)
+                                val savedEntity = entity.copy(id = localId)
+                                _fullscreenPingJob.value = savedEntity
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+
+                // 2. Initial fetch & 25s low-frequency safety check (preserves battery & quota)
+                providerJobPollingJob = launch {
+                    val seenJobIds = mutableSetOf<String>()
+                    while (isActive) {
+                        try {
+                            val category = categories.firstOrNull()
+                            val jobsResult = supabaseClient.getOpenJobs(category)
+                            if (jobsResult.isSuccess) {
+                                val jobList = jobsResult.getOrThrow()
+                                for (jobObj in jobList) {
+                                    val remoteId = jobObj.optString("id")
+                                    val isNew = remoteId.isNotBlank() && seenJobIds.add(remoteId)
+                                    val entity = jsonToServiceRequestEntity(jobObj)
+                                    val localId = repository.syncRemoteJob(entity)
+                                    val savedEntity = entity.copy(id = localId)
+
+                                    if (isNew && seenJobIds.size > 1) {
+                                        _fullscreenPingJob.value = savedEntity
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {}
+                        delay(25000L) // 25 second safety net
+                    }
+                }
+            }
         }
     }
 

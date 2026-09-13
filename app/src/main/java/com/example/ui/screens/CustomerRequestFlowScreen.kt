@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Message
@@ -48,6 +49,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import com.example.ui.components.LocationPickerInput
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -109,6 +111,9 @@ fun CustomerRequestFlowScreen(
     language: AppLanguage,
     activeLiveRequest: ServiceRequestEntity?,
     incomingOffers: List<JobOfferEntity>,
+    isSubmitting: Boolean = false,
+    submissionError: String? = null,
+    onDismissError: () -> Unit = {},
     onBack: () -> Unit,
     onSubmitRequest: (ServiceRequestEntity) -> Unit,
     onSelectOffer: (JobOfferEntity) -> Unit,
@@ -170,6 +175,8 @@ fun CustomerRequestFlowScreen(
     var addressInput by remember {
         mutableStateOf(savedAddress)
     }
+    var requestLat by remember { mutableStateOf<Double?>(null) }
+    var requestLng by remember { mutableStateOf<Double?>(null) }
 
     // Dynamic reference pricing calculation
     val (refMin, refMax, refBasis) = if (selectedCatId == "dry_cleaning") {
@@ -833,37 +840,24 @@ fun CustomerRequestFlowScreen(
             }
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Automatic Location Detection Banner
-            AutoLocationFetcher(
-                autoFetch = true,
+            // InDrive/Uber style Autocomplete & Map Pin Picker
+            LocationPickerInput(
+                label = if (language == AppLanguage.URDU) "سروس کا مکمل پتہ" else "Delivery / Service Location",
+                hint = if (language == AppLanguage.URDU) "پتہ تلاش کریں یا نقشے سے نشان لگائیں..." else "Search address or tap map to locate...",
+                addressValue = addressInput,
+                cityAreaValue = activeCityArea,
+                latitude = requestLat,
+                longitude = requestLng,
                 language = language,
-                onLocationDetected = { loc ->
-                    addressInput = loc.fullAddress
-                    activeCityArea = loc.cityArea
+                testTagPrefix = "request_address",
+                isRequired = true,
+                showGpsShortcut = true,
+                onLocationSelected = { address, city, lat, lng ->
+                    addressInput = address
+                    activeCityArea = city
+                    requestLat = lat
+                    requestLng = lng
                 }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = addressInput,
-                onValueChange = { addressInput = it },
-                label = { Text(if (language == AppLanguage.URDU) "سروس کا مکمل پتہ" else "Delivery / Service Address") },
-                leadingIcon = {
-                    Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, tint = DeepIndigo)
-                },
-                textStyle = androidx.compose.ui.text.TextStyle(color = TextSlate, fontSize = 14.sp),
-                modifier = Modifier.fillMaxWidth().testTag("request_address_input"),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = TextSlate,
-                    unfocusedTextColor = TextSlate,
-                    cursorColor = DeepIndigo,
-                    focusedBorderColor = DeepIndigo,
-                    unfocusedBorderColor = BorderStroke,
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
-                )
             )
 
             Spacer(modifier = Modifier.height(22.dp))
@@ -1116,13 +1110,54 @@ fun CustomerRequestFlowScreen(
                         fullAddress = addressInput,
                         budgetRs = budget,
                         customerAskingPrice = budget,
-                        status = "SEARCHING"
+                        status = "SEARCHING",
+                        lat = requestLat,
+                        lng = requestLng
                     )
                     onSubmitRequest(req)
                 },
-                enabled = addressInput.isNotBlank() && budgetInput.isNotBlank(),
+                enabled = addressInput.isNotBlank() && budgetInput.isNotBlank() && !isSubmitting,
+                isLoading = isSubmitting,
                 testTag = "submit_service_request_btn"
             )
+
+            if (submissionError != null) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFDE8E8)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF87171))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Error",
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = submissionError,
+                            color = Color(0xFF991B1B),
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = onDismissError) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Dismiss",
+                                tint = Color(0xFF991B1B),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(20.dp))
         }

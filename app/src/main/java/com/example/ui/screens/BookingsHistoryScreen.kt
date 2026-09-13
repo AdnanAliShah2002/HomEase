@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import java.text.NumberFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -424,11 +425,14 @@ fun CustomerActiveJobCard(
                 }
 
                 val price = if (job.agreedPriceRs > 0) job.agreedPriceRs else job.budgetRs
+                val formattedPrice = NumberFormat.getNumberInstance(Locale.US).format(price)
                 Text(
-                    text = "Rs $price",
+                    text = "Rs $formattedPrice",
                     fontWeight = FontWeight.Black,
                     fontSize = 17.sp,
-                    color = StatusGreen
+                    color = StatusGreen,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
 
@@ -633,11 +637,14 @@ fun ProviderActiveJobItemCard(
                 }
 
                 val price = if (job.agreedPriceRs > 0) job.agreedPriceRs else job.budgetRs
+                val formattedPrice = NumberFormat.getNumberInstance(Locale.US).format(price)
                 Text(
-                    text = "Rs $price",
+                    text = "Rs $formattedPrice",
                     fontWeight = FontWeight.Black,
                     fontSize = 17.sp,
-                    color = StatusGreen
+                    color = StatusGreen,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
 

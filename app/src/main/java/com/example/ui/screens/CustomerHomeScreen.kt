@@ -76,6 +76,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.db.ServiceRequestEntity
@@ -86,6 +87,7 @@ import com.example.data.model.ServiceCatalog
 import com.example.data.model.ServiceCategoryItem
 import com.example.data.model.UserRole
 import com.example.ui.components.AutoLocationFetcher
+import com.example.ui.components.LocationPickerInput
 import com.example.ui.components.HomEaseTopBar
 import com.example.ui.components.HomeaseLogoMark
 import com.example.ui.components.HowDidItGoDialog
@@ -190,58 +192,27 @@ fun CustomerHomeScreen(
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AutoLocationFetcher(
-                        autoFetch = true,
-                        onLocationDetected = { loc ->
-                            selectedLocation = loc.cityArea
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    LocationPickerInput(
+                        label = Strings.get("city_area", language),
+                        addressValue = selectedLocation,
+                        cityAreaValue = selectedLocation,
+                        latitude = user.lat,
+                        longitude = user.lng,
+                        language = language,
+                        testTagPrefix = "home_location",
+                        isRequired = false,
+                        showGpsShortcut = true,
+                        onLocationSelected = { address, city, lat, lng ->
+                            selectedLocation = if (city.isNotBlank()) city else address
                             isGpsDetected = true
                             showLocationDialog = false
+                            onUpdateProfile(user.name, selectedLocation, user.savedAddressesCsv)
                         }
                     )
-
-                    Text(
-                        text = "Or choose predefined area:",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextSlateMuted
-                    )
-
-                    listOf(
-                        "Gulberg III, Lahore",
-                        "DHA Phase 5, Lahore",
-                        "Model Town, Lahore",
-                        "Johar Town, Lahore",
-                        "F-7 / Blue Area, Islamabad",
-                        "Clifton Block 4, Karachi"
-                    ).forEach { loc ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (selectedLocation == loc) DeepIndigoContainer else SurfaceVariantLight)
-                                .clickable {
-                                    selectedLocation = loc
-                                    showLocationDialog = false
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = if (selectedLocation == loc) DeepIndigo else TextSlateMuted,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = loc,
-                                fontSize = 14.sp,
-                                fontWeight = if (selectedLocation == loc) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedLocation == loc) DeepIndigo else TextSlate
-                            )
-                        }
-                    }
                 }
             },
             confirmButton = {
@@ -498,14 +469,15 @@ fun CustomerHomeScreen(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
                             tint = DeepIndigo,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(48.dp)
                         .testTag("customer_search_bar"),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = DeepIndigo,
                         unfocusedBorderColor = Color(0xFFE2E8F0),
@@ -621,14 +593,14 @@ fun CustomerHomeScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // 3-Column Grid matching Design HTML exactly
                     val chunked = categoriesToDisplay.chunked(3)
                     chunked.forEach { rowItems ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             rowItems.forEach { item ->
                                 ProfessionalCategoryCard(
@@ -643,7 +615,7 @@ fun CustomerHomeScreen(
                                 Spacer(modifier = Modifier.weight(1f))
                             }
                         }
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
@@ -828,7 +800,7 @@ fun ProfessionalCategoryCard(
         modifier = modifier
             .clickable { onClick() }
             .testTag("cat_card_${item.id}"),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -836,32 +808,35 @@ fun ProfessionalCategoryCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp, horizontal = 6.dp),
+                .padding(vertical = 10.dp, horizontal = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Pastel rounded badge
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Color(item.pastelBgColor)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = item.emoji,
-                    fontSize = 22.sp
+                    fontSize = 20.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // Pure single-language Category Name
+            // Pure single-language Category Name (wrapped up to 2 lines so names like "Laundry & Ironing" never get cut off)
             Text(
                 text = Strings.get(item.nameKey, language),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = TextSlate,
-                maxLines = 1
+                textAlign = TextAlign.Center,
+                lineHeight = 14.sp,
+                maxLines = 2,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
             )
         }
     }

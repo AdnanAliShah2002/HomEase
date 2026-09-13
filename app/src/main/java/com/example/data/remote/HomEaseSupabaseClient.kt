@@ -42,7 +42,8 @@ data class SupabaseSession(
     val userId: String,
     val phone: String,
     val accessToken: String,
-    val role: String = "customer"
+    val role: String = "customer",
+    val refreshToken: String? = null
 )
 
 data class PublicProviderProfile(
@@ -67,6 +68,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         private const val KEY_USER_ID = "session_user_id"
         private const val KEY_PHONE = "session_phone"
         private const val KEY_ACCESS_TOKEN = "session_access_token"
+        private const val KEY_REFRESH_TOKEN = "session_refresh_token"
         private const val KEY_ROLE = "session_role"
 
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
@@ -142,6 +144,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             .putString(KEY_USER_ID, session.userId)
             .putString(KEY_PHONE, session.phone)
             .putString(KEY_ACCESS_TOKEN, session.accessToken)
+            .putString(KEY_REFRESH_TOKEN, session.refreshToken)
             .putString(KEY_ROLE, session.role)
             .apply()
     }
@@ -151,6 +154,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         val userId = prefs.getString(KEY_USER_ID, null)
         val phone = prefs.getString(KEY_PHONE, null)
         val token = prefs.getString(KEY_ACCESS_TOKEN, null)
+        val refreshToken = prefs.getString(KEY_REFRESH_TOKEN, null)
         val role = prefs.getString(KEY_ROLE, "customer") ?: "customer"
 
         if (!userId.isNullOrBlank() && !phone.isNullOrBlank() && !token.isNullOrBlank()) {
@@ -158,8 +162,47 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
                 userId = userId,
                 phone = phone,
                 accessToken = token,
-                role = role
+                role = role,
+                refreshToken = refreshToken
             )
+        }
+    }
+
+    suspend fun refreshSession(): Result<SupabaseSession> = withContext(Dispatchers.IO) {
+        val current = getSession() ?: return@withContext Result.failure(IllegalStateException("No session to refresh"))
+        val refreshToken = current.refreshToken
+        if (refreshToken.isNullOrBlank()) {
+            return@withContext Result.failure(IllegalStateException("No refresh token available"))
+        }
+        try {
+            val url = "$SUPABASE_URL/auth/v1/token?grant_type=refresh_token"
+            val payload = JSONObject().apply {
+                put("refresh_token", refreshToken)
+            }
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("apikey", SUPABASE_ANON_KEY)
+                .addHeader("Content-Type", "application/json")
+                .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string().orEmpty()
+            if (response.isSuccessful) {
+                val json = JSONObject(body)
+                val newAccessToken = json.getString("access_token")
+                val newRefreshToken = json.optString("refresh_token", refreshToken)
+                val newSession = current.copy(
+                    accessToken = newAccessToken,
+                    refreshToken = newRefreshToken
+                )
+                setSession(newSession)
+                Result.success(newSession)
+            } else {
+                Result.failure(IOException("Failed to refresh token: $body"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -517,6 +560,337 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         }
     }
 
+    /**
+     * Posts a new service request to the Supabase `jobs` table.
+     * RLS policy enforces customer ownership.
+     * MUST NOT silently fall back or mask errors.
+     */
+    suspend fun createJob(
+        customerPhone: String,
+        customerName: String,
+        category: String,
+        categoryId: String,
+        serviceTitle: String,
+        description: String,
+        cityArea: String,
+        fullAddress: String,
+        budgetRs: Int
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val session = getSession()
+            val customerId = session?.userId
+
+            val payload = JSONObject().apply {
+                if (!customerId.isNullOrBlank()) {
+                    put("customer_id", customerId)
+                }
+                put("customer_phone", customerPhone)
+                put("customer_name", customerName)
+                put("category", category)
+                put("category_id", categoryId)
+                put("service_title", serviceTitle)
+                put("description", description)
+                put("city_area", cityArea)
+                put("full_address", fullAddress)
+                put("budget_rs", budgetRs)
+                put("status", "searching")
+            }
+
+            val url = "$SUPABASE_URL/rest/v1/jobs"
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .addHeader("Prefer", "return=representation")
+                .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            val body = response.body?.string().orEmpty()
+            if (response.isSuccessful || response.code in 200..204) {
+                val arr = JSONArray(body)
+                if (arr.length() > 0) {
+                    val createdId = arr.getJSONObject(0).getString("id")
+                    Result.success(createdId)
+                } else {
+                    Result.failure(IOException("Job created on server, but no record returned: $body"))
+                }
+            } else {
+                Result.failure(IOException("Failed to create job in Supabase (HTTP ${response.code}): $body"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Providers query unassigned open jobs in 'searching' status.
+     * Optionally filtered by category.
+     */
+    suspend fun getOpenJobs(category: String? = null): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
+        try {
+            var url = "$SUPABASE_URL/rest/v1/jobs?status=eq.searching&select=*&order=created_at.desc"
+            if (!category.isNullOrBlank() && category != "All") {
+                val encodedCat = java.net.URLEncoder.encode(category, "UTF-8")
+                url += "&category=eq.$encodedCat"
+            }
+            val requestBuilder = Request.Builder().url(url)
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            val bodyString = response.body?.string().orEmpty()
+
+            if (response.isSuccessful) {
+                val array = JSONArray(bodyString)
+                val list = mutableListOf<JSONObject>()
+                for (i in 0 until array.length()) {
+                    list.add(array.getJSONObject(i))
+                }
+                Result.success(list)
+            } else {
+                Result.failure(IOException("Failed to query open jobs (HTTP ${response.code}): $bodyString"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Submits a real offer or counter-offer to `public.job_offers`.
+     */
+    suspend fun submitJobOffer(
+        jobId: String,
+        providerId: String?,
+        providerPhone: String,
+        providerName: String,
+        offerPriceRs: Int,
+        counterPriceRs: Int,
+        distanceKm: Double = 1.5,
+        providerRating: Double = 4.8,
+        offerNote: String? = null
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val session = getSession()
+            val resolvedProviderId = providerId ?: session?.userId
+
+            val payload = JSONObject().apply {
+                put("job_id", jobId)
+                if (!resolvedProviderId.isNullOrBlank()) {
+                    put("provider_id", resolvedProviderId)
+                }
+                put("provider_phone", providerPhone)
+                put("provider_name", providerName)
+                put("offer_price_rs", offerPriceRs)
+                put("counter_price_rs", counterPriceRs)
+                put("distance_km", distanceKm)
+                put("provider_rating", providerRating)
+                put("status", "pending")
+                if (!offerNote.isNullOrBlank()) {
+                    put("offer_note", offerNote)
+                }
+            }
+
+            val url = "$SUPABASE_URL/rest/v1/job_offers"
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .addHeader("Prefer", "return=representation")
+                .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            val body = response.body?.string().orEmpty()
+            if (response.isSuccessful || response.code in 200..204) {
+                val arr = JSONArray(body)
+                val createdId = if (arr.length() > 0) arr.getJSONObject(0).getString("id") else UUID.randomUUID().toString()
+                Result.success(createdId)
+            } else {
+                Result.failure(IOException("Failed to submit offer to Supabase (HTTP ${response.code}): $body"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Customer retrieves real offers submitted for a job.
+     */
+    suspend fun getOffersForJob(jobId: String): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/rest/v1/job_offers?job_id=eq.$jobId&select=*&order=created_at.desc"
+            val requestBuilder = Request.Builder().url(url)
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            val bodyString = response.body?.string().orEmpty()
+
+            if (response.isSuccessful) {
+                val array = JSONArray(bodyString)
+                val list = mutableListOf<JSONObject>()
+                for (i in 0 until array.length()) {
+                    list.add(array.getJSONObject(i))
+                }
+                Result.success(list)
+            } else {
+                Result.failure(IOException("Failed to query job offers (HTTP ${response.code}): $bodyString"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Customer accepts a specific offer:
+     * 1. Updates jobs table (status = 'accepted', provider assigned, agreed price)
+     * 2. Updates the chosen offer to status = 'accepted'
+     * 3. Updates all competing pending offers for that job to status = 'rejected'
+     */
+    suspend fun acceptJobOffer(
+        jobId: String,
+        offerId: String,
+        providerId: String?,
+        providerPhone: String,
+        providerName: String,
+        agreedPriceRs: Int
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val isoNow = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+
+            // 1. Update jobs table
+            val jobPayload = JSONObject().apply {
+                put("status", "accepted")
+                if (!providerId.isNullOrBlank()) {
+                    put("provider_id", providerId)
+                }
+                put("provider_phone", providerPhone)
+                put("provider_name", providerName)
+                put("agreed_price_rs", agreedPriceRs)
+                put("status_updated_at", isoNow)
+            }
+            val jobUrl = "$SUPABASE_URL/rest/v1/jobs?id=eq.$jobId"
+            val jobReq = Request.Builder()
+                .url(jobUrl)
+                .patch(jobPayload.toString().toRequestBody(JSON_MEDIA_TYPE))
+            getAuthHeaders().forEach { (k, v) -> jobReq.addHeader(k, v) }
+
+            val jobResp = client.newCall(jobReq.build()).execute()
+            if (!jobResp.isSuccessful && jobResp.code !in 200..204) {
+                val body = jobResp.body?.string().orEmpty()
+                return@withContext Result.failure(IOException("Failed to accept job in Supabase (HTTP ${jobResp.code}): $body"))
+            }
+
+            // 2. Mark this offer as 'accepted'
+            val acceptedPayload = JSONObject().apply {
+                put("status", "accepted")
+                put("updated_at", isoNow)
+            }
+            val acceptedUrl = "$SUPABASE_URL/rest/v1/job_offers?id=eq.$offerId"
+            val acceptedReq = Request.Builder()
+                .url(acceptedUrl)
+                .patch(acceptedPayload.toString().toRequestBody(JSON_MEDIA_TYPE))
+            getAuthHeaders().forEach { (k, v) -> acceptedReq.addHeader(k, v) }
+            val acceptedResp = client.newCall(acceptedReq.build()).execute()
+            if (!acceptedResp.isSuccessful && acceptedResp.code !in 200..204) {
+                val body = acceptedResp.body?.string().orEmpty()
+                return@withContext Result.failure(IOException("Failed to accept offer in Supabase (HTTP ${acceptedResp.code}): $body"))
+            }
+
+            // 3. Mark competing pending offers for this job as 'rejected'
+            val rejectedPayload = JSONObject().apply {
+                put("status", "rejected")
+                put("updated_at", isoNow)
+            }
+            val rejectedUrl = "$SUPABASE_URL/rest/v1/job_offers?job_id=eq.$jobId&id=neq.$offerId&status=eq.pending"
+            val rejectedReq = Request.Builder()
+                .url(rejectedUrl)
+                .patch(rejectedPayload.toString().toRequestBody(JSON_MEDIA_TYPE))
+            getAuthHeaders().forEach { (k, v) -> rejectedReq.addHeader(k, v) }
+            client.newCall(rejectedReq.build()).execute()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Provider directly accepts a job at the customer's asking budget.
+     */
+    suspend fun acceptJobDirectly(
+        jobId: String,
+        providerId: String?,
+        providerPhone: String,
+        providerName: String,
+        priceRs: Int
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val isoNow = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+
+            val jobPayload = JSONObject().apply {
+                put("status", "accepted")
+                if (!providerId.isNullOrBlank()) {
+                    put("provider_id", providerId)
+                }
+                put("provider_phone", providerPhone)
+                put("provider_name", providerName)
+                put("agreed_price_rs", priceRs)
+                put("status_updated_at", isoNow)
+            }
+            val jobUrl = "$SUPABASE_URL/rest/v1/jobs?id=eq.$jobId&status=eq.searching"
+            val jobReq = Request.Builder()
+                .url(jobUrl)
+                .patch(jobPayload.toString().toRequestBody(JSON_MEDIA_TYPE))
+            getAuthHeaders().forEach { (k, v) -> jobReq.addHeader(k, v) }
+
+            val jobResp = client.newCall(jobReq.build()).execute()
+            if (!jobResp.isSuccessful && jobResp.code !in 200..204) {
+                val body = jobResp.body?.string().orEmpty()
+                return@withContext Result.failure(IOException("Failed to accept job in Supabase (HTTP ${jobResp.code}): $body"))
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Updates status of a job in Supabase (e.g. 'on_the_way', 'arrived', 'in_progress', 'completed').
+     */
+    suspend fun updateJobStatus(jobId: String, status: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val isoNow = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+
+            val payload = JSONObject().apply {
+                put("status", status.lowercase())
+                put("status_updated_at", isoNow)
+                if (status.equals("completed", ignoreCase = true)) {
+                    put("completed_at", isoNow)
+                }
+            }
+            val url = "$SUPABASE_URL/rest/v1/jobs?id=eq.$jobId"
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful || response.code in 200..204) {
+                Result.success(Unit)
+            } else {
+                val body = response.body?.string().orEmpty()
+                Result.failure(IOException("Failed to update job status in Supabase (HTTP ${response.code}): $body"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // ========================================================================
     // 4. Job Ratings Table
     // ========================================================================
@@ -557,6 +931,95 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
                 val body = response.body?.string().orEmpty()
                 Result.failure(IOException("Rating submission failed (HTTP ${response.code}): $body"))
             }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ========================================================================
+    // 5. FCM Device Token Registration & Dispatch
+    // ========================================================================
+
+    /**
+     * Captures and syncs device FCM token into public.device_tokens table
+     * as well as fcm_token column on users / service_providers.
+     */
+    suspend fun registerDeviceToken(
+        phone: String,
+        role: String,
+        fcmToken: String,
+        categories: List<String> = emptyList(),
+        isOnline: Boolean = true
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val formattedPhone = if (phone.startsWith("+")) phone else "+$phone"
+            val url = "$SUPABASE_URL/rest/v1/device_tokens"
+            val categoriesJson = JSONArray().apply {
+                categories.forEach { put(it) }
+            }
+            val payload = JSONObject().apply {
+                put("phone", formattedPhone)
+                put("role", role)
+                put("fcm_token", fcmToken)
+                put("categories", categoriesJson)
+                put("is_online", isOnline)
+                put("updated_at", java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                    timeZone = java.util.TimeZone.getTimeZone("UTC")
+                }.format(java.util.Date()))
+            }
+
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .addHeader("Prefer", "resolution=merge-duplicates")
+                .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            try {
+                client.newCall(requestBuilder.build()).execute()
+            } catch (_: Exception) {}
+
+            // Also update direct column in users or service_providers
+            try {
+                val table = if (role == "provider") "service_providers" else "users"
+                val patchUrl = "$SUPABASE_URL/rest/v1/$table?phone=eq.$formattedPhone"
+                val patchBody = JSONObject().apply { put("fcm_token", fcmToken) }
+                val patchReq = Request.Builder()
+                    .url(patchUrl)
+                    .patch(patchBody.toString().toRequestBody(JSON_MEDIA_TYPE))
+                getAuthHeaders().forEach { (k, v) -> patchReq.addHeader(k, v) }
+                client.newCall(patchReq.build()).execute()
+            } catch (_: Exception) {}
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Triggers the notify-job-event Edge Function directly.
+     * Functions as an immediate trigger alongside Postgres Database Webhooks.
+     */
+    suspend fun dispatchNotificationEvent(
+        eventType: String,
+        table: String,
+        record: JSONObject
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/functions/v1/notify-job-event"
+            val payload = JSONObject().apply {
+                put("type", eventType)
+                put("table", table)
+                put("record", record)
+            }
+            val reqBuilder = Request.Builder()
+                .url(url)
+                .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+            getAuthHeaders().forEach { (k, v) -> reqBuilder.addHeader(k, v) }
+
+            val response = client.newCall(reqBuilder.build()).execute()
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -696,38 +1159,6 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             null
         } catch (e: Exception) {
             null
-        }
-    }
-
-    /**
-     * Updates job status and records `status_updated_at`.
-     */
-    suspend fun updateJobStatus(jobId: String, status: String): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val url = "$SUPABASE_URL/rest/v1/jobs?id=eq.$jobId"
-            val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
-                timeZone = java.util.TimeZone.getTimeZone("UTC")
-            }.format(java.util.Date())
-
-            val bodyObj = JSONObject().apply {
-                put("status", status)
-                put("status_updated_at", isoTime)
-            }
-
-            val requestBuilder = Request.Builder()
-                .url(url)
-                .patch(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
-
-            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
-
-            val response = client.newCall(requestBuilder.build()).execute()
-            if (response.isSuccessful || response.code in 200..204) {
-                Result.success(Unit)
-            } else {
-                Result.failure(IOException("Failed to update job status (HTTP ${response.code})"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
 

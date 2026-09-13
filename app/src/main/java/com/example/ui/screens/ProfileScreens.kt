@@ -75,6 +75,7 @@ import com.example.data.localization.AppLanguage
 import com.example.data.localization.Strings
 import com.example.data.model.ServiceCatalog
 import com.example.ui.components.AutoLocationFetcher
+import com.example.ui.components.LocationPickerInput
 import com.example.ui.components.HelpSupportDialog
 import com.example.ui.theme.BackgroundLight
 import com.example.ui.theme.BorderStroke
@@ -324,26 +325,20 @@ fun CustomerProfileView(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                AutoLocationFetcher(
+                LocationPickerInput(
+                    label = Strings.get("city_area", language),
+                    addressValue = cityArea,
+                    cityAreaValue = cityArea,
+                    latitude = user.lat,
+                    longitude = user.lng,
                     language = language,
-                    autoFetch = false,
-                    onLocationDetected = { loc ->
-                        cityArea = loc.cityArea
+                    testTagPrefix = "customer_profile_city",
+                    isRequired = false,
+                    showGpsShortcut = true,
+                    onLocationSelected = { address, city, _, _ ->
+                        cityArea = if (city.isNotBlank()) city else address
                         onSaveProfile(name, cityArea, addressesList.joinToString("|"))
                     }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = cityArea,
-                    onValueChange = {
-                        cityArea = it
-                        onSaveProfile(name, cityArea, addressesList.joinToString("|"))
-                    },
-                    modifier = Modifier.fillMaxWidth().testTag("customer_city_input"),
-                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = DeepIndigo) },
-                    shape = RoundedCornerShape(10.dp)
                 )
             }
         }
@@ -840,6 +835,35 @@ fun ProviderProfileView(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
+                // Service Base Location Input
+                LocationPickerInput(
+                    label = Strings.get("service_area", language),
+                    addressValue = user.homeAddress,
+                    cityAreaValue = cityArea,
+                    latitude = user.lat,
+                    longitude = user.lng,
+                    language = language,
+                    testTagPrefix = "provider_profile_service_area",
+                    isRequired = true,
+                    showGpsShortcut = true,
+                    onLocationSelected = { address, city, _, _ ->
+                        cityArea = if (city.isNotBlank()) city else address
+                        onSaveProfile(
+                            name,
+                            cityArea,
+                            selectedCategories.joinToString(","),
+                            yearsExperience,
+                            serviceRadiusKm.toInt(),
+                            bio,
+                            shopName,
+                            payoutMethod,
+                            payoutAccountNumber
+                        )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
                 // Service Radius Slider
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -937,31 +961,66 @@ fun ProviderProfileView(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("Cash", "JazzCash", "EasyPaisa").forEach { method ->
+                    val payoutOptions = listOf(
+                        Triple("Cash", "💵", Color(0xFF10B981)),
+                        Triple("JazzCash", "JC", Color(0xFFD32F2F)),
+                        Triple("EasyPaisa", "EP", Color(0xFF00A950))
+                    )
+                    payoutOptions.forEach { (method, badge, badgeBg) ->
                         val isSelected = payoutMethod.equals(method, ignoreCase = true)
-                        Button(
-                            onClick = {
-                                payoutMethod = method
-                                onSaveProfile(
-                                    name,
-                                    cityArea,
-                                    selectedCategories.joinToString(","),
-                                    yearsExperience,
-                                    serviceRadiusKm.toInt(),
-                                    bio,
-                                    shopName,
-                                    payoutMethod,
-                                    payoutAccountNumber
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) DeepIndigo.copy(alpha = 0.08f) else Color(0xFFF8FAFC))
+                                .border(
+                                    width = if (isSelected) 2.dp else 1.dp,
+                                    color = if (isSelected) DeepIndigo else Color(0xFFE2E8F0),
+                                    shape = RoundedCornerShape(12.dp)
                                 )
-                            },
-                            modifier = Modifier.weight(1f).height(40.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSelected) DeepIndigo else Color(0xFFF1F5F9),
-                                contentColor = if (isSelected) Color.White else TextSlate
-                            )
+                                .clickable {
+                                    payoutMethod = method
+                                    onSaveProfile(
+                                        name,
+                                        cityArea,
+                                        selectedCategories.joinToString(","),
+                                        yearsExperience,
+                                        serviceRadiusKm.toInt(),
+                                        bio,
+                                        shopName,
+                                        payoutMethod,
+                                        payoutAccountNumber
+                                    )
+                                }
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(method, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(badgeBg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = badge,
+                                        fontSize = if (badge.length > 1) 9.sp else 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White
+                                    )
+                                }
+                                Text(
+                                    text = method,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) DeepIndigo else TextSlate,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 }
@@ -1128,14 +1187,15 @@ fun AddAddressDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text("Full Street Address & Area", fontSize = 12.sp, color = TextSlateMuted)
-                Spacer(modifier = Modifier.height(4.dp))
-                OutlinedTextField(
-                    value = address,
-                    onValueChange = { address = it },
-                    placeholder = { Text("House #, Street #, Phase/Sector...") },
-                    modifier = Modifier.fillMaxWidth().height(90.dp),
-                    shape = RoundedCornerShape(10.dp)
+                LocationPickerInput(
+                    label = "Full Street Address & Area",
+                    addressValue = address,
+                    testTagPrefix = "add_saved_address",
+                    isRequired = true,
+                    showGpsShortcut = true,
+                    onLocationSelected = { selectedAddr, _, _, _ ->
+                        address = selectedAddr
+                    }
                 )
             }
         },

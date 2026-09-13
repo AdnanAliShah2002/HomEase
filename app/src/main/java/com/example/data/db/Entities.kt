@@ -31,8 +31,13 @@ data class UserEntity(
     val isOnline: Boolean = false,
     val avgRating: Double = 5.0,
     val totalJobs: Int = 0,
-    val savedAddressesCsv: String = ""
-)
+    val savedAddressesCsv: String = "",
+    val lat: Double? = null,
+    val lng: Double? = null
+) {
+    val latitude: Double? get() = lat
+    val longitude: Double? get() = lng
+}
 
 @Entity(tableName = "service_requests")
 data class ServiceRequestEntity(
@@ -58,8 +63,14 @@ data class ServiceRequestEntity(
     val ratingGiven: Int? = null,
     val ratingComment: String? = null,
     val issueCategory: String? = null,
-    val issueDescription: String? = null
-)
+    val issueDescription: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null,
+    val remoteId: String? = null
+) {
+    val latitude: Double? get() = lat
+    val longitude: Double? get() = lng
+}
 
 @Entity(tableName = "provider_locations")
 data class ProviderLocationEntity(
@@ -85,7 +96,8 @@ data class JobOfferEntity(
     val providerRating: Double = 4.8,
     val status: String = "pending", // pending, accepted, rejected, expired
     val offerNote: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val remoteOfferId: String? = null
 )
 
 @Entity(tableName = "service_categories")
