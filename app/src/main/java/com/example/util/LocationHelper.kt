@@ -70,7 +70,7 @@ object LocationHelper {
         if (!hasLocationPermission(context)) return null
         if (!isLocationEnabled(context)) return null
 
-        val rawLocation = fetchRawAndroidLocation(context) ?: getDefaultFallbackLocation()
+        val rawLocation = fetchRawAndroidLocation(context) ?: return null
         return reverseGeocode(context, rawLocation.latitude, rawLocation.longitude)
     }
 

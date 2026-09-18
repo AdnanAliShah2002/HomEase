@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationCity
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,8 +33,11 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,6 +65,7 @@ import com.example.ui.theme.DeepIndigoContainer
 import com.example.ui.theme.SoftOrange
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.util.LocationHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,25 +74,27 @@ fun CustomerRegistrationScreen(
     language: AppLanguage,
     onComplete: (UserEntity) -> Unit
 ) {
+    val context = LocalContext.current
     var fullName by remember { mutableStateOf("") }
     var selectedAvatarIndex by remember { mutableStateOf(0) }
-    var cityArea by remember { mutableStateOf("Islamabad - Blue Area") }
-    var cityExpanded by remember { mutableStateOf(false) }
+    var cityArea by remember { mutableStateOf("") }
     var homeAddress by remember { mutableStateOf("") }
     var customerLat by remember { mutableStateOf<Double?>(null) }
     var customerLng by remember { mutableStateOf<Double?>(null) }
+    var notificationPreferenceEnabled by remember { mutableStateOf(true) }
 
-    val cityOptions = listOf(
-        "Lahore - Gulberg",
-        "Lahore - DHA Phase 5",
-        "Lahore - Bahria Town",
-        "Lahore - Model Town",
-        "Islamabad - F-7 / F-8",
-        "Islamabad - Blue Area",
-        "Rawalpindi - Saddar",
-        "Karachi - Clifton / DHA",
-        "Karachi - Gulshan-e-Iqbal"
-    )
+    // Auto-detect device GPS location dynamically on screen launch
+    LaunchedEffect(Unit) {
+        if (LocationHelper.hasLocationPermission(context) && LocationHelper.isLocationEnabled(context)) {
+            val loc = LocationHelper.getCurrentLocation(context)
+            if (loc != null) {
+                homeAddress = loc.fullAddress
+                cityArea = loc.cityArea
+                customerLat = loc.latitude
+                customerLng = loc.longitude
+            }
+        }
+    }
 
     val avatarList = listOf("👨‍💼", "👩‍💼", "🧔", "🧕", "🧑‍🦱")
 
@@ -212,6 +220,64 @@ fun CustomerRegistrationScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             // Notification Preference
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White,
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(DeepIndigoContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = null,
+                                tint = DeepIndigo,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = if (language == AppLanguage.URDU) "آرڈر کی اطلاعات موصول کریں" else "Order & Status Notifications",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextSlate
+                            )
+                            Text(
+                                text = if (language == AppLanguage.URDU) "بکنگ کی تصدیق اور کاریگر کی آمد پر الرٹس" else "Receive instant alerts for bookings & arrival",
+                                fontSize = 12.sp,
+                                color = TextSlateMuted
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = notificationPreferenceEnabled,
+                        onCheckedChange = { notificationPreferenceEnabled = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = DeepIndigo
+                        ),
+                        modifier = Modifier.testTag("notification_pref_switch")
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(28.dp))
 
             // Finish Setup CTA
@@ -221,10 +287,10 @@ fun CustomerRegistrationScreen(
                     val user = UserEntity(
                         phone = phoneNumber,
                         role = "CUSTOMER",
-                        name = fullName.ifBlank { "Valued Customer" },
+                        name = fullName.trim(),
                         profilePhotoUri = avatarList.getOrNull(selectedAvatarIndex),
-                        cityArea = cityArea,
-                        homeAddress = homeAddress,
+                        cityArea = cityArea.trim(),
+                        homeAddress = homeAddress.trim(),
                         status = "ACTIVE",
                         lat = customerLat,
                         lng = customerLng

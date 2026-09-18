@@ -1,5 +1,8 @@
 package com.example.ui.screens
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -64,7 +67,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -127,10 +132,26 @@ fun CustomerHomeScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showAllCategories by remember { mutableStateOf(false) }
     var showLocationDialog by remember { mutableStateOf(false) }
-    var selectedLocation by remember { mutableStateOf(user.cityArea.ifBlank { "Gulberg III, Lahore" }) }
+    var selectedLocation by remember { mutableStateOf(user.cityArea.ifBlank { "" }) }
     var isGpsDetected by remember { mutableStateOf(false) }
     var activeJobForRatingDialog by remember { mutableStateOf<ServiceRequestEntity?>(null) }
     val context = LocalContext.current
+
+    val coroutineScope = rememberCoroutineScope()
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.values.any { it }) {
+            // Permission granted, trigger location fetch
+            coroutineScope.launch {
+                LocationHelper.getCurrentLocation(context)?.let { loc ->
+                    selectedLocation = loc.cityArea
+                    isGpsDetected = true
+                    onUpdateProfile(user.name, loc.cityArea, user.savedAddressesCsv)
+                }
+            }
+        }
+    }
 
     // Auto trigger rating dialog if there is a job awaiting confirmation
     LaunchedEffect(awaitingRatingJob?.id) {
@@ -139,14 +160,25 @@ fun CustomerHomeScreen(
         }
     }
 
-    // Auto-fetch location if GPS is enabled on device
+    // Auto-fetch location if GPS is enabled on device, or request permission
     LaunchedEffect(Unit) {
-        if (LocationHelper.hasLocationPermission(context) && LocationHelper.isLocationEnabled(context)) {
-            val loc = LocationHelper.getCurrentLocation(context)
-            if (loc != null) {
-                selectedLocation = loc.cityArea
-                isGpsDetected = true
+        if (LocationHelper.hasLocationPermission(context)) {
+            if (LocationHelper.isLocationEnabled(context)) {
+                val loc = LocationHelper.getCurrentLocation(context)
+                if (loc != null) {
+                    selectedLocation = loc.cityArea
+                    isGpsDetected = true
+                } else if (selectedLocation.isBlank()) {
+                    selectedLocation = "Detecting location..."
+                }
             }
+        } else {
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
         }
     }
     var showPaymentDialog by remember { mutableStateOf(false) }
@@ -419,7 +451,7 @@ fun CustomerHomeScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                             }
                             Text(
-                                text = selectedLocation,
+                                text = selectedLocation.ifBlank { if (language == AppLanguage.URDU) "مقام منتخب کریں" else "Select location" },
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextSlate

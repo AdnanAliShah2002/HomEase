@@ -329,14 +329,14 @@ fun LocationPickerInput(
             },
             onPlaceSelected = { place ->
                 showSearchDialog = false
-                val cityArea = if (place.suburb.isNotBlank() && place.city.isNotBlank()) {
-                    "${place.suburb}, ${place.city}"
-                } else if (place.city.isNotBlank()) {
-                    place.city
-                } else {
-                    place.displayTitle
+                val cityArea = when {
+                    place.suburb.isNotBlank() && place.city.isNotBlank() -> "${place.suburb}, ${place.city}"
+                    place.city.isNotBlank() -> place.city
+                    place.displayTitle.isNotBlank() -> place.displayTitle
+                    else -> place.formatted
                 }
-                onLocationSelected(place.formatted, cityArea, place.lat, place.lng)
+                val address = if (place.formatted.isNotBlank()) place.formatted else place.displayTitle
+                onLocationSelected(address, cityArea, place.lat, place.lng)
             }
         )
     }
@@ -593,10 +593,11 @@ fun GeoapifySearchDialog(
                         }
 
                         items(results) { place ->
-                            Card(
+                            Surface(
                                 onClick = { onPlaceSelected(place) },
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                color = Color.White,
+                                shadowElevation = 1.dp,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp)

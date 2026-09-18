@@ -65,6 +65,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -77,6 +78,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -101,6 +103,7 @@ import com.example.ui.theme.StatusGreen
 import com.example.ui.theme.StatusYellowContainer
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.util.LocationHelper
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -109,6 +112,7 @@ fun ProviderRegistrationScreen(
     language: AppLanguage,
     onComplete: (UserEntity) -> Unit
 ) {
+    val context = LocalContext.current
     // Current multi-step state: 1 to 4
     var currentStep by remember { mutableIntStateOf(1) }
     var isSubmittedConfirmation by remember { mutableStateOf(false) }
@@ -121,9 +125,22 @@ fun ProviderRegistrationScreen(
     var cnicBackUri by remember { mutableStateOf<String?>(null) }
     var dateOfBirth by remember { mutableStateOf("") }
     var homeAddress by remember { mutableStateOf("") }
-    var cityArea by remember { mutableStateOf("Islamabad - Blue Area") }
+    var cityArea by remember { mutableStateOf("") }
     var providerLat by remember { mutableStateOf<Double?>(null) }
     var providerLng by remember { mutableStateOf<Double?>(null) }
+
+    // Auto-detect device GPS location dynamically on screen launch
+    LaunchedEffect(Unit) {
+        if (LocationHelper.hasLocationPermission(context) && LocationHelper.isLocationEnabled(context)) {
+            val loc = LocationHelper.getCurrentLocation(context)
+            if (loc != null) {
+                homeAddress = loc.fullAddress
+                cityArea = loc.cityArea
+                providerLat = loc.latitude
+                providerLng = loc.longitude
+            }
+        }
+    }
 
     // --- Step 2: Professional Information ---
     val selectedCategories = remember { mutableStateListOf<String>() }

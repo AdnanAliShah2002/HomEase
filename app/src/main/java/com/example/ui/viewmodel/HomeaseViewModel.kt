@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -207,9 +208,44 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         if (phone.isNotBlank()) repository.getCustomerRequests(phone) else flowOf(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Provider available jobs
-    val availableJobs = repository.getAvailableJobs()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // Provider available jobs (filtered by provider's configured service radius & location)
+    val availableJobs = combine(
+        repository.getAvailableJobs(),
+        _currentUser
+    ) { jobs, user ->
+        if (user == null || user.role != "PROVIDER") {
+            jobs
+        } else {
+            val providerRadiusKm = if (user.serviceRadiusKm > 0) user.serviceRadiusKm.toDouble() else 15.0
+            val providerLat = user.lat
+            val providerLng = user.lng
+            val providerCityArea = user.cityArea.trim().lowercase()
+
+            jobs.filter { job ->
+                val jobLat = job.lat
+                val jobLng = job.lng
+
+                if (providerLat != null && providerLng != null && jobLat != null && jobLng != null) {
+                    // Haversine distance in kilometers
+                    val earthRadiusKm = 6371.0
+                    val dLat = Math.toRadians(jobLat - providerLat)
+                    val dLng = Math.toRadians(jobLng - providerLng)
+                    val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                            Math.cos(Math.toRadians(providerLat)) * Math.cos(Math.toRadians(jobLat)) *
+                            Math.sin(dLng / 2) * Math.sin(dLng / 2)
+                    val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+                    val distanceKm = earthRadiusKm * c
+                    distanceKm <= providerRadiusKm
+                } else if (providerCityArea.isNotBlank() && job.cityArea.isNotBlank()) {
+                    // Fallback to city/area match if GPS coordinates are not yet available
+                    val jobArea = job.cityArea.trim().lowercase()
+                    jobArea.contains(providerCityArea) || providerCityArea.contains(jobArea)
+                } else {
+                    true
+                }
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Provider active job
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -324,7 +360,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                         phone = savedPhone,
                         role = session.role,
                         name = if (savedRole == UserRole.PROVIDER) "Service Provider" else "Customer",
-                        cityArea = "Lahore - Gulberg",
+                        cityArea = "",
                         status = "ACTIVE"
                     )
                     repository.saveUser(defaultUser)
@@ -414,34 +450,66 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                 )
 
                 val localUser = repository.getUser(phone)
-                val isExisting = !verifyData.isNewUser || localUser != null
+                val isProvider = _activeRole.value == UserRole.PROVIDER
 
-                if (isExisting) {
-                    // Existing number: log straight in to home screen — no registration form shown
-                    val user = localUser ?: UserEntity(
-                        phone = phone,
-                        role = _activeRole.value.name,
-                        name = if (_activeRole.value == UserRole.PROVIDER) "Service Provider" else "Customer",
-                        cityArea = "Lahore - Gulberg",
-                        status = "ACTIVE"
-                    )
-                    if (localUser == null) {
-                        repository.saveUser(user)
+                if (isProvider) {
+                    // Check remote service_providers table or completed local provider entity
+                    var remoteProviderProfile: JSONObject? = null
+                    if (sessionUserId.isNotBlank()) {
+                        val profileRes = supabaseClient.getProviderOwnProfile(sessionUserId)
+                        remoteProviderProfile = profileRes.getOrNull()
                     }
-                    _currentUser.value = user
-                    sessionManager.saveSession(user.phone, user.role)
-                    if (user.role == "PROVIDER") {
+
+                    val hasValidRemoteProfile = remoteProviderProfile != null &&
+                            remoteProviderProfile.optString("cnic_number").isNotBlank() &&
+                            remoteProviderProfile.optString("cnic_number") != "PENDING"
+
+                    val hasValidLocalProfile = localUser != null &&
+                            localUser.role == "PROVIDER" &&
+                            localUser.cnicNumber.isNotBlank() &&
+                            localUser.cnicNumber != "PENDING" &&
+                            localUser.name.isNotBlank() &&
+                            localUser.name != "Service Provider"
+
+                    val isProviderRegistered = hasValidRemoteProfile || hasValidLocalProfile
+
+                    if (isProviderRegistered) {
+                        // Provider has registered profile; sync status from remote if available
+                        val remoteStatus = remoteProviderProfile?.optString("status")?.uppercase()
+                        val currentStatus = remoteStatus ?: localUser?.status ?: "PENDING"
+                        val user = (localUser ?: UserEntity(
+                            phone = phone,
+                            role = "PROVIDER",
+                            name = remoteProviderProfile?.optString("full_name")?.ifBlank { "Service Provider" } ?: "Service Provider",
+                            cityArea = remoteProviderProfile?.optString("city_area")?.ifBlank { "Islamabad" } ?: "Islamabad",
+                            status = currentStatus
+                        )).copy(status = currentStatus)
+
+                        repository.saveUser(user)
+                        _currentUser.value = user
+                        sessionManager.saveSession(user.phone, "PROVIDER")
                         _activeRole.value = UserRole.PROVIDER
                         _currentDestination.value = AppNavDestination.PROVIDER_HOME
                     } else {
-                        _activeRole.value = UserRole.CUSTOMER
-                        _currentDestination.value = AppNavDestination.CUSTOMER_HOME
+                        // Incomplete or new provider: route to Provider Registration screen
+                        _currentDestination.value = AppNavDestination.PROVIDER_REGISTRATION
                     }
                 } else {
-                    // New number: route to registration form based on the selected role
-                    if (_activeRole.value == UserRole.PROVIDER) {
-                        _currentDestination.value = AppNavDestination.PROVIDER_REGISTRATION
+                    // Customer: check if complete profile exists (name is not default placeholder)
+                    val hasCompleteCustomerProfile = localUser != null &&
+                            localUser.role == "CUSTOMER" &&
+                            localUser.name.isNotBlank() &&
+                            localUser.name != "Valued Customer" &&
+                            localUser.name != "Customer" &&
+                            !verifyData.isNewUser
+
+                    if (hasCompleteCustomerProfile) {
+                        _currentUser.value = localUser
+                        sessionManager.saveSession(localUser!!.phone, "CUSTOMER")
+                        _activeRole.value = UserRole.CUSTOMER
+                        _currentDestination.value = AppNavDestination.CUSTOMER_HOME
                     } else {
+                        // Incomplete or new customer: route to Customer Registration screen
                         _currentDestination.value = AppNavDestination.CUSTOMER_REGISTRATION
                     }
                 }

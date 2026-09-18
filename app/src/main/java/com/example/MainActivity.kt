@@ -153,10 +153,10 @@ class MainActivity : ComponentActivity() {
 
                         AppNavDestination.CUSTOMER_HOME -> {
                             val user = currentUser ?: com.example.data.db.UserEntity(
-                                phone = currentPhoneNumber.ifBlank { "03001234567" },
+                                phone = currentPhoneNumber.ifBlank { "" },
                                 role = "CUSTOMER",
                                 name = "Customer",
-                                cityArea = "Gulberg III, Lahore"
+                                cityArea = ""
                             )
                             CustomerHomeScreen(
                                 user = user,
@@ -178,10 +178,10 @@ class MainActivity : ComponentActivity() {
 
                         AppNavDestination.PROVIDER_HOME -> {
                             val provider = currentUser ?: com.example.data.db.UserEntity(
-                                phone = currentPhoneNumber.ifBlank { "03009876543" },
+                                phone = currentPhoneNumber.ifBlank { "" },
                                 role = "PROVIDER",
                                 name = "Service Provider",
-                                cityArea = "Gulberg III, Lahore",
+                                cityArea = "",
                                 isOnline = true
                             )
                             ProviderHomeScreen(
@@ -217,8 +217,8 @@ class MainActivity : ComponentActivity() {
                                 initialCategoryId = initialCategoryForRequest,
                                 customerPhone = user?.phone ?: currentPhoneNumber,
                                 customerName = user?.name ?: "Customer",
-                                savedAddress = user?.homeAddress ?: "Gulberg III, Lahore",
-                                cityArea = user?.cityArea ?: "Gulberg III, Lahore",
+                                savedAddress = user?.homeAddress ?: "",
+                                cityArea = user?.cityArea ?: "",
                                 language = language,
                                 activeLiveRequest = activeLiveRequest,
                                 incomingOffers = incomingOffers,
