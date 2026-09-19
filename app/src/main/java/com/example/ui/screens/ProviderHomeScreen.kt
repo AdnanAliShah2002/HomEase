@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Navigation
@@ -49,6 +50,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -104,10 +106,13 @@ fun ProviderHomeScreen(
     pastJobs: List<ServiceRequestEntity> = emptyList(),
     completedJobs: List<ServiceRequestEntity>,
     language: AppLanguage,
+    isRefreshingStatus: Boolean = false,
+    statusCheckMessage: String? = null,
     onToggleRole: () -> Unit,
     onToggleLanguage: () -> Unit,
     onToggleOnline: (Boolean) -> Unit,
-    onToggleVerification: () -> Unit = {},
+    onCheckVerificationStatus: () -> Unit = {},
+    onClearStatusMessage: () -> Unit = {},
     onAcceptJob: (ServiceRequestEntity) -> Unit,
     onRejectJob: (ServiceRequestEntity) -> Unit,
     onCounterJob: (ServiceRequestEntity, Int, String?) -> Unit,
@@ -480,7 +485,7 @@ fun ProviderHomeScreen(
                         language = language,
                         onToggleRole = onToggleRole,
                         onToggleLanguage = onToggleLanguage,
-                        onToggleVerification = onToggleVerification,
+                        onCheckVerificationStatus = onCheckVerificationStatus,
                         onSaveProfile = onUpdateProfile,
                         onLogout = onLogout
                     )
@@ -587,7 +592,10 @@ fun ProviderHomeScreen(
                     PendingProviderVerificationCard(
                         provider = provider,
                         language = language,
-                        onSimulateApproval = onToggleVerification
+                        isRefreshingStatus = isRefreshingStatus,
+                        statusCheckMessage = statusCheckMessage,
+                        onCheckVerificationStatus = onCheckVerificationStatus,
+                        onClearStatusMessage = onClearStatusMessage
                     )
                 }
             } else {
@@ -778,7 +786,10 @@ fun ProviderHomeScreen(
 fun PendingProviderVerificationCard(
     provider: UserEntity,
     language: AppLanguage,
-    onSimulateApproval: () -> Unit
+    isRefreshingStatus: Boolean = false,
+    statusCheckMessage: String? = null,
+    onCheckVerificationStatus: () -> Unit = {},
+    onClearStatusMessage: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -880,11 +891,76 @@ fun PendingProviderVerificationCard(
                 }
             }
 
+            if (isRefreshingStatus) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = DeepIndigo
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (language == AppLanguage.URDU) "سرور سے تصدیق کی جا رہی ہے..." else "Checking verification status with server...",
+                        fontSize = 13.sp,
+                        color = TextSlateMuted
+                    )
+                }
+            }
+
+            if (statusCheckMessage != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                val isApprovedMessage = statusCheckMessage.contains("approved", ignoreCase = true)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isApprovedMessage) Color(0xFFF0FDF4) else Color(0xFFFEF3C7)
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (isApprovedMessage) Color(0xFF86EFAC) else Color(0xFFFDE68A)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (isApprovedMessage) Icons.Default.CheckCircle else Icons.Default.Info,
+                            contentDescription = null,
+                            tint = if (isApprovedMessage) Color(0xFF16A34A) else Color(0xFFD97706),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = statusCheckMessage,
+                            fontSize = 12.sp,
+                            color = if (isApprovedMessage) Color(0xFF15803D) else Color(0xFF92400E),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             PrimaryCtaButton(
-                text = if (language == AppLanguage.URDU) "حیثیت دوبارہ چیک کریں" else "Check Verification Status",
-                onClick = onSimulateApproval,
+                text = if (isRefreshingStatus) {
+                    if (language == AppLanguage.URDU) "چیک کیا جا رہا ہے..." else "Checking Server Status..."
+                } else {
+                    if (language == AppLanguage.URDU) "حیثیت دوبارہ چیک کریں" else "Check Verification Status"
+                },
+                onClick = {
+                    if (!isRefreshingStatus) {
+                        onClearStatusMessage()
+                        onCheckVerificationStatus()
+                    }
+                },
                 backgroundColor = DeepIndigo,
                 isProviderStyle = true,
                 testTag = "check_status_btn"

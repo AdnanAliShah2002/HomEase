@@ -493,7 +493,7 @@ fun ProviderProfileView(
     language: AppLanguage,
     onToggleRole: () -> Unit,
     onToggleLanguage: () -> Unit,
-    onToggleVerification: () -> Unit,
+    onCheckVerificationStatus: () -> Unit = {},
     onSaveProfile: (
         name: String,
         cityArea: String,
@@ -750,12 +750,12 @@ fun ProviderProfileView(
                         )
                     }
                     Text(
-                        text = "Toggle",
+                        text = "Refresh",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = DeepIndigo,
                         modifier = Modifier
-                            .clickable { onToggleVerification() }
+                            .clickable { onCheckVerificationStatus() }
                             .padding(4.dp)
                     )
                 }

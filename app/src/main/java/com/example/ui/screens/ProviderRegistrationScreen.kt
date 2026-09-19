@@ -49,6 +49,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -110,7 +111,11 @@ import com.example.util.LocationHelper
 fun ProviderRegistrationScreen(
     phoneNumber: String,
     language: AppLanguage,
-    onComplete: (UserEntity) -> Unit
+    isSubmitting: Boolean = false,
+    registrationError: String? = null,
+    onSubmit: (UserEntity, () -> Unit) -> Unit = { _, _ -> },
+    onGoToDashboard: () -> Unit = {},
+    onClearError: () -> Unit = {}
 ) {
     val context = LocalContext.current
     // Current multi-step state: 1 to 4
@@ -388,7 +393,7 @@ fun ProviderRegistrationScreen(
                 PrimaryCtaButton(
                     text = Strings.get("explore_dashboard", language),
                     onClick = {
-                        onComplete(constructedUser)
+                        onGoToDashboard()
                     },
                     backgroundColor = DeepIndigo,
                     isProviderStyle = true,
@@ -1136,6 +1141,60 @@ fun ProviderRegistrationScreen(
                                         color = Color(0xFFDC2626)
                                     )
                                 }
+
+                                if (registrationError != null) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFCA5A5))
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Info,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFDC2626),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "Registration Failed",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.sp,
+                                                    color = Color(0xFF991B1B)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = registrationError,
+                                                fontSize = 12.sp,
+                                                color = Color(0xFFB91C1C),
+                                                lineHeight = 16.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(10.dp))
+                                            OutlinedButton(
+                                                onClick = {
+                                                    onClearError()
+                                                    onSubmit(constructedUser) {
+                                                        isSubmittedConfirmation = true
+                                                    }
+                                                },
+                                                shape = RoundedCornerShape(8.dp),
+                                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDC2626)),
+                                                modifier = Modifier.height(36.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Retry Submission",
+                                                    fontSize = 12.sp,
+                                                    color = Color(0xFFDC2626),
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1203,13 +1262,16 @@ fun ProviderRegistrationScreen(
                             )
                         } else {
                             PrimaryCtaButton(
-                                text = Strings.get("submit_verification", language),
+                                text = if (isSubmitting) "Submitting..." else Strings.get("submit_verification", language),
                                 onClick = {
-                                    if (canSubmit) {
-                                        isSubmittedConfirmation = true
+                                    if (canSubmit && !isSubmitting) {
+                                        onClearError()
+                                        onSubmit(constructedUser) {
+                                            isSubmittedConfirmation = true
+                                        }
                                     }
                                 },
-                                enabled = canSubmit,
+                                enabled = canSubmit && !isSubmitting,
                                 backgroundColor = SoftOrange,
                                 modifier = Modifier.weight(1f),
                                 testTag = "provider_submit_registration_btn"

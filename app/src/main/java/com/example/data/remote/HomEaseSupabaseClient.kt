@@ -424,7 +424,21 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             val response = try {
                 client.newCall(requestBuilder.build()).execute()
             } catch (e: Exception) {
-                null
+                return@withContext Result.failure(IOException("Failed to connect to Supabase: ${e.message}", e))
+            }
+
+            val responseBody = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                val errorMsg = try {
+                    val errJson = JSONObject(responseBody)
+                    val message = errJson.optString("message", "")
+                    val details = errJson.optString("details", "")
+                    val hint = errJson.optString("hint", "")
+                    listOf(message, details, hint).filter { it.isNotBlank() }.joinToString(" - ").ifBlank { "HTTP ${response.code}: $responseBody" }
+                } catch (_: Exception) {
+                    "HTTP ${response.code}: $responseBody"
+                }
+                return@withContext Result.failure(IOException("Supabase error: $errorMsg"))
             }
 
             // Also upsert basic profile into profiles/users for convenience
@@ -449,7 +463,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
 
             Result.success(true)
         } catch (e: Exception) {
-            Result.success(true) // graceful local fallback
+            Result.failure(e)
         }
     }
 

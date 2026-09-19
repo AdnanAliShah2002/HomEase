@@ -60,6 +60,11 @@ class MainActivity : ComponentActivity() {
             val providerCompletedJobs by viewModel.providerCompletedJobs.collectAsStateWithLifecycle()
             val customerAwaitingRatingJob by viewModel.customerAwaitingRatingJob.collectAsStateWithLifecycle()
 
+            val providerRegistrationLoading by viewModel.providerRegistrationLoading.collectAsStateWithLifecycle()
+            val providerRegistrationError by viewModel.providerRegistrationError.collectAsStateWithLifecycle()
+            val isRefreshingStatus by viewModel.isRefreshingStatus.collectAsStateWithLifecycle()
+            val statusCheckMessage by viewModel.statusCheckMessage.collectAsStateWithLifecycle()
+
             // Handle notification clicks once ViewModel is ready
             LaunchedEffectOnce(notifJobId) {
                 if (notifJobId != null) {
@@ -147,7 +152,13 @@ class MainActivity : ComponentActivity() {
                             ProviderRegistrationScreen(
                                 phoneNumber = currentPhoneNumber,
                                 language = language,
-                                onComplete = { user -> viewModel.completeProviderRegistration(user) }
+                                isSubmitting = providerRegistrationLoading,
+                                registrationError = providerRegistrationError,
+                                onSubmit = { user, onSuccess ->
+                                    viewModel.completeProviderRegistration(user, onSuccess)
+                                },
+                                onGoToDashboard = { viewModel.proceedToProviderDashboard() },
+                                onClearError = { viewModel.clearProviderRegistrationError() }
                             )
                         }
 
@@ -191,10 +202,13 @@ class MainActivity : ComponentActivity() {
                                 pastJobs = providerPastJobs,
                                 completedJobs = providerCompletedJobs,
                                 language = language,
+                                isRefreshingStatus = isRefreshingStatus,
+                                statusCheckMessage = statusCheckMessage,
                                 onToggleRole = { viewModel.toggleRole() },
                                 onToggleLanguage = { viewModel.toggleLanguage() },
                                 onToggleOnline = { online -> viewModel.toggleProviderOnline(online) },
-                                onToggleVerification = { viewModel.toggleProviderVerificationStatus() },
+                                onCheckVerificationStatus = { viewModel.refreshProviderStatus() },
+                                onClearStatusMessage = { viewModel.clearStatusCheckMessage() },
                                 onAcceptJob = { job -> viewModel.acceptJobAsProvider(job) },
                                 onRejectJob = { job -> viewModel.rejectJobAsProvider(job) },
                                 onCounterJob = { job, counterPrice, note -> viewModel.counterJobAsProvider(job, counterPrice, note) },

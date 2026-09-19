@@ -190,6 +190,26 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    private val _providerRegistrationLoading = MutableStateFlow(false)
+    val providerRegistrationLoading: StateFlow<Boolean> = _providerRegistrationLoading.asStateFlow()
+
+    private val _providerRegistrationError = MutableStateFlow<String?>(null)
+    val providerRegistrationError: StateFlow<String?> = _providerRegistrationError.asStateFlow()
+
+    private val _isRefreshingStatus = MutableStateFlow(false)
+    val isRefreshingStatus: StateFlow<Boolean> = _isRefreshingStatus.asStateFlow()
+
+    private val _statusCheckMessage = MutableStateFlow<String?>(null)
+    val statusCheckMessage: StateFlow<String?> = _statusCheckMessage.asStateFlow()
+
+    fun clearProviderRegistrationError() {
+        _providerRegistrationError.value = null
+    }
+
+    fun clearStatusCheckMessage() {
+        _statusCheckMessage.value = null
+    }
+
     fun clearRequestSubmissionError() {
         _requestSubmissionError.value = null
     }
@@ -529,17 +549,30 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun completeProviderRegistration(user: UserEntity) {
+    fun completeProviderRegistration(user: UserEntity, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
+            _providerRegistrationLoading.value = true
+            _providerRegistrationError.value = null
+
             val pendingUser = user.copy(status = "PENDING")
-            repository.saveUser(pendingUser)
-            sessionManager.saveSession(pendingUser.phone, "PROVIDER")
-            _currentUser.value = pendingUser
-            _activeRole.value = UserRole.PROVIDER
-            _currentDestination.value = AppNavDestination.PROVIDER_HOME
-            // Background remote sync to Supabase storage and table
-            providerRemoteService.submitProviderRegistration(pendingUser)
+            val result = providerRemoteService.submitProviderRegistration(pendingUser)
+
+            _providerRegistrationLoading.value = false
+            if (result.isSuccess) {
+                repository.saveUser(pendingUser)
+                sessionManager.saveSession(pendingUser.phone, "PROVIDER")
+                _currentUser.value = pendingUser
+                _activeRole.value = UserRole.PROVIDER
+                onSuccess()
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Provider registration failed on server"
+                _providerRegistrationError.value = error
+            }
         }
+    }
+
+    fun proceedToProviderDashboard() {
+        _currentDestination.value = AppNavDestination.PROVIDER_HOME
     }
 
     fun logout() {
@@ -1301,14 +1334,45 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun toggleProviderVerificationStatus() {
+    fun refreshProviderStatus() {
         viewModelScope.launch {
             val current = _currentUser.value ?: return@launch
-            if (current.role == "PROVIDER") {
-                val newStatus = if (current.status == "APPROVED") "PENDING" else "APPROVED"
-                val updated = current.copy(status = newStatus)
-                repository.saveUser(updated)
-                _currentUser.value = updated
+            if (current.role != "PROVIDER") return@launch
+
+            _isRefreshingStatus.value = true
+            _statusCheckMessage.value = null
+
+            val sessionUserId = supabaseClient.getSession()?.userId ?: ""
+            if (sessionUserId.isBlank()) {
+                _statusCheckMessage.value = "Session expired. Please sign in again."
+                _isRefreshingStatus.value = false
+                return@launch
+            }
+
+            val result = supabaseClient.getProviderOwnProfile(sessionUserId)
+            _isRefreshingStatus.value = false
+
+            if (result.isSuccess) {
+                val profile = result.getOrNull()
+                if (profile != null) {
+                    val remoteStatus = profile.optString("status", "pending").uppercase()
+                    val updated = current.copy(status = remoteStatus)
+                    repository.saveUser(updated)
+                    _currentUser.value = updated
+
+                    if (remoteStatus == "APPROVED" || remoteStatus == "ACTIVE") {
+                        _statusCheckMessage.value = "Your application has been approved by admin!"
+                    } else if (remoteStatus == "REJECTED") {
+                        _statusCheckMessage.value = "Application was not approved by admin."
+                    } else {
+                        _statusCheckMessage.value = "Status: Under review by admin."
+                    }
+                } else {
+                    _statusCheckMessage.value = "No provider profile found on server."
+                }
+            } else {
+                val err = result.exceptionOrNull()?.message ?: "Failed to query server"
+                _statusCheckMessage.value = "Status check error: $err"
             }
         }
     }
