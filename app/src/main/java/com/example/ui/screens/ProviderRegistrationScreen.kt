@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -43,6 +44,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Card
@@ -50,12 +52,16 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -65,6 +71,13 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.core.content.FileProvider
+import java.io.File
+import java.util.Calendar
+import java.util.TimeZone
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -106,7 +119,7 @@ import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
 import com.example.util.LocationHelper
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ProviderRegistrationScreen(
     phoneNumber: String,
@@ -164,13 +177,47 @@ fun ProviderRegistrationScreen(
     var payoutAccountNumber by remember { mutableStateOf("") }
     var consentAgreed by remember { mutableStateOf(false) }
 
-    // Photo picker launchers
+    // Photo selection target & bottom sheet state
+    var pendingPhotoTarget by remember { mutableStateOf<PhotoUploadTarget?>(null) }
+    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Camera launcher
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempCameraUri != null) {
+            when (pendingPhotoTarget) {
+                PhotoUploadTarget.PROFILE -> profilePhotoUri = tempCameraUri.toString()
+                PhotoUploadTarget.CNIC_FRONT -> cnicFrontUri = tempCameraUri.toString()
+                PhotoUploadTarget.CNIC_BACK -> cnicBackUri = tempCameraUri.toString()
+                PhotoUploadTarget.BUSINESS -> businessPhotoUri = tempCameraUri.toString()
+                null -> {}
+            }
+        }
+        pendingPhotoTarget = null
+    }
+
+    fun launchCameraForTarget(target: PhotoUploadTarget) {
+        try {
+            val photosDir = File(context.cacheDir, "camera_photos").apply { mkdirs() }
+            val photoFile = File(photosDir, "provider_${target.name.lowercase()}_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", photoFile)
+            tempCameraUri = uri
+            pendingPhotoTarget = target
+            takePictureLauncher.launch(uri)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // Photo picker launchers (Gallery)
     val profilePhotoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
             profilePhotoUri = uri.toString()
         }
+        pendingPhotoTarget = null
     }
 
     val cnicFrontPicker = rememberLauncherForActivityResult(
@@ -179,6 +226,7 @@ fun ProviderRegistrationScreen(
         if (uri != null) {
             cnicFrontUri = uri.toString()
         }
+        pendingPhotoTarget = null
     }
 
     val cnicBackPicker = rememberLauncherForActivityResult(
@@ -187,6 +235,7 @@ fun ProviderRegistrationScreen(
         if (uri != null) {
             cnicBackUri = uri.toString()
         }
+        pendingPhotoTarget = null
     }
 
     val businessPhotoPicker = rememberLauncherForActivityResult(
@@ -195,7 +244,12 @@ fun ProviderRegistrationScreen(
         if (uri != null) {
             businessPhotoUri = uri.toString()
         }
+        pendingPhotoTarget = null
     }
+
+    // Date of birth picker state
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
 
     // Validation checks for steps
     val isStep1Valid = fullName.isNotBlank() &&
@@ -522,7 +576,7 @@ fun ProviderRegistrationScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
+                        .padding(horizontal = 12.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -556,9 +610,7 @@ fun ProviderRegistrationScreen(
                                             .background(DeepIndigoContainer)
                                             .border(2.dp, if (profilePhotoUri != null) StatusGreen else DeepIndigo, CircleShape)
                                             .clickable {
-                                                profilePhotoPicker.launch(
-                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                                )
+                                                pendingPhotoTarget = PhotoUploadTarget.PROFILE
                                             },
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -587,9 +639,7 @@ fun ProviderRegistrationScreen(
                                     Column {
                                         OutlinedButton(
                                             onClick = {
-                                                profilePhotoPicker.launch(
-                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                                )
+                                                pendingPhotoTarget = PhotoUploadTarget.PROFILE
                                             },
                                             shape = RoundedCornerShape(10.dp),
                                             modifier = Modifier.testTag("upload_profile_photo_btn")
@@ -676,9 +726,7 @@ fun ProviderRegistrationScreen(
                                         testTag = "upload_cnic_front_btn",
                                         modifier = Modifier.weight(1f),
                                         onClick = {
-                                            cnicFrontPicker.launch(
-                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                            )
+                                            pendingPhotoTarget = PhotoUploadTarget.CNIC_FRONT
                                         }
                                     )
 
@@ -689,30 +737,56 @@ fun ProviderRegistrationScreen(
                                         testTag = "upload_cnic_back_btn",
                                         modifier = Modifier.weight(1f),
                                         onClick = {
-                                            cnicBackPicker.launch(
-                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                            )
+                                            pendingPhotoTarget = PhotoUploadTarget.CNIC_BACK
                                         }
                                     )
                                 }
 
                                 Spacer(modifier = Modifier.height(14.dp))
 
-                                // Date of Birth
+                                // Date of Birth (DatePickerDialog trigger)
                                 OutlinedTextField(
-                                    value = dateOfBirth,
-                                    onValueChange = { dateOfBirth = it },
+                                    value = if (dateOfBirth.isNotBlank()) formatDobForDisplay(dateOfBirth) else "",
+                                    onValueChange = { },
+                                    readOnly = true,
                                     label = { Text(Strings.get("date_of_birth", language) + " *") },
                                     placeholder = { Text(Strings.get("date_of_birth_hint", language)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.CalendarMonth,
+                                            contentDescription = null,
+                                            tint = DeepIndigo
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        IconButton(onClick = { showDatePicker = true }) {
+                                            Icon(
+                                                Icons.Default.CalendarMonth,
+                                                contentDescription = "Select Date of Birth",
+                                                tint = DeepIndigo
+                                            )
+                                        }
+                                    },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .testTag("provider_dob_input"),
+                                        .testTag("provider_dob_input")
+                                        .clickable { showDatePicker = true },
                                     singleLine = true,
                                     shape = RoundedCornerShape(12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = DeepIndigo,
                                         unfocusedBorderColor = BorderStroke
-                                    )
+                                    ),
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                                        .also { interactionSource ->
+                                            LaunchedEffect(interactionSource) {
+                                                interactionSource.interactions.collect { interaction ->
+                                                    if (interaction is androidx.compose.foundation.interaction.PressInteraction.Release) {
+                                                        showDatePicker = true
+                                                    }
+                                                }
+                                            }
+                                        }
                                 )
 
                                 Spacer(modifier = Modifier.height(14.dp))
@@ -1282,6 +1356,186 @@ fun ProviderRegistrationScreen(
             }
         }
     }
+
+    // Material 3 DatePickerDialog
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val selectedMillis = datePickerState.selectedDateMillis
+                        if (selectedMillis != null) {
+                            val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                                timeInMillis = selectedMillis
+                            }
+                            val year = cal.get(Calendar.YEAR)
+                            val month = cal.get(Calendar.MONTH) + 1
+                            val day = cal.get(Calendar.DAY_OF_MONTH)
+                            dateOfBirth = String.format("%04d-%02d-%02d", year, month, day)
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("OK", color = DeepIndigo, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel", color = TextSlateMuted)
+                }
+            }
+        ) {
+            DatePicker(
+                state = datePickerState,
+                showModeToggle = true
+            )
+        }
+    }
+
+    // Photo Source Selection Bottom Sheet (Camera vs Gallery)
+    if (pendingPhotoTarget != null) {
+        val target = pendingPhotoTarget!!
+        val sheetTitle = when (target) {
+            PhotoUploadTarget.PROFILE -> Strings.get("profile_photo", language)
+            PhotoUploadTarget.CNIC_FRONT -> Strings.get("cnic_front_photo", language)
+            PhotoUploadTarget.CNIC_BACK -> Strings.get("cnic_back_photo", language)
+            PhotoUploadTarget.BUSINESS -> "Business Workplace Photo"
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = { pendingPhotoTarget = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp, top = 8.dp)
+            ) {
+                Text(
+                    text = sheetTitle,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DeepIndigo
+                )
+                Text(
+                    text = "Select an option to upload your photo",
+                    fontSize = 13.sp,
+                    color = TextSlateMuted
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Option 1: Take Photo with Camera
+                Surface(
+                    onClick = {
+                        launchCameraForTarget(target)
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = DeepIndigoContainer.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("photo_source_camera_btn")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(DeepIndigo),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoCamera,
+                                contentDescription = "Camera",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "Take Photo",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = DeepIndigo
+                            )
+                            Text(
+                                text = "Use camera to capture directly",
+                                fontSize = 12.sp,
+                                color = TextSlateMuted
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Option 2: Choose from Gallery
+                Surface(
+                    onClick = {
+                        val pickerRequest = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        when (target) {
+                            PhotoUploadTarget.PROFILE -> profilePhotoPicker.launch(pickerRequest)
+                            PhotoUploadTarget.CNIC_FRONT -> cnicFrontPicker.launch(pickerRequest)
+                            PhotoUploadTarget.CNIC_BACK -> cnicBackPicker.launch(pickerRequest)
+                            PhotoUploadTarget.BUSINESS -> businessPhotoPicker.launch(pickerRequest)
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = BackgroundLight,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("photo_source_gallery_btn")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(SoftOrangeContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoLibrary,
+                                contentDescription = "Gallery",
+                                tint = SoftOrange,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "Choose from Gallery",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextSlate
+                            )
+                            Text(
+                                text = "Pick existing photo from files or gallery",
+                                fontSize = 12.sp,
+                                color = TextSlateMuted
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -1355,7 +1609,7 @@ private fun SectionCard(
         shape = RoundedCornerShape(18.dp),
         border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(BorderStroke))
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 text = title,
                 fontSize = 16.sp,
@@ -1457,3 +1711,32 @@ private fun DocumentUploadCard(
         }
     }
 }
+
+private enum class PhotoUploadTarget {
+    PROFILE,
+    CNIC_FRONT,
+    CNIC_BACK,
+    BUSINESS
+}
+
+private fun formatDobForDisplay(isoDate: String): String {
+    return try {
+        val parts = isoDate.split("-")
+        if (parts.size == 3) {
+            val year = parts[0].toInt()
+            val month = parts[1].toInt()
+            val day = parts[2].toInt()
+            val monthNames = arrayOf(
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+            )
+            val monthStr = if (month in 1..12) monthNames[month - 1] else parts[1]
+            String.format("%02d %s %04d", day, monthStr, year)
+        } else {
+            isoDate
+        }
+    } catch (e: Exception) {
+        isoDate
+    }
+}
+
