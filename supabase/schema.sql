@@ -43,6 +43,8 @@ create table if not exists public.service_providers (
   payout_method text default 'Cash', -- 'Cash', 'JazzCash', 'EasyPaisa'
   payout_account_number text,
   status text not null default 'pending', -- 'pending', 'approved', 'rejected'
+  is_online boolean not null default true,
+  fcm_token text,
   consent_agreed boolean not null default true,
   reviewed_by text,
   reviewed_at timestamptz,
@@ -248,7 +250,15 @@ using (
     select 1 from public.service_providers
     where id = auth.uid()
     and status = 'approved'
-    and category = any(service_categories)
+    and (
+      category_id = any(service_categories)
+      or category = any(service_categories)
+      or exists (
+        select 1 from unnest(service_categories) sc
+        where lower(sc) = lower(jobs.category_id)
+           or lower(sc) = lower(jobs.category)
+      )
+    )
   )
 );
 

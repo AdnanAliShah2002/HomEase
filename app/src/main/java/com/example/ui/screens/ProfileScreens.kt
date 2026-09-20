@@ -626,7 +626,7 @@ fun ProviderProfileView(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Phone & Verified badge
+                // Phone & Badges
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
@@ -656,19 +656,45 @@ fun ProviderProfileView(
                             Text("Verified", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = StatusGreen)
                         }
                     }
+
+                    if (user.yearsExperience.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFEDE9FE))
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                                .testTag("provider_experience_badge")
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Work,
+                                    contentDescription = null,
+                                    tint = DeepIndigo,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                val expLabel = if (user.yearsExperience.lowercase().contains("yr") || user.yearsExperience.lowercase().contains("year")) {
+                                    user.yearsExperience
+                                } else {
+                                    "${user.yearsExperience} Yrs Exp"
+                                }
+                                Text(expLabel, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DeepIndigo)
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // PROMINENT RATING & COMPLETED JOBS BANNER
-                // "Provider profiles should display a running average rating and total completed job count, recalculated automatically whenever a new rating comes in."
+                // PROMINENT RATING & COMPLETED JOBS & EXPERIENCE BANNER
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xFFFFFBEB))
                         .border(1.5.dp, Color(0xFFFDE68A), RoundedCornerShape(16.dp))
-                        .padding(vertical = 12.dp, horizontal = 16.dp)
+                        .padding(vertical = 12.dp, horizontal = 12.dp)
                         .testTag("provider_rating_stats_card"),
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
@@ -680,12 +706,12 @@ fun ProviderProfileView(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = null,
                                 tint = Color(0xFFF59E0B),
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(22.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = String.format(java.util.Locale.US, "%.1f", user.avgRating),
-                                fontSize = 22.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Black,
                                 color = TextSlate
                             )
@@ -709,7 +735,7 @@ fun ProviderProfileView(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "${user.totalJobs}",
-                            fontSize = 22.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Black,
                             color = StatusGreen
                         )
@@ -719,6 +745,31 @@ fun ProviderProfileView(
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF065F46)
                         )
+                    }
+
+                    if (user.yearsExperience.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .height(36.dp)
+                                .width(1.dp)
+                                .background(Color(0xFFFCD34D))
+                        )
+
+                        // Experience column
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = user.yearsExperience.replace(Regex("[^0-9+]"), "").ifBlank { user.yearsExperience },
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Black,
+                                color = DeepIndigo
+                            )
+                            Text(
+                                text = "Years Exp",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DeepIndigo
+                            )
+                        }
                     }
                 }
 

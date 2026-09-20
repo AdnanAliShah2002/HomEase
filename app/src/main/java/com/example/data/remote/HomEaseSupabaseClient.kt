@@ -388,6 +388,10 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
 
             val currentUserId = getSession()?.userId ?: UUID.randomUUID().toString()
 
+            // Fetch stored FCM token if available
+            val fcmTokenVal = context?.getSharedPreferences("homease_prefs", Context.MODE_PRIVATE)
+                ?.getString("fcm_token", "") ?: ""
+
             val payload = JSONObject().apply {
                 put("id", currentUserId)
                 put("phone", formattedPhone)
@@ -411,6 +415,10 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
                 put("payout_method", provider.payoutMethod)
                 put("payout_account_number", provider.payoutAccountNumber)
                 put("status", "pending")
+                put("is_online", true)
+                if (fcmTokenVal.isNotBlank()) {
+                    put("fcm_token", fcmTokenVal)
+                }
                 put("consent_agreed", provider.consentAgreed)
             }
 
@@ -462,6 +470,87 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             }
 
             Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Updates an approved or registered provider's profile fields directly in Supabase `service_providers`.
+     * Sends PATCH request for name, bio, years_of_experience, service_categories, radius, etc.
+     */
+    suspend fun updateProviderRemoteProfile(
+        phone: String,
+        name: String,
+        cityArea: String,
+        categories: List<String>,
+        yearsExperience: String,
+        serviceRadiusKm: Int,
+        bio: String,
+        shopName: String,
+        payoutMethod: String,
+        payoutAccountNumber: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val formattedPhone = if (phone.startsWith("+")) phone else "+$phone"
+            val categoriesArray = JSONArray().apply {
+                categories.filter { it.isNotBlank() }.forEach { put(it) }
+            }
+            val payload = JSONObject().apply {
+                put("full_name", name)
+                put("city_area", cityArea)
+                put("service_area", cityArea)
+                put("service_categories", categoriesArray)
+                put("years_of_experience", yearsExperience)
+                put("service_radius_km", serviceRadiusKm)
+                put("bio", bio)
+                put("business_name", shopName)
+                put("payout_method", payoutMethod)
+                put("payout_account_number", payoutAccountNumber)
+                put("updated_at", java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                    timeZone = java.util.TimeZone.getTimeZone("UTC")
+                }.format(java.util.Date()))
+            }
+
+            val patchUrl = "$SUPABASE_URL/rest/v1/service_providers?phone=eq.$formattedPhone"
+            val requestBuilder = Request.Builder()
+                .url(patchUrl)
+                .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful || response.code in 200..204) {
+                Result.success(true)
+            } else {
+                val body = response.body?.string().orEmpty()
+                Result.failure(IOException("Failed to update remote provider profile (HTTP ${response.code}): $body"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Updates provider online availability directly in Supabase `service_providers` table.
+     */
+    suspend fun updateProviderOnlineStatus(phone: String, isOnline: Boolean): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val formattedPhone = if (phone.startsWith("+")) phone else "+$phone"
+            val payload = JSONObject().apply {
+                put("is_online", isOnline)
+                put("updated_at", java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                    timeZone = java.util.TimeZone.getTimeZone("UTC")
+                }.format(java.util.Date()))
+            }
+            val patchUrl = "$SUPABASE_URL/rest/v1/service_providers?phone=eq.$formattedPhone"
+            val requestBuilder = Request.Builder()
+                .url(patchUrl)
+                .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = client.newCall(requestBuilder.build()).execute()
+            Result.success(response.isSuccessful || response.code in 200..204)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -638,14 +727,15 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
 
     /**
      * Providers query unassigned open jobs in 'searching' status.
-     * Optionally filtered by category.
+     * Optionally filtered by category (matches category_id slug OR category display title).
      */
     suspend fun getOpenJobs(category: String? = null): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
         try {
             var url = "$SUPABASE_URL/rest/v1/jobs?status=eq.searching&select=*&order=created_at.desc"
             if (!category.isNullOrBlank() && category != "All") {
                 val encodedCat = java.net.URLEncoder.encode(category, "UTF-8")
-                url += "&category=eq.$encodedCat"
+                // Match either category_id or category slug/name
+                url += "&or=(category_id.eq.$encodedCat,category.eq.$encodedCat)"
             }
             val requestBuilder = Request.Builder().url(url)
             getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }

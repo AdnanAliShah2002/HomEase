@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import com.google.firebase.messaging.FirebaseMessaging
 
 enum class AppNavDestination {
     SPLASH,
@@ -143,6 +144,24 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
 
     private val _fcmToken = MutableStateFlow("")
     val fcmToken: StateFlow<String> = _fcmToken.asStateFlow()
+
+    /**
+     * Fetches real token from FirebaseMessaging.getInstance().token, caches it, and registers device.
+     */
+    fun fetchFcmTokenAndRegister() {
+        try {
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful && !task.result.isNullOrBlank()) {
+                    val token = task.result
+                    val prefs = getApplication<Application>().getSharedPreferences("homease_prefs", android.content.Context.MODE_PRIVATE)
+                    prefs.edit().putString("fcm_token", token).apply()
+                    updateFcmToken(token)
+                }
+            }
+        } catch (_: Exception) {
+            // Best effort if Google Play Services / Firebase is not initialized
+        }
+    }
 
     fun updateFcmToken(token: String) {
         _fcmToken.value = token
@@ -300,6 +319,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             fallback
         }
         _fcmToken.value = existingToken
+        fetchFcmTokenAndRegister()
 
         viewModelScope.launch {
             refreshActiveTheme()
@@ -497,21 +517,50 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                         // Provider has registered profile; sync status from remote if available
                         val remoteStatus = remoteProviderProfile?.optString("status")?.uppercase()
                         val currentStatus = remoteStatus ?: localUser?.status ?: "PENDING"
+
+                        // Map remote profile fields (bio, years_of_experience, service_categories, shop_name, etc.)
+                        val remoteCategories = remoteProviderProfile?.optJSONArray("service_categories")?.let { arr ->
+                            val list = mutableListOf<String>()
+                            for (i in 0 until arr.length()) list.add(arr.getString(i))
+                            list.joinToString(",")
+                        } ?: localUser?.categoriesCsv ?: ""
+
+                        val remoteExp = remoteProviderProfile?.optString("years_of_experience")?.ifBlank { null }
+                            ?: localUser?.yearsExperience ?: ""
+                        val remoteBio = remoteProviderProfile?.optString("bio")?.ifBlank { null }
+                            ?: localUser?.bio ?: ""
+                        val remoteShopName = remoteProviderProfile?.optString("business_name")?.ifBlank { null }
+                            ?: localUser?.shopName ?: ""
+                        val remoteCnic = remoteProviderProfile?.optString("cnic_number")?.ifBlank { null }
+                            ?: localUser?.cnicNumber ?: ""
+                        val remoteCity = remoteProviderProfile?.optString("city_area")?.ifBlank { null }
+                            ?: localUser?.cityArea ?: "Islamabad"
+
                         val user = (localUser ?: UserEntity(
                             phone = phone,
                             role = "PROVIDER",
                             name = remoteProviderProfile?.optString("full_name")?.ifBlank { "Service Provider" } ?: "Service Provider",
-                            cityArea = remoteProviderProfile?.optString("city_area")?.ifBlank { "Islamabad" } ?: "Islamabad",
+                            cityArea = remoteCity,
                             status = currentStatus
-                        )).copy(status = currentStatus)
+                        )).copy(
+                            status = currentStatus,
+                            bio = remoteBio,
+                            yearsExperience = remoteExp,
+                            categoriesCsv = remoteCategories,
+                            shopName = remoteShopName,
+                            cnicNumber = remoteCnic,
+                            cityArea = remoteCity
+                        )
 
                         repository.saveUser(user)
                         _currentUser.value = user
                         sessionManager.saveSession(user.phone, "PROVIDER")
                         _activeRole.value = UserRole.PROVIDER
+                        fetchFcmTokenAndRegister()
                         _currentDestination.value = AppNavDestination.PROVIDER_HOME
                     } else {
                         // Incomplete or new provider: route to Provider Registration screen
+                        fetchFcmTokenAndRegister()
                         _currentDestination.value = AppNavDestination.PROVIDER_REGISTRATION
                     }
                 } else {
@@ -527,9 +576,11 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                         _currentUser.value = localUser
                         sessionManager.saveSession(localUser!!.phone, "CUSTOMER")
                         _activeRole.value = UserRole.CUSTOMER
+                        fetchFcmTokenAndRegister()
                         _currentDestination.value = AppNavDestination.CUSTOMER_HOME
                     } else {
                         // Incomplete or new customer: route to Customer Registration screen
+                        fetchFcmTokenAndRegister()
                         _currentDestination.value = AppNavDestination.CUSTOMER_REGISTRATION
                     }
                 }
@@ -545,6 +596,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             sessionManager.saveSession(user.phone, "CUSTOMER")
             _currentUser.value = user
             _activeRole.value = UserRole.CUSTOMER
+            fetchFcmTokenAndRegister()
             _currentDestination.value = AppNavDestination.CUSTOMER_HOME
         }
     }
@@ -563,6 +615,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                 sessionManager.saveSession(pendingUser.phone, "PROVIDER")
                 _currentUser.value = pendingUser
                 _activeRole.value = UserRole.PROVIDER
+                fetchFcmTokenAndRegister()
                 onSuccess()
             } else {
                 val error = result.exceptionOrNull()?.message ?: "Provider registration failed on server"
@@ -1251,6 +1304,21 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             if (updated != null) {
                 _currentUser.value = updated
             }
+
+            // Sync profile changes to Supabase service_providers table via PATCH
+            val catList = categoriesCsv.split(",").map { it.trim() }.filter { it.isNotBlank() }
+            supabaseClient.updateProviderRemoteProfile(
+                phone = phone,
+                name = name,
+                cityArea = cityArea,
+                categories = catList,
+                yearsExperience = yearsExperience,
+                serviceRadiusKm = serviceRadiusKm,
+                bio = bio,
+                shopName = shopName,
+                payoutMethod = payoutMethod,
+                payoutAccountNumber = payoutAccountNumber
+            )
         }
     }
 
@@ -1262,6 +1330,9 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val phone = _currentPhoneNumber.value
             repository.setProviderOnline(phone, isOnline)
+
+            // Update is_online in Supabase service_providers table directly
+            supabaseClient.updateProviderOnlineStatus(phone, isOnline)
 
             // Sync online status and FCM token to device_tokens
             val token = _fcmToken.value
