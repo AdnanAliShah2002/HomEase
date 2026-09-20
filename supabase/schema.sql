@@ -181,10 +181,23 @@ drop policy if exists "Providers can update own profile" on public.service_provi
 create policy "Providers can update own profile"
 on public.service_providers for update
 using (auth.uid() = id)
-with check (
-  -- prevent providers from approving themselves by editing status
-  status = (select status from public.service_providers where id = auth.uid())
-);
+with check (auth.uid() = id);
+
+-- Prevent providers from altering their own status directly via trigger instead of recursive RLS
+create or replace function public.prevent_provider_self_approval()
+returns trigger as $$
+begin
+  if new.status is distinct from old.status and (auth.jwt() ->> 'role') != 'service_role' then
+    new.status := old.status;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists trg_prevent_provider_self_approval on public.service_providers;
+create trigger trg_prevent_provider_self_approval
+before update on public.service_providers
+for each row execute function public.prevent_provider_self_approval();
 
 drop policy if exists "Providers can insert own profile" on public.service_providers;
 create policy "Providers can insert own profile"
