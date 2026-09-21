@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ElectricBolt
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Schedule
@@ -77,6 +78,8 @@ import kotlinx.coroutines.delay
 fun ProviderJobAcceptScreen(
     job: ServiceRequestEntity,
     language: AppLanguage,
+    actionError: String? = null,
+    onDismissError: () -> Unit = {},
     onAccept: (ServiceRequestEntity) -> Unit,
     onReject: (ServiceRequestEntity) -> Unit,
     onCounter: (ServiceRequestEntity, Int, String?) -> Unit
@@ -308,6 +311,49 @@ fun ProviderJobAcceptScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Action Error Banner (e.g. Job already claimed by another provider)
+                if (!actionError.isNullOrBlank()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Error",
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = actionError,
+                                color = Color(0xFF991B1B),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = onDismissError,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Dismiss",
+                                    tint = Color(0xFF991B1B),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Accept at Offered Price (Large 56dp CTA)
                 PrimaryCtaButton(
                     text = "${Strings.get("accept_btn", language)} (Rs ${job.budgetRs})",

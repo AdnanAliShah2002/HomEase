@@ -84,6 +84,29 @@ create index if not exists idx_jobs_customer on public.jobs(customer_id);
 create index if not exists idx_jobs_provider on public.jobs(provider_id);
 create index if not exists idx_jobs_status on public.jobs(status);
 
+-- 3b. Job Offers Table (InDrive-style provider offers and counter-offers)
+create table if not exists public.job_offers (
+  id uuid primary key default gen_random_uuid(),
+  job_id uuid not null references public.jobs(id) on delete cascade,
+  provider_id uuid references public.service_providers(id),
+  provider_phone text not null,
+  provider_name text not null,
+  offer_price_rs int not null,
+  counter_price_rs int,
+  distance_km double precision default 1.5,
+  provider_rating numeric(2,1) default 4.8,
+  offer_note text,
+  status text not null default 'pending', -- pending, accepted, rejected, withdrawn
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_job_offers_job_id on public.job_offers(job_id);
+create index if not exists idx_job_offers_provider_phone on public.job_offers(provider_phone);
+create index if not exists idx_job_offers_status on public.job_offers(status);
+
+alter table public.job_offers enable row level security;
+
 -- 4. Job Ratings Table
 create table if not exists public.job_ratings (
   id uuid primary key default gen_random_uuid(),
@@ -267,6 +290,21 @@ create policy "Providers can accept open jobs"
 on public.jobs for update
 using (status = 'searching')
 with check (auth.uid() = provider_id);
+
+-- ------------------------------------------------------------------------
+-- 3b. `job_offers` Policies
+-- ------------------------------------------------------------------------
+drop policy if exists "Allow reading job offers" on public.job_offers;
+create policy "Allow reading job offers" on public.job_offers
+  for select using (true);
+
+drop policy if exists "Allow inserting job offers" on public.job_offers;
+create policy "Allow inserting job offers" on public.job_offers
+  for insert with check (true);
+
+drop policy if exists "Allow updating job offers" on public.job_offers;
+create policy "Allow updating job offers" on public.job_offers
+  for update using (true) with check (true);
 
 -- ------------------------------------------------------------------------
 -- 4. `job_ratings` Policies

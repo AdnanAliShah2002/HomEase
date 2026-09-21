@@ -884,6 +884,8 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         val providerPhone = obj.optString("provider_phone").ifBlank { null }
         val providerName = obj.optString("provider_name").ifBlank { null }
         val agreedPriceRs = obj.optInt("agreed_price_rs", budgetRs)
+        val lat = if (obj.has("lat") && !obj.isNull("lat")) obj.optDouble("lat").takeIf { !it.isNaN() } else null
+        val lng = if (obj.has("lng") && !obj.isNull("lng")) obj.optDouble("lng").takeIf { !it.isNaN() } else null
 
         return ServiceRequestEntity(
             id = 0,
@@ -901,7 +903,9 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             selectedProviderPhone = providerPhone,
             selectedProviderName = providerName,
             agreedPriceRs = agreedPriceRs,
-            remoteId = remoteId
+            remoteId = remoteId,
+            lat = lat,
+            lng = lng
         )
     }
 
@@ -915,6 +919,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         val rating = obj.optDouble("provider_rating", 4.8)
         val status = obj.optString("status", "pending")
         val offerNote = obj.optString("offer_note").ifBlank { null }
+        val providerId = obj.optString("provider_id").ifBlank { null }
 
         return JobOfferEntity(
             id = 0,
@@ -927,7 +932,8 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             providerRating = rating,
             status = status,
             offerNote = offerNote,
-            remoteOfferId = remoteOfferId
+            remoteOfferId = remoteOfferId,
+            providerId = providerId
         )
     }
 
@@ -946,7 +952,9 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                 description = request.description,
                 cityArea = request.cityArea,
                 fullAddress = request.fullAddress,
-                budgetRs = request.budgetRs
+                budgetRs = request.budgetRs,
+                lat = request.lat,
+                lng = request.lng
             )
 
             // 2. If the Supabase write fails, show a visible error and DO NOT fall back to local-only
@@ -1045,7 +1053,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             val acceptResult = supabaseClient.acceptJobOffer(
                 jobId = remoteJobId,
                 offerId = remoteOfferId,
-                providerId = null,
+                providerId = offer.providerId,
                 providerPhone = offer.providerPhone,
                 providerName = offer.providerName,
                 agreedPriceRs = agreedPrice
@@ -1082,11 +1090,12 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             val resolvedPhone = provider?.phone ?: phone
             val resolvedName = provider?.name?.ifBlank { null } ?: "Service Provider"
             val remoteJobId = job.remoteId ?: job.id.toString()
+            val sessionUserId = supabaseClient.getSession()?.userId
 
             // Primary blocking write to Supabase
             val acceptResult = supabaseClient.acceptJobDirectly(
                 jobId = remoteJobId,
-                providerId = provider?.phone,
+                providerId = sessionUserId,
                 providerPhone = resolvedPhone,
                 providerName = resolvedName,
                 priceRs = job.budgetRs
@@ -1128,16 +1137,37 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             val resolvedName = provider?.name?.ifBlank { null } ?: "Service Provider"
             val remoteJobId = job.remoteId ?: job.id.toString()
 
+            // Dynamically calculate Haversine distance in km between provider and job location if GPS is available
+            val providerLat = provider?.lat
+            val providerLng = provider?.lng
+            val jobLat = job.lat
+            val jobLng = job.lng
+            val calculatedDistanceKm: Double = if (providerLat != null && providerLng != null && jobLat != null && jobLng != null) {
+                val earthRadiusKm = 6371.0
+                val dLat = Math.toRadians(jobLat - providerLat)
+                val dLng = Math.toRadians(jobLng - providerLng)
+                val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                        Math.cos(Math.toRadians(providerLat)) * Math.cos(Math.toRadians(jobLat)) *
+                        Math.sin(dLng / 2) * Math.sin(dLng / 2)
+                val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+                val dist = earthRadiusKm * c
+                (Math.round(dist * 10.0) / 10.0).coerceAtLeast(0.5)
+            } else {
+                1.5 // Default area estimate when GPS is not yet acquired
+            }
+            val resolvedRating = if ((provider?.avgRating ?: 0.0) > 0.0) provider!!.avgRating else 4.8
+            val sessionUserId = supabaseClient.getSession()?.userId
+
             // Primary blocking write to Supabase public.job_offers
             val offerResult = supabaseClient.submitJobOffer(
                 jobId = remoteJobId,
-                providerId = provider?.phone,
+                providerId = sessionUserId,
                 providerPhone = resolvedPhone,
                 providerName = resolvedName,
                 offerPriceRs = counterPrice,
                 counterPriceRs = counterPrice,
-                distanceKm = 1.5,
-                providerRating = provider?.avgRating ?: 4.8,
+                distanceKm = calculatedDistanceKm,
+                providerRating = resolvedRating,
                 offerNote = note
             )
 
@@ -1157,8 +1187,8 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                 providerName = resolvedName,
                 counterPriceRs = counterPrice,
                 offerPriceRs = counterPrice,
-                distanceKm = 1.5,
-                providerRating = provider?.avgRating ?: 4.8,
+                distanceKm = calculatedDistanceKm,
+                providerRating = resolvedRating,
                 status = "pending",
                 offerNote = note,
                 remoteOfferId = remoteOfferId
@@ -1366,11 +1396,18 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                         try {
                             val record = action.record
                             val status = record.optString("status", "")
+                            val entity = jsonToServiceRequestEntity(record)
+                            val localId = repository.syncRemoteJob(entity)
+                            val savedEntity = entity.copy(id = localId)
+
                             if (status.equals("SEARCHING", ignoreCase = true)) {
-                                val entity = jsonToServiceRequestEntity(record)
-                                val localId = repository.syncRemoteJob(entity)
-                                val savedEntity = entity.copy(id = localId)
                                 _fullscreenPingJob.value = savedEntity
+                            } else {
+                                // Status changed away from searching (e.g. accepted, cancelled, on_the_way)
+                                // If this was currently pinging the provider on screen, dismiss it immediately
+                                if (_fullscreenPingJob.value?.remoteId == entity.remoteId || _fullscreenPingJob.value?.id == localId) {
+                                    _fullscreenPingJob.value = null
+                                }
                             }
                         } catch (_: Exception) {}
                     }

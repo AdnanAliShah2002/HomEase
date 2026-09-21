@@ -97,7 +97,8 @@ data class JobOfferEntity(
     val status: String = "pending", // pending, accepted, rejected, expired
     val offerNote: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val remoteOfferId: String? = null
+    val remoteOfferId: String? = null,
+    val providerId: String? = null
 )
 
 @Entity(tableName = "service_categories")

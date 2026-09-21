@@ -64,6 +64,7 @@ class MainActivity : ComponentActivity() {
             val providerRegistrationError by viewModel.providerRegistrationError.collectAsStateWithLifecycle()
             val isRefreshingStatus by viewModel.isRefreshingStatus.collectAsStateWithLifecycle()
             val statusCheckMessage by viewModel.statusCheckMessage.collectAsStateWithLifecycle()
+            val providerActionError by viewModel.providerActionError.collectAsStateWithLifecycle()
 
             // Handle notification clicks once ViewModel is ready
             LaunchedEffectOnce(notifJobId) {
@@ -204,6 +205,8 @@ class MainActivity : ComponentActivity() {
                                 language = language,
                                 isRefreshingStatus = isRefreshingStatus,
                                 statusCheckMessage = statusCheckMessage,
+                                providerActionError = providerActionError,
+                                onClearProviderActionError = { viewModel.clearProviderActionError() },
                                 onToggleRole = { viewModel.toggleRole() },
                                 onToggleLanguage = { viewModel.toggleLanguage() },
                                 onToggleOnline = { online -> viewModel.toggleProviderOnline(online) },
@@ -233,6 +236,8 @@ class MainActivity : ComponentActivity() {
                                 customerName = user?.name ?: "Customer",
                                 savedAddress = user?.homeAddress ?: "",
                                 cityArea = user?.cityArea ?: "",
+                                initialLat = user?.lat,
+                                initialLng = user?.lng,
                                 language = language,
                                 activeLiveRequest = activeLiveRequest,
                                 incomingOffers = incomingOffers,
@@ -253,6 +258,8 @@ class MainActivity : ComponentActivity() {
                                 ProviderJobAcceptScreen(
                                     job = pingJob,
                                     language = language,
+                                    actionError = providerActionError,
+                                    onDismissError = { viewModel.clearProviderActionError() },
                                     onAccept = { job -> viewModel.acceptJobAsProvider(job) },
                                     onReject = { job -> viewModel.rejectJobAsProvider(job) },
                                     onCounter = { job, price, note -> viewModel.counterJobAsProvider(job, price, note) }

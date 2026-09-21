@@ -677,7 +677,9 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         description: String,
         cityArea: String,
         fullAddress: String,
-        budgetRs: Int
+        budgetRs: Int,
+        lat: Double? = null,
+        lng: Double? = null
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
             val session = getSession()
@@ -697,6 +699,12 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
                 put("full_address", fullAddress)
                 put("budget_rs", budgetRs)
                 put("status", "searching")
+                if (lat != null && !lat.isNaN()) {
+                    put("lat", lat)
+                }
+                if (lng != null && !lng.isNaN()) {
+                    put("lng", lng)
+                }
             }
 
             val url = "$SUPABASE_URL/rest/v1/jobs"
@@ -758,6 +766,16 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         }
     }
 
+    private fun isValidUuid(str: String?): Boolean {
+        if (str.isNullOrBlank()) return false
+        return try {
+            UUID.fromString(str)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     /**
      * Submits a real offer or counter-offer to `public.job_offers`.
      */
@@ -778,7 +796,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
 
             val payload = JSONObject().apply {
                 put("job_id", jobId)
-                if (!resolvedProviderId.isNullOrBlank()) {
+                if (!resolvedProviderId.isNullOrBlank() && isValidUuid(resolvedProviderId)) {
                     put("provider_id", resolvedProviderId)
                 }
                 put("provider_phone", providerPhone)
@@ -843,10 +861,9 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
     }
 
     /**
-     * Customer accepts a specific offer:
-     * 1. Updates jobs table (status = 'accepted', provider assigned, agreed price)
-     * 2. Updates the chosen offer to status = 'accepted'
-     * 3. Updates all competing pending offers for that job to status = 'rejected'
+     * Customer accepts a specific offer atomically using the `accept_job_offer_atomic` RPC.
+     * Executes the status transition, provider assignment, chosen offer acceptance,
+     * and competing offers rejection in a single PostgreSQL transaction.
      */
     suspend fun acceptJobOffer(
         jobId: String,
@@ -857,60 +874,36 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         agreedPriceRs: Int
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val isoNow = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
-                timeZone = java.util.TimeZone.getTimeZone("UTC")
-            }.format(java.util.Date())
-
-            // 1. Update jobs table
-            val jobPayload = JSONObject().apply {
-                put("status", "accepted")
-                if (!providerId.isNullOrBlank()) {
-                    put("provider_id", providerId)
+            val rpcPayload = JSONObject().apply {
+                put("p_job_id", jobId)
+                put("p_offer_id", offerId)
+                if (!providerId.isNullOrBlank() && isValidUuid(providerId)) {
+                    put("p_provider_id", providerId)
+                } else {
+                    put("p_provider_id", JSONObject.NULL)
                 }
-                put("provider_phone", providerPhone)
-                put("provider_name", providerName)
-                put("agreed_price_rs", agreedPriceRs)
-                put("status_updated_at", isoNow)
-            }
-            val jobUrl = "$SUPABASE_URL/rest/v1/jobs?id=eq.$jobId"
-            val jobReq = Request.Builder()
-                .url(jobUrl)
-                .patch(jobPayload.toString().toRequestBody(JSON_MEDIA_TYPE))
-            getAuthHeaders().forEach { (k, v) -> jobReq.addHeader(k, v) }
-
-            val jobResp = client.newCall(jobReq.build()).execute()
-            if (!jobResp.isSuccessful && jobResp.code !in 200..204) {
-                val body = jobResp.body?.string().orEmpty()
-                return@withContext Result.failure(IOException("Failed to accept job in Supabase (HTTP ${jobResp.code}): $body"))
+                put("p_provider_phone", providerPhone)
+                put("p_provider_name", providerName)
+                put("p_agreed_price_rs", agreedPriceRs)
             }
 
-            // 2. Mark this offer as 'accepted'
-            val acceptedPayload = JSONObject().apply {
-                put("status", "accepted")
-                put("updated_at", isoNow)
-            }
-            val acceptedUrl = "$SUPABASE_URL/rest/v1/job_offers?id=eq.$offerId"
-            val acceptedReq = Request.Builder()
-                .url(acceptedUrl)
-                .patch(acceptedPayload.toString().toRequestBody(JSON_MEDIA_TYPE))
-            getAuthHeaders().forEach { (k, v) -> acceptedReq.addHeader(k, v) }
-            val acceptedResp = client.newCall(acceptedReq.build()).execute()
-            if (!acceptedResp.isSuccessful && acceptedResp.code !in 200..204) {
-                val body = acceptedResp.body?.string().orEmpty()
-                return@withContext Result.failure(IOException("Failed to accept offer in Supabase (HTTP ${acceptedResp.code}): $body"))
+            val rpcUrl = "$SUPABASE_URL/rest/v1/rpc/accept_job_offer_atomic"
+            val rpcReq = Request.Builder()
+                .url(rpcUrl)
+                .post(rpcPayload.toString().toRequestBody(JSON_MEDIA_TYPE))
+            getAuthHeaders().forEach { (k, v) -> rpcReq.addHeader(k, v) }
+
+            val rpcResp = client.newCall(rpcReq.build()).execute()
+            val body = rpcResp.body?.string().orEmpty().trim()
+            if (!rpcResp.isSuccessful && rpcResp.code !in 200..204) {
+                return@withContext Result.failure(IOException("Failed to accept offer via RPC (HTTP ${rpcResp.code}): $body"))
             }
 
-            // 3. Mark competing pending offers for this job as 'rejected'
-            val rejectedPayload = JSONObject().apply {
-                put("status", "rejected")
-                put("updated_at", isoNow)
+            // The function returns boolean: true if job was updated, false if not found / already claimed
+            val isSuccess = body.equals("true", ignoreCase = true)
+            if (!isSuccess) {
+                return@withContext Result.failure(IllegalStateException("Job is no longer open or has already been accepted"))
             }
-            val rejectedUrl = "$SUPABASE_URL/rest/v1/job_offers?job_id=eq.$jobId&id=neq.$offerId&status=eq.pending"
-            val rejectedReq = Request.Builder()
-                .url(rejectedUrl)
-                .patch(rejectedPayload.toString().toRequestBody(JSON_MEDIA_TYPE))
-            getAuthHeaders().forEach { (k, v) -> rejectedReq.addHeader(k, v) }
-            client.newCall(rejectedReq.build()).execute()
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -920,6 +913,8 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
 
     /**
      * Provider directly accepts a job at the customer's asking budget.
+     * Uses atomic PATCH with Prefer: return=representation.
+     * If 0 rows are returned, the job was already accepted by another provider or cancelled.
      */
     suspend fun acceptJobDirectly(
         jobId: String,
@@ -929,14 +924,17 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         priceRs: Int
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            val session = getSession()
+            val resolvedProviderId = (providerId ?: session?.userId)?.takeIf { isValidUuid(it) }
+
             val isoNow = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
             }.format(java.util.Date())
 
             val jobPayload = JSONObject().apply {
                 put("status", "accepted")
-                if (!providerId.isNullOrBlank()) {
-                    put("provider_id", providerId)
+                if (!resolvedProviderId.isNullOrBlank()) {
+                    put("provider_id", resolvedProviderId)
                 }
                 put("provider_phone", providerPhone)
                 put("provider_name", providerName)
@@ -946,14 +944,25 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             val jobUrl = "$SUPABASE_URL/rest/v1/jobs?id=eq.$jobId&status=eq.searching"
             val jobReq = Request.Builder()
                 .url(jobUrl)
+                .addHeader("Prefer", "return=representation")
                 .patch(jobPayload.toString().toRequestBody(JSON_MEDIA_TYPE))
             getAuthHeaders().forEach { (k, v) -> jobReq.addHeader(k, v) }
 
             val jobResp = client.newCall(jobReq.build()).execute()
+            val body = jobResp.body?.string().orEmpty()
             if (!jobResp.isSuccessful && jobResp.code !in 200..204) {
-                val body = jobResp.body?.string().orEmpty()
                 return@withContext Result.failure(IOException("Failed to accept job in Supabase (HTTP ${jobResp.code}): $body"))
             }
+
+            val affectedArray = try {
+                JSONArray(body)
+            } catch (_: Exception) {
+                JSONArray()
+            }
+            if (affectedArray.length() == 0) {
+                return@withContext Result.failure(IllegalStateException("Job is no longer open or was already claimed by another provider"))
+            }
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

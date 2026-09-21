@@ -108,6 +108,8 @@ fun ProviderHomeScreen(
     language: AppLanguage,
     isRefreshingStatus: Boolean = false,
     statusCheckMessage: String? = null,
+    providerActionError: String? = null,
+    onClearProviderActionError: () -> Unit = {},
     onToggleRole: () -> Unit,
     onToggleLanguage: () -> Unit,
     onToggleOnline: (Boolean) -> Unit,
@@ -639,6 +641,53 @@ fun ProviderHomeScreen(
                                 onOpenChat = { onOpenChat(activeJob) },
                                 onStartCall = { onStartCall(activeJob) }
                             )
+                        }
+                    }
+                }
+
+                // Error banner for action failures (e.g. job already claimed by another provider)
+                if (!providerActionError.isNullOrBlank()) {
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = "Error",
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = providerActionError,
+                                    color = Color(0xFF991B1B),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = onClearProviderActionError,
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Dismiss",
+                                        tint = Color(0xFF991B1B),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

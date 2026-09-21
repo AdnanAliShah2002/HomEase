@@ -108,6 +108,8 @@ fun CustomerRequestFlowScreen(
     customerName: String,
     savedAddress: String,
     cityArea: String,
+    initialLat: Double? = null,
+    initialLng: Double? = null,
     language: AppLanguage,
     activeLiveRequest: ServiceRequestEntity?,
     incomingOffers: List<JobOfferEntity>,
@@ -137,6 +139,8 @@ fun CustomerRequestFlowScreen(
                 request = activeLiveRequest,
                 offers = incomingOffers,
                 language = language,
+                submissionError = submissionError,
+                onDismissError = onDismissError,
                 onBack = onBack,
                 onSelectOffer = onSelectOffer
             )
@@ -175,8 +179,8 @@ fun CustomerRequestFlowScreen(
     var addressInput by remember {
         mutableStateOf(savedAddress)
     }
-    var requestLat by remember { mutableStateOf<Double?>(null) }
-    var requestLng by remember { mutableStateOf<Double?>(null) }
+    var requestLat by remember { mutableStateOf<Double?>(initialLat) }
+    var requestLng by remember { mutableStateOf<Double?>(initialLng) }
 
     // Dynamic reference pricing calculation
     val (refMin, refMax, refBasis) = if (selectedCatId == "dry_cleaning") {
@@ -1169,6 +1173,8 @@ fun FindingProvidersView(
     request: ServiceRequestEntity,
     offers: List<JobOfferEntity>,
     language: AppLanguage,
+    submissionError: String? = null,
+    onDismissError: () -> Unit = {},
     onBack: () -> Unit,
     onSelectOffer: (JobOfferEntity) -> Unit
 ) {
@@ -1210,6 +1216,51 @@ fun FindingProvidersView(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Error banner for action failures (e.g. accepting already-taken offer)
+            if (!submissionError.isNullOrBlank()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Error",
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = submissionError,
+                                color = Color(0xFF991B1B),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = onDismissError,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Dismiss",
+                                    tint = Color(0xFF991B1B),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Radar Animation & Search Status
             item {
                 Card(
