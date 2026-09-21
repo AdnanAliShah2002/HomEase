@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.scale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -871,10 +872,7 @@ fun ProfessionalCategoryCard(
 
     Surface(
         modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .scale(scale)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
@@ -953,10 +951,7 @@ fun ProfessionalBottomNavItem(
             tint = if (isActive) Color(0xFF007AFF) else Color(0xFF8E8E93),
             modifier = Modifier
                 .size(24.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }
+                .scale(scale)
         )
         Spacer(modifier = Modifier.height(3.dp))
         Text(

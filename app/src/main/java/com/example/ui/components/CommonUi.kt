@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -105,10 +106,7 @@ fun PrimaryCtaButton(
         modifier = modifier
             .fillMaxWidth()
             .height(if (isProviderStyle) 54.dp else 50.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .scale(scale)
             .shadow(
                 elevation = if (isPressed) 1.dp else 3.dp,
                 shape = RoundedCornerShape(14.dp),
@@ -423,10 +421,7 @@ fun AppleCard(
         border = androidx.compose.foundation.BorderStroke(borderWidth, borderColor),
         shadowElevation = elevation,
         modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .scale(scale)
             .then(
                 if (onClick != null) {
                     Modifier.clickable(

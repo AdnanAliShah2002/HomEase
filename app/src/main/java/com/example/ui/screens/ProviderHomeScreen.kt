@@ -500,22 +500,23 @@ fun ProviderHomeScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-            // Apple-style Inset Grouped Availability Card
+            // Apple-style Inset Grouped Availability Card & Verification Status
             item {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color.White,
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
-                    shadowElevation = 1.5.dp,
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp)
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White,
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
+                        shadowElevation = 1.5.dp,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -559,10 +560,6 @@ fun ProviderHomeScreen(
                             )
                         }
                     }
-                }
-            }
-
-                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Verification Status Bar
                     Row(
