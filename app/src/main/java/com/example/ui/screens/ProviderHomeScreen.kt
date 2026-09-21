@@ -432,9 +432,11 @@ fun ProviderHomeScreen(
             )
         },
         bottomBar = {
+            // Apple-style Frosted Glass Bottom Navigation Bar
             Surface(
-                color = Color.White,
-                shadowElevation = 8.dp,
+                color = Color.White.copy(alpha = 0.94f),
+                shadowElevation = 0.dp,
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
@@ -442,32 +444,32 @@ fun ProviderHomeScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 10.dp),
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ProfessionalBottomNavItem(
                         icon = Icons.Default.Work,
-                        label = "Jobs",
+                        label = if (language == AppLanguage.URDU) "کام" else "Jobs",
                         isActive = currentNavTab == "jobs",
                         onClick = { currentNavTab = "jobs" }
                     )
                     ProfessionalBottomNavItem(
                         icon = Icons.Default.Assignment,
-                        label = "Bookings",
+                        label = if (language == AppLanguage.URDU) "تاریخچہ" else "History",
                         isActive = currentNavTab == "bookings",
                         onClick = { currentNavTab = "bookings" }
                     )
                     ProfessionalBottomNavItem(
                         icon = Icons.Default.Person,
-                        label = "Profile",
+                        label = if (language == AppLanguage.URDU) "پروفائل" else "Profile",
                         isActive = currentNavTab == "profile",
                         onClick = { currentNavTab = "profile" }
                     )
                 }
             }
         },
-        containerColor = BackgroundLight
+        containerColor = Color(0xFFF2F2F7)
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -495,66 +497,70 @@ fun ProviderHomeScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 32.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-            // High-contrast Availability Header (Simplified for Lower Tech-Fluency)
+            // Apple-style Inset Grouped Availability Card
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(horizontal = 18.dp, vertical = 16.dp)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color.White,
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
+                    shadowElevation = 1.5.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(if (isOnline) StatusGreenContainer else Color(0xFFF1F5F9))
-                            .border(
-                                width = 2.dp,
-                                color = if (isOnline) StatusGreen else Color(0xFFCBD5E1),
-                                shape = RoundedCornerShape(18.dp)
-                            )
-                            .padding(horizontal = 18.dp, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(18.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isOnline) StatusGreen else Color.Gray)
-                            )
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Column {
-                                Text(
-                                    text = if (isOnline) Strings.get("online", language) else Strings.get("offline", language),
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = if (isOnline) Color(0xFF065F46) else TextSlate
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isOnline) Color(0xFF34C759) else Color(0xFF8E8E93))
                                 )
-                                Text(
-                                    text = if (isOnline) Strings.get("ready_for_jobs", language) else Strings.get("switch_on_to_get_jobs", language),
-                                    fontSize = 13.sp,
-                                    color = TextSlateMuted
-                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = if (isOnline) Strings.get("online", language) else Strings.get("offline", language),
+                                        fontSize = 19.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1C1C1E),
+                                        letterSpacing = (-0.3).sp
+                                    )
+                                    Text(
+                                        text = if (isOnline) Strings.get("ready_for_jobs", language) else Strings.get("switch_on_to_get_jobs", language),
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF8E8E93)
+                                    )
+                                }
                             }
-                        }
 
-                        Switch(
-                            checked = isOnline,
-                            onCheckedChange = {
-                                isOnline = it
-                                onToggleOnline(it)
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = StatusGreen
-                            ),
-                            modifier = Modifier.testTag("provider_online_switch")
-                        )
+                            Switch(
+                                checked = isOnline,
+                                onCheckedChange = {
+                                    isOnline = it
+                                    onToggleOnline(it)
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = Color(0xFF34C759),
+                                    uncheckedThumbColor = Color.White,
+                                    uncheckedTrackColor = Color(0xFFE5E5EA)
+                                ),
+                                modifier = Modifier.testTag("provider_online_switch")
+                            )
+                        }
                     }
+                }
+            }
 
                     Spacer(modifier = Modifier.height(12.dp))
 

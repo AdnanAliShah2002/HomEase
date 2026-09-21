@@ -123,20 +123,20 @@ fun ProviderJobAcceptScreen(
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFFFEF2F2))
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            .background(Color(0xFFFF3B30).copy(alpha = 0.12f))
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.NotificationsActive,
                             contentDescription = null,
-                            tint = Color(0xFFDC2626),
+                            tint = Color(0xFFFF3B30),
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "New Job Request Nearby!",
-                            color = Color(0xFFDC2626),
+                            color = Color(0xFFFF3B30),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -159,8 +159,8 @@ fun ProviderJobAcceptScreen(
                         .fillMaxWidth()
                         .height(6.dp)
                         .clip(RoundedCornerShape(3.dp)),
-                    color = if (timerSeconds < 15) Color(0xFFDC2626) else SoftOrange,
-                    trackColor = Color(0xFFE2E8F0)
+                    color = if (timerSeconds < 15) Color(0xFFFF3B30) else Color(0xFF007AFF),
+                    trackColor = Color(0xFFE5E5EA)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
@@ -181,12 +181,12 @@ fun ProviderJobAcceptScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("incoming_job_fullscreen_card"),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = androidx.compose.foundation.BorderStroke(1.5.dp, DeepIndigoContainer),
-                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x1F000000)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                Column(modifier = Modifier.padding(22.dp)) {
+                Column(modifier = Modifier.padding(20.dp)) {
                     // Category & Distance
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -196,15 +196,15 @@ fun ProviderJobAcceptScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(46.dp)
-                                    .clip(CircleShape)
-                                    .background(DeepIndigoContainer),
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF007AFF).copy(alpha = 0.1f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = getCategoryIcon(job.categoryId),
                                     contentDescription = null,
-                                    tint = DeepIndigo,
+                                    tint = Color(0xFF007AFF),
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -212,15 +212,15 @@ fun ProviderJobAcceptScreen(
                             Column {
                                 Text(
                                     text = job.categoryTitle,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = DeepIndigo
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF8E8E93)
                                 )
                                 Text(
                                     text = job.serviceTitle,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = TextSlate
+                                    fontSize = 19.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1C1C1E)
                                 )
                             }
                         }
@@ -232,15 +232,15 @@ fun ProviderJobAcceptScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(SurfaceVariantLight)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFFF2F2F7))
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = null,
-                            tint = SoftOrange,
+                            tint = Color(0xFFFF9500),
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -249,12 +249,12 @@ fun ProviderJobAcceptScreen(
                                 text = "Approx. 1.5 km away",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextSlate
+                                color = Color(0xFF1C1C1E)
                             )
                             Text(
                                 text = job.cityArea,
                                 fontSize = 12.sp,
-                                color = TextSlateMuted
+                                color = Color(0xFF8E8E93)
                             )
                         }
                     }
@@ -265,14 +265,14 @@ fun ProviderJobAcceptScreen(
                     Text(
                         text = "Customer Notes:",
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextSlateMuted
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF8E8E93)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = job.description,
                         fontSize = 14.sp,
-                        color = TextSlate,
+                        color = Color(0xFF1C1C1E),
                         lineHeight = 20.sp
                     )
 
@@ -282,8 +282,8 @@ fun ProviderJobAcceptScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(DeepIndigoContainer)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF007AFF).copy(alpha = 0.08f))
                             .padding(16.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -292,21 +292,21 @@ fun ProviderJobAcceptScreen(
                                 text = "Customer's Offered Price",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = DeepIndigo
+                                color = Color(0xFF007AFF)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Rs ${job.budgetRs}",
-                                fontSize = 32.sp,
+                                fontSize = 34.sp,
                                 fontWeight = FontWeight.Black,
-                                color = DeepIndigo
+                                color = Color(0xFF007AFF)
                             )
                         }
                     }
                 }
             }
 
-            // Three Large Action Buttons (Accept, Counter Price, Reject)
+            // Three Action Buttons (Accept, Counter Price, Reject)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -358,7 +358,7 @@ fun ProviderJobAcceptScreen(
                 PrimaryCtaButton(
                     text = "${Strings.get("accept_btn", language)} (Rs ${job.budgetRs})",
                     onClick = { onAccept(job) },
-                    backgroundColor = DeepIndigo,
+                    backgroundColor = Color(0xFF007AFF),
                     isProviderStyle = true,
                     testTag = "accept_job_fullscreen_btn"
                 )
@@ -374,10 +374,10 @@ fun ProviderJobAcceptScreen(
                             .weight(1f)
                             .height(54.dp)
                             .testTag("reject_job_fullscreen_btn"),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF1F5F9),
-                            contentColor = TextSlateMuted
+                            containerColor = Color(0xFFE5E5EA),
+                            contentColor = Color(0xFF1C1C1E)
                         )
                     ) {
                         Text(
@@ -394,9 +394,9 @@ fun ProviderJobAcceptScreen(
                             .weight(1.3f)
                             .height(54.dp)
                             .testTag("open_counter_sheet_btn"),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = SoftOrange,
+                            containerColor = Color(0xFFFF9500),
                             contentColor = Color.White
                         )
                     ) {

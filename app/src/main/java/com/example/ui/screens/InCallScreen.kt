@@ -142,23 +142,24 @@ fun InCallScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1E293B),
-                        Color(0xFF0F172A)
+                        Color(0xFF1C1C1E),
+                        Color(0xFF0A0A0C)
                     )
                 )
             )
     ) {
-        // Top Minimize Action
+        // Top Minimize Action & Audio Badge
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 48.dp),
+                .padding(horizontal = 20.dp, vertical = 48.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
                 onClick = onMinimize,
                 modifier = Modifier
+                    .size(42.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.15f))
                     .testTag("call_minimize_button")
@@ -166,21 +167,33 @@ fun InCallScreen(
                 Icon(
                     imageVector = Icons.Filled.KeyboardArrowDown,
                     contentDescription = "Minimize Call",
-                    tint = Color.White
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
             Surface(
                 color = Color.White.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(20.dp)
             ) {
-                Text(
-                    text = "Agora Voice HD",
-                    color = Color(0xFF67E8F9),
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    fontWeight = FontWeight.Medium
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF34C759)) // Apple System Green
+                    )
+                    Text(
+                        text = "FaceTime Audio",
+                        color = Color.White.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 
@@ -194,40 +207,40 @@ fun InCallScreen(
         ) {
             // Pulsing Avatar Box
             Box(
-                modifier = Modifier.size(160.dp),
+                modifier = Modifier.size(170.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (callState is CallState.Connected || callState is CallState.Connecting) {
                     Box(
                         modifier = Modifier
-                            .size(140.dp)
+                            .size(150.dp)
                             .scale(pulseScale)
                             .clip(CircleShape)
-                            .background(Color(0xFFDC5F45).copy(alpha = 0.22f))
+                            .background(Color(0xFF007AFF).copy(alpha = 0.22f))
                     )
                 }
 
                 Box(
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(110.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFDC5F45)),
+                        .background(Color(0xFF2C2C2E)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = targetName.take(1).uppercase(Locale.getDefault()),
                         color = Color.White,
-                        fontSize = 40.sp,
+                        fontSize = 44.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
                 text = targetName,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
                 textAlign = TextAlign.Center
@@ -238,11 +251,11 @@ fun InCallScreen(
             Text(
                 text = targetRole,
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.7f),
+                color = Color.White.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             // Call Status Chip
             val statusText = when (callState) {
@@ -256,16 +269,29 @@ fun InCallScreen(
             }
 
             Surface(
-                color = if (callState is CallState.Ended) Color(0xFFEF4444).copy(alpha = 0.2f) else Color(0xFF22C55E).copy(alpha = 0.2f),
+                color = if (callState is CallState.Ended) Color(0xFFFF3B30).copy(alpha = 0.25f) else Color.White.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(20.dp)
             ) {
-                Text(
-                    text = statusText,
-                    color = if (callState is CallState.Ended) Color(0xFFFCA5A5) else Color(0xFF86EFAC),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (callState is CallState.Connected && (callState as CallState.Connected).remoteUserConnected) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF34C759))
+                        )
+                    }
+                    Text(
+                        text = statusText,
+                        color = if (callState is CallState.Ended) Color(0xFFFF453A) else Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 
@@ -274,7 +300,7 @@ fun InCallScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(horizontal = 32.dp, vertical = 48.dp),
+                .padding(horizontal = 32.dp, vertical = 52.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (callState is CallState.Ended) {
@@ -286,23 +312,24 @@ fun InCallScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             text = if (language == AppLanguage.URDU) "کال کی مدت: $formattedDuration" else "Call Duration: $formattedDuration",
                             color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         FilledIconButton(
                             onClick = onCallClosed,
                             colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = Color(0xFFDC5F45),
+                                containerColor = Color(0xFF007AFF),
                                 contentColor = Color.White
                             ),
                             modifier = Modifier
-                                .size(52.dp)
+                                .size(54.dp)
                                 .testTag("call_close_button")
                         ) {
                             Icon(
@@ -323,9 +350,9 @@ fun InCallScreen(
                         IconButton(
                             onClick = { viewModel.toggleCallMute() },
                             modifier = Modifier
-                                .size(64.dp)
+                                .size(68.dp)
                                 .clip(CircleShape)
-                                .background(if (isMuted) Color.White else Color.White.copy(alpha = 0.2f))
+                                .background(if (isMuted) Color.White else Color.White.copy(alpha = 0.18f))
                                 .testTag("call_mute_button")
                         ) {
                             Icon(
@@ -335,7 +362,7 @@ fun InCallScreen(
                                 modifier = Modifier.size(28.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = if (isMuted) "Unmute" else "Mute",
                             color = Color.White.copy(alpha = 0.8f),
@@ -348,9 +375,9 @@ fun InCallScreen(
                         IconButton(
                             onClick = { viewModel.endVoiceCall() },
                             modifier = Modifier
-                                .size(72.dp)
+                                .size(76.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFDC2626))
+                                .background(Color(0xFFFF3B30)) // Apple System Red
                                 .testTag("call_end_button")
                         ) {
                             Icon(
@@ -360,7 +387,7 @@ fun InCallScreen(
                                 modifier = Modifier.size(36.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = if (language == AppLanguage.URDU) "کال کاٹیں" else "End",
                             color = Color.White.copy(alpha = 0.8f),
@@ -373,9 +400,9 @@ fun InCallScreen(
                         IconButton(
                             onClick = { viewModel.toggleCallSpeaker() },
                             modifier = Modifier
-                                .size(64.dp)
+                                .size(68.dp)
                                 .clip(CircleShape)
-                                .background(if (isSpeaker) Color.White else Color.White.copy(alpha = 0.2f))
+                                .background(if (isSpeaker) Color.White else Color.White.copy(alpha = 0.18f))
                                 .testTag("call_speaker_button")
                         ) {
                             Icon(
@@ -385,7 +412,7 @@ fun InCallScreen(
                                 modifier = Modifier.size(28.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = if (isSpeaker) "Speaker" else "Earpiece",
                             color = Color.White.copy(alpha = 0.8f),

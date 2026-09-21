@@ -66,6 +66,15 @@ import com.example.ui.theme.StatusYellowContainer
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.graphicsLayer
+
 @Composable
 fun PrimaryCtaButton(
     text: String,
@@ -78,33 +87,59 @@ fun PrimaryCtaButton(
     isProviderStyle: Boolean = false,
     testTag: String = "primary_cta_button"
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "apple_button_press_scale"
+    )
+
     Button(
         onClick = onClick,
         enabled = enabled && !isLoading,
+        interactionSource = interactionSource,
         modifier = modifier
             .fillMaxWidth()
-            .height(if (isProviderStyle) 58.dp else 52.dp)
-            .shadow(elevation = 4.dp, shape = RoundedCornerShape(16.dp), spotColor = backgroundColor)
+            .height(if (isProviderStyle) 54.dp else 50.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .shadow(
+                elevation = if (isPressed) 1.dp else 3.dp,
+                shape = RoundedCornerShape(14.dp),
+                spotColor = Color(0x1A000000),
+                ambientColor = Color(0x0F000000)
+            )
             .testTag(testTag),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = backgroundColor,
             contentColor = contentColor,
-            disabledContainerColor = Color(0xFFCBD5E1),
-            disabledContentColor = Color.White
+            disabledContainerColor = Color(0xFFE5E5EA),
+            disabledContentColor = Color(0xFF8E8E93)
+        ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 0.dp
         )
     ) {
         if (isLoading) {
             CircularProgressIndicator(
                 color = contentColor,
                 strokeWidth = 2.5.dp,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(20.dp)
             )
         } else {
             Text(
                 text = text,
-                fontSize = if (isProviderStyle) 17.sp else 15.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = if (isProviderStyle) 16.sp else 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.2).sp
             )
         }
     }
@@ -123,83 +158,95 @@ fun HomEaseTopBar(
     onOpenProfile: (() -> Unit)? = null
 ) {
     Surface(
-        color = Color.White,
+        color = Color.White.copy(alpha = 0.92f),
         modifier = modifier.fillMaxWidth(),
-        shadowElevation = 1.dp
+        shadowElevation = 0.5.dp,
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x0F000000))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 12.dp),
+                .padding(horizontal = 18.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            HomeaseHeaderLogo(markSize = 34.dp)
+            HomeaseHeaderLogo(markSize = 32.dp)
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Professional Polish Language Toggle Button: round 38dp
+                // Apple-style Language Toggle Pill
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(SurfaceVariantLight)
-                        .border(1.dp, BorderStroke, CircleShape)
+                        .height(34.dp)
+                        .clip(RoundedCornerShape(17.dp))
+                        .background(Color(0xFFF2F2F7))
+                        .border(0.5.dp, Color(0x1A000000), RoundedCornerShape(17.dp))
                         .clickable { onToggleLanguage() }
+                        .padding(horizontal = 12.dp)
                         .testTag("language_toggle"),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = if (language == AppLanguage.ENGLISH) "EN" else "اردو",
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = TextSlateMuted
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1C1C1E)
                     )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Professional Polish Avatar container: 38dp with soft dynamic border (opens profile on click)
+                // Apple-style Profile Avatar
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
-                        .background(DeepIndigoContainer)
-                        .border(1.5.dp, DeepIndigo.copy(alpha = 0.25f), CircleShape)
+                        .background(Color(0xFFEBF5FF))
+                        .border(0.5.dp, Color(0x1A007AFF), CircleShape)
                         .clickable(enabled = onOpenProfile != null) { onOpenProfile?.invoke() }
                         .testTag("top_bar_profile_icon"),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = userAvatar ?: "👤",
-                        fontSize = 17.sp
+                        fontSize = 16.sp
                     )
                 }
 
                 if (showRoleSwitcher) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    // Circular role switch button (matches 38dp circle shape of language toggle & profile icon)
+                    // Apple-style Role Switcher Pill
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
+                            .height(34.dp)
+                            .clip(RoundedCornerShape(17.dp))
                             .background(
-                                if (currentRole == UserRole.PROVIDER) DeepIndigo else SurfaceVariantLight
+                                if (currentRole == UserRole.PROVIDER) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
                             )
                             .border(
-                                width = 1.dp,
-                                color = if (currentRole == UserRole.PROVIDER) DeepIndigo else BorderStroke,
-                                shape = CircleShape
+                                width = 0.5.dp,
+                                color = Color(0x1A000000),
+                                shape = RoundedCornerShape(17.dp)
                             )
                             .clickable { onToggleRole() }
+                            .padding(horizontal = 10.dp)
                             .testTag("role_switcher"),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = if (currentRole == UserRole.PROVIDER) Icons.Default.Handyman else Icons.Default.Home,
-                            contentDescription = if (currentRole == UserRole.PROVIDER) "Switch to Customer" else "Switch to Provider",
-                            tint = if (currentRole == UserRole.PROVIDER) Color.White else DeepIndigo,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (currentRole == UserRole.PROVIDER) Icons.Default.Handyman else Icons.Default.Home,
+                                contentDescription = if (currentRole == UserRole.PROVIDER) "Switch to Customer" else "Switch to Provider",
+                                tint = if (currentRole == UserRole.PROVIDER) Color.White else Color(0xFF1C1C1E),
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (currentRole == UserRole.PROVIDER) "Pro" else "User",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (currentRole == UserRole.PROVIDER) Color.White else Color(0xFF1C1C1E)
+                            )
+                        }
                     }
                 }
 
@@ -207,10 +254,10 @@ fun HomEaseTopBar(
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFEF2F2))
-                            .border(1.dp, Color(0xFFFECACA), CircleShape)
+                            .background(Color(0xFFFFEBEA))
+                            .border(0.5.dp, Color(0x20FF3B30), CircleShape)
                             .clickable { logoutAction() }
                             .testTag("logout_button"),
                         contentAlignment = Alignment.Center
@@ -218,8 +265,8 @@ fun HomEaseTopBar(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                             contentDescription = "Logout",
-                            tint = Color(0xFFDC2626),
-                            modifier = Modifier.size(18.dp)
+                            tint = Color(0xFFFF3B30),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
@@ -347,3 +394,233 @@ fun RatingStubDialog(
         }
     )
 }
+
+@Composable
+fun AppleCard(
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = Color.White,
+    cornerRadius: androidx.compose.ui.unit.Dp = 18.dp,
+    borderWidth: androidx.compose.ui.unit.Dp = 0.5.dp,
+    borderColor: Color = Color(0x0F000000),
+    elevation: androidx.compose.ui.unit.Dp = 1.dp,
+    onClick: (() -> Unit)? = null,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (onClick != null && isPressed) 0.98f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "apple_card_scale"
+    )
+
+    Surface(
+        shape = RoundedCornerShape(cornerRadius),
+        color = backgroundColor,
+        border = androidx.compose.foundation.BorderStroke(borderWidth, borderColor),
+        shadowElevation = elevation,
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null
+                    ) { onClick() }
+                } else Modifier
+            )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            content = content
+        )
+    }
+}
+
+@Composable
+fun AppleSectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    actionText: String? = null,
+    onActionClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title.uppercase(),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF8E8E93),
+            letterSpacing = 0.6.sp
+        )
+        if (actionText != null && onActionClick != null) {
+            Text(
+                text = actionText,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF007AFF),
+                modifier = Modifier.clickable { onActionClick() }
+            )
+        }
+    }
+}
+
+@Composable
+fun AppleSegmentedControl(
+    items: List<String>,
+    selectedIndex: Int,
+    onSelectIndex: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(38.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFFE5E5EA))
+            .padding(2.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            items.forEachIndexed { index, title ->
+                val isSelected = index == selectedIndex
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isSelected) Color.White else Color.Transparent)
+                        .then(
+                            if (isSelected) {
+                                Modifier.shadow(1.dp, RoundedCornerShape(8.dp), spotColor = Color(0x15000000))
+                            } else Modifier
+                        )
+                        .clickable { onSelectIndex(index) }
+                        .padding(vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 13.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                        color = if (isSelected) Color(0xFF1C1C1E) else Color(0xFF8E8E93)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AppleLiveActivityCard(
+    title: String,
+    subtitle: String,
+    statusText: String,
+    leadingIcon: ImageVector = Icons.Default.Handyman,
+    trailingText: String? = null,
+    isPulseActive: Boolean = true,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
+        shadowElevation = 2.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                // Frosted Squircle Icon Container
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFEBF5FF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = null,
+                        tint = Color(0xFF007AFF),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isPulseActive) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF34C759))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        Text(
+                            text = statusText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF007AFF)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = title,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF1C1C1E)
+                    )
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        color = Color(0xFF8E8E93)
+                    )
+                }
+            }
+
+            if (trailingText != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFF2F2F7))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = trailingText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1C1C1E)
+                    )
+                }
+            }
+        }
+    }
+}
+

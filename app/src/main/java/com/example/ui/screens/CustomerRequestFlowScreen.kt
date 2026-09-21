@@ -1391,12 +1391,12 @@ fun ProviderOfferCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("provider_offer_card_${offer.id}"),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, if (isCounter) SoftOrangeContainer else DeepIndigoContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(18.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1405,33 +1405,43 @@ fun ProviderOfferCard(
                 Column {
                     Text(
                         text = offer.providerName,
-                        fontSize = 16.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextSlate
+                        color = Color(0xFF1C1C1E),
+                        letterSpacing = (-0.2).sp
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = SoftOrange, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFCC00), modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "${offer.providerRating}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextSlate)
+                        Text(text = "${offer.providerRating}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C1C1E))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "• ${offer.distanceKm} ${Strings.get("km_away", language)}", fontSize = 13.sp, color = TextSlateMuted)
+                        Text(text = "• ${offer.distanceKm} ${Strings.get("km_away", language)}", fontSize = 13.sp, color = Color(0xFF8E8E93))
                     }
                 }
 
-                // Price Badge
+                // Apple-style Price Badge
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = if (isCounter) (if (language == AppLanguage.URDU) "کاریگر کی پیشکش" else "Counter Price") else (if (language == AppLanguage.URDU) "منظور شدہ بجٹ" else "Accepted At Asking Price"),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isCounter) SoftOrange else StatusGreen
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isCounter) Color(0xFFFFF4E5) else Color(0xFFEAF9EE))
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = if (isCounter) (if (language == AppLanguage.URDU) "کاریگر کی پیشکش" else "Counter Price") else (if (language == AppLanguage.URDU) "منظور شدہ بجٹ" else "Accepted Budget"),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isCounter) Color(0xFFFF9500) else Color(0xFF34C759)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "${if (language == AppLanguage.URDU) "روپے" else "Rs"} $displayPrice",
                         fontSize = 20.sp,
-                        fontWeight = FontWeight.Black,
-                        color = if (isCounter) SoftOrange else DeepIndigo
+                        fontWeight = FontWeight.Bold,
+                        color = if (isCounter) Color(0xFFFF9500) else Color(0xFF007AFF),
+                        letterSpacing = (-0.3).sp
                     )
                 }
             }
@@ -1442,22 +1452,22 @@ fun ProviderOfferCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(SurfaceVariantLight)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFF2F2F7))
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = null,
-                        tint = DeepIndigo,
+                        tint = Color(0xFF007AFF),
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = offer.offerNote,
                         fontSize = 12.sp,
-                        color = TextSlate,
+                        color = Color(0xFF1C1C1E),
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -1468,7 +1478,7 @@ fun ProviderOfferCard(
             PrimaryCtaButton(
                 text = "${Strings.get("select_provider", language)} (Rs $displayPrice)",
                 onClick = onSelect,
-                backgroundColor = if (isCounter) SoftOrange else DeepIndigo,
+                backgroundColor = if (isCounter) Color(0xFFFF9500) else Color(0xFF007AFF),
                 testTag = "accept_offer_btn_${offer.id}"
             )
         }

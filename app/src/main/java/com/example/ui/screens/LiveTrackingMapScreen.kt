@@ -551,13 +551,32 @@ fun LiveTrackingMapScreen(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(16.dp)
-                .shadow(12.dp, RoundedCornerShape(24.dp))
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .shadow(
+                    elevation = 6.dp,
+                    shape = RoundedCornerShape(26.dp),
+                    spotColor = Color(0x1A000000),
+                    ambientColor = Color(0x0F000000)
+                )
                 .testTag("provider_details_bottom_card"),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
         ) {
-            Column(modifier = Modifier.padding(18.dp)) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Apple Sheet Capsule Drag Handle
+                Box(
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 5.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFD1D1D6))
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
                 // Provider Avatar, Name, Rating & Service Title
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -571,15 +590,15 @@ fun LiveTrackingMapScreen(
                         Box(
                             modifier = Modifier
                                 .size(50.dp)
-                                .clip(CircleShape)
-                                .background(primaryColor.copy(alpha = 0.15f)),
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0xFFEBF5FF)),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = (job.selectedProviderName?.firstOrNull() ?: 'U').toString(),
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = primaryColor
+                                color = Color(0xFF007AFF)
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -588,20 +607,21 @@ fun LiveTrackingMapScreen(
                                 text = job.selectedProviderName ?: (if (language == AppLanguage.URDU) "کاریگر" else "Service Provider"),
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextSlate
+                                color = Color(0xFF1C1C1E),
+                                letterSpacing = (-0.2).sp
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.Star,
                                     contentDescription = null,
-                                    tint = Color(0xFFF59E0B),
-                                    modifier = Modifier.size(16.dp)
+                                    tint = Color(0xFFFFCC00),
+                                    modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
                                     text = "4.9 • ${job.serviceTitle}",
                                     fontSize = 13.sp,
-                                    color = TextSlateMuted,
+                                    color = Color(0xFF8E8E93),
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -614,14 +634,16 @@ fun LiveTrackingMapScreen(
                             text = if (language == AppLanguage.URDU) "طے شدہ رقم" else "AGREED",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextSlateMuted
+                            color = Color(0xFF8E8E93),
+                            letterSpacing = 0.5.sp
                         )
                         val price = if (job.agreedPriceRs > 0) job.agreedPriceRs else job.budgetRs
                         Text(
                             text = "Rs $price",
                             fontSize = 20.sp,
-                            fontWeight = FontWeight.Black,
-                            color = primaryColor
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF007AFF),
+                            letterSpacing = (-0.3).sp
                         )
                     }
                 }

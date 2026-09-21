@@ -56,9 +56,18 @@ fun HomEaseDynamicTheme(
         outlineVariant = text.copy(alpha = 0.08f)
     )
 
+    val appleShapes = androidx.compose.material3.Shapes(
+        extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+        small = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        medium = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        large = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(26.dp)
+    )
+
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = appleShapes,
         content = content
     )
 }

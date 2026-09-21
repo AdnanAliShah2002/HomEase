@@ -147,13 +147,13 @@ fun JobChatScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
+                                .background(Color(0xFFE5E5EA)),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = targetName.take(1).uppercase(Locale.getDefault()),
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                color = Color(0xFF007AFF),
                                 fontSize = 16.sp
                             )
                         }
@@ -174,7 +174,7 @@ fun JobChatScreen(
                                     modifier = Modifier
                                         .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF2E7D32))
+                                        .background(Color(0xFF34C759))
                                 )
                                 Text(
                                     text = "$targetRole • Online",
@@ -192,7 +192,8 @@ fun JobChatScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
+                            tint = Color(0xFF007AFF)
                         )
                     }
                 },
@@ -200,21 +201,23 @@ fun JobChatScreen(
                     FilledIconButton(
                         onClick = onStartCall,
                         colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            containerColor = Color(0xFF34C759),
+                            contentColor = Color.White
                         ),
                         modifier = Modifier
                             .padding(end = 8.dp)
+                            .size(38.dp)
                             .testTag("chat_call_button")
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Call,
-                            contentDescription = "Start Voice Call"
+                            contentDescription = "Start Voice Call",
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
                 )
             )
         }
@@ -223,22 +226,24 @@ fun JobChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                .background(Color(0xFFF2F2F7))
         ) {
-            // Context Job Card
+            // Context Job Card (Apple Inset Grouped style)
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = Color.White
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x1F000000))
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -346,35 +351,36 @@ fun JobChatScreen(
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(quickReplies) { reply ->
                     Surface(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(18.dp))
                             .clickable {
                                 viewModel.sendJobMessage(job.id.toString(), reply)
                             },
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(16.dp)
+                        color = Color.White,
+                        shape = RoundedCornerShape(18.dp),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x26000000))
                     ) {
                         Text(
                             text = reply,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = Color(0xFF1C1C1E),
                             fontWeight = FontWeight.Medium
                         )
                     }
                 }
             }
 
-            // Bottom Input Bar
+            // Bottom Input Bar (iOS iMessage capsule)
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                tonalElevation = 4.dp,
-                color = MaterialTheme.colorScheme.surface
+                color = Color.White.copy(alpha = 0.96f),
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x1F000000))
             ) {
                 Row(
                     modifier = Modifier
@@ -388,17 +394,22 @@ fun JobChatScreen(
                         onValueChange = { textInput = it },
                         placeholder = {
                             Text(
-                                text = if (language == AppLanguage.URDU) "پیغام لکھیں..." else "Type a message...",
-                                style = MaterialTheme.typography.bodyMedium
+                                text = if (language == AppLanguage.URDU) "پیغام لکھیں..." else "iMessage",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFF8E8E93)
                             )
                         },
                         modifier = Modifier
                             .weight(1f)
                             .testTag("chat_message_input"),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(22.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            focusedBorderColor = Color(0xFF007AFF),
+                            unfocusedBorderColor = Color(0x24000000),
+                            focusedContainerColor = Color(0xFFF2F2F7),
+                            unfocusedContainerColor = Color(0xFFF2F2F7),
+                            focusedTextColor = Color(0xFF1C1C1E),
+                            unfocusedTextColor = Color(0xFF1C1C1E)
                         ),
                         maxLines = 4
                     )
@@ -412,16 +423,19 @@ fun JobChatScreen(
                         },
                         enabled = textInput.isNotBlank(),
                         colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            containerColor = if (textInput.isNotBlank()) Color(0xFF007AFF) else Color(0xFFE5E5EA),
+                            contentColor = if (textInput.isNotBlank()) Color.White else Color(0xFF8E8E93),
+                            disabledContainerColor = Color(0xFFE5E5EA),
+                            disabledContentColor = Color(0xFF8E8E93)
                         ),
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(38.dp)
                             .testTag("chat_send_button")
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Send Message"
+                            contentDescription = "Send Message",
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -442,27 +456,27 @@ fun MessageBubble(
     }
 
     val bubbleColor = if (isMine) {
-        MaterialTheme.colorScheme.primary
+        Color(0xFF007AFF) // Apple System Blue
     } else {
-        MaterialTheme.colorScheme.surfaceContainerHighest
+        Color(0xFFE9E9EB) // Apple iMessage gray
     }
 
     val textColor = if (isMine) {
-        MaterialTheme.colorScheme.onPrimary
+        Color.White
     } else {
-        MaterialTheme.colorScheme.onSurface
+        Color(0xFF1C1C1E)
     }
 
     val timeColor = if (isMine) {
-        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f)
+        Color.White.copy(alpha = 0.75f)
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+        Color(0xFF8E8E93)
     }
 
     val bubbleShape = if (isMine) {
-        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 2.dp)
+        RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 4.dp)
     } else {
-        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 2.dp, bottomEnd = 16.dp)
+        RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 4.dp, bottomEnd = 18.dp)
     }
 
     Row(
@@ -473,10 +487,10 @@ fun MessageBubble(
             color = bubbleColor,
             shape = bubbleShape,
             modifier = Modifier.widthIn(min = 64.dp, max = 280.dp),
-            shadowElevation = 1.dp
+            shadowElevation = 0.5.dp
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
             ) {
                 if (!isMine) {
                     Text(

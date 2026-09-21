@@ -117,21 +117,41 @@ private fun RoleCard(
     onClick: () -> Unit,
     testTag: String
 ) {
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+        ),
+        label = "role_card_scale"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(20.dp))
             .background(Color.White)
-            .border(width = 1.dp, color = BorderStroke, shape = RoundedCornerShape(18.dp))
-            .clickable { onClick() }
+            .border(width = 0.5.dp, color = Color(0x14000000), shape = RoundedCornerShape(20.dp))
+            .shadow(if (isPressed) 0.5.dp else 2.dp, shape = RoundedCornerShape(20.dp), spotColor = Color(0x0A000000))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { onClick() }
             .padding(20.dp)
             .testTag(testTag),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Apple-style Squircle Icon Badge
         Box(
             modifier = Modifier
                 .size(54.dp)
-                .clip(CircleShape)
+                .clip(RoundedCornerShape(16.dp))
                 .background(iconBg),
             contentAlignment = Alignment.Center
         ) {
@@ -139,7 +159,7 @@ private fun RoleCard(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTint,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(26.dp)
             )
         }
 
@@ -150,13 +170,14 @@ private fun RoleCard(
                 text = title,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextSlate
+                color = Color(0xFF1C1C1E),
+                letterSpacing = (-0.3).sp
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = description,
                 fontSize = 13.sp,
-                color = TextSlateMuted,
+                color = Color(0xFF8E8E93),
                 lineHeight = 18.sp
             )
         }
@@ -164,8 +185,8 @@ private fun RoleCard(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
             contentDescription = "Select",
-            tint = TextSlateMuted,
-            modifier = Modifier.size(20.dp)
+            tint = Color(0xFFC7C7CC),
+            modifier = Modifier.size(18.dp)
         )
     }
 }

@@ -276,10 +276,11 @@ fun CustomerHomeScreen(
             )
         },
         bottomBar = {
-            // Professional Polish Bottom Navigation Bar
+            // Apple-style Frosted Glass Bottom Navigation Bar
             Surface(
-                color = Color.White,
-                shadowElevation = 8.dp,
+                color = Color.White.copy(alpha = 0.94f),
+                shadowElevation = 0.dp,
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
@@ -287,7 +288,7 @@ fun CustomerHomeScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 10.dp),
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -320,7 +321,7 @@ fun CustomerHomeScreen(
                 }
             }
         },
-        containerColor = BackgroundLight
+        containerColor = Color(0xFFF2F2F7)
     ) { innerPadding ->
         if (activeJobForRatingDialog != null) {
             HowDidItGoDialog(
@@ -484,74 +485,100 @@ fun CustomerHomeScreen(
                 }
             }
 
-            // Search input field
+            // Apple-style Search Bar
             item {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = {
-                        Text(
-                            text = Strings.get("search_hint", language),
-                            color = TextSlateMuted,
-                            fontSize = 13.sp
-                        )
-                    },
-                    leadingIcon = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White)
+                        .border(0.5.dp, Color(0x14000000), RoundedCornerShape(14.dp))
+                        .shadow(1.dp, RoundedCornerShape(14.dp), spotColor = Color(0x0A000000))
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = DeepIndigo,
-                            modifier = Modifier.size(18.dp)
+                            tint = Color(0xFF8E8E93),
+                            modifier = Modifier.size(19.dp)
                         )
-                    },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .testTag("customer_search_bar"),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = DeepIndigo,
-                        unfocusedBorderColor = Color(0xFFE2E8F0),
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White
-                    )
-                )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                fontSize = 15.sp,
+                                color = Color(0xFF1C1C1E),
+                                fontWeight = FontWeight.Normal
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("customer_search_bar"),
+                            decorationBox = { innerTextField ->
+                                if (searchQuery.isBlank()) {
+                                    Text(
+                                        text = Strings.get("search_hint", language),
+                                        color = Color(0xFF8E8E93),
+                                        fontSize = 15.sp
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        )
+                        if (searchQuery.isNotBlank()) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear search",
+                                tint = Color(0xFF8E8E93),
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clickable { searchQuery = "" }
+                            )
+                        }
+                    }
+                }
             }
 
-            // Section 2: Professional Polish Hero Card ("Need help today?")
+            // Section 2: Apple HIG Hero Card ("Need help today?")
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
-                            elevation = 12.dp,
-                            shape = RoundedCornerShape(28.dp),
-                            spotColor = Color(0x334338CA),
-                            ambientColor = Color(0x224338CA)
+                            elevation = 3.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            spotColor = Color(0x20007AFF),
+                            ambientColor = Color(0x10007AFF)
                         )
-                        .clip(RoundedCornerShape(28.dp))
+                        .clip(RoundedCornerShape(24.dp))
                         .background(
                             Brush.linearGradient(
-                                colors = listOf(DeepIndigo, Color(0xFF3730A3))
+                                colors = listOf(Color(0xFF007AFF), Color(0xFF5856D6))
                             )
                         )
                         .clickable { onStartNewRequest(null) }
-                        .padding(24.dp)
+                        .padding(22.dp)
                         .testTag("request_service_hero_card")
                 ) {
                     // Subtle background watermark house icon
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .size(110.dp)
-                            .alpha(0.12f)
+                            .size(100.dp)
+                            .alpha(0.14f)
                     ) {
                         HomeaseLogoMark(
-                            size = 110.dp,
+                            size = 100.dp,
                             primaryColor = Color.White,
                             accentColor = Color.White,
-                            doorColor = DeepIndigo
+                            doorColor = Color(0xFF007AFF)
                         )
                     }
 
@@ -564,34 +591,37 @@ fun CustomerHomeScreen(
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            letterSpacing = (-0.3).sp
+                            letterSpacing = (-0.4).sp
                         )
                         Text(
-                            text = if (language == AppLanguage.URDU) "250 سے زائد تصدیق شدہ کاریگر" else "Connecting you to 250+ pros",
-                            fontSize = 13.sp,
-                            color = Color(0xFFFDF0ED),
-                            fontWeight = FontWeight.Medium
+                            text = if (language == AppLanguage.URDU) "250 سے زائد تصدیق شدہ ماہر کاریگر" else "Connecting you to 250+ vetted pros",
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.88f),
+                            fontWeight = FontWeight.Normal
                         )
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Soft Orange Action Button with pure language prompt
-                        Button(
+                        // Apple-style translucent pill button
+                        Surface(
                             onClick = { onStartNewRequest(null) },
-                            shape = RoundedCornerShape(18.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = SoftOrange,
-                                contentColor = Color.White
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
-                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White,
+                            shadowElevation = 1.dp,
                             modifier = Modifier.testTag("hero_request_service_btn")
                         ) {
-                            Text(
-                                text = Strings.get("request_service_cta", language),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = Strings.get("request_service_cta", language),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF007AFF),
+                                    letterSpacing = (-0.1).sp
+                                )
+                            }
                         }
                     }
                 }
@@ -828,47 +858,65 @@ fun ProfessionalCategoryCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+        ),
+        label = "category_card_press"
+    )
+
+    Surface(
         modifier = modifier
-            .clickable { onClick() }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { onClick() }
             .testTag("cat_card_${item.id}"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x0F000000)),
+        shadowElevation = if (isPressed) 0.5.dp else 1.5.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 10.dp, horizontal = 4.dp),
+                .padding(vertical = 12.dp, horizontal = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Pastel rounded badge
+            // Apple-style Pastel rounded squircle badge
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(13.dp))
                     .background(Color(item.pastelBgColor)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = item.emoji,
-                    fontSize = 20.sp
+                    fontSize = 22.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Pure single-language Category Name (wrapped up to 2 lines so names like "Laundry & Ironing" never get cut off)
+            // Apple SF Pro bold label
             Text(
                 text = Strings.get(item.nameKey, language),
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = TextSlate,
+                color = Color(0xFF1C1C1E),
                 textAlign = TextAlign.Center,
-                lineHeight = 14.sp,
+                lineHeight = 15.sp,
                 maxLines = 2,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
             )
         }
     }
@@ -881,24 +929,42 @@ fun ProfessionalBottomNavItem(
     isActive: Boolean,
     onClick: () -> Unit
 ) {
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isActive) 1.08f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+        ),
+        label = "tab_bounce"
+    )
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) { onClick() }
+            .padding(horizontal = 12.dp, vertical = 2.dp)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (isActive) DeepIndigo else TextSlateMuted,
-            modifier = Modifier.size(22.dp)
+            tint = if (isActive) Color(0xFF007AFF) else Color(0xFF8E8E93),
+            modifier = Modifier
+                .size(24.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
         )
         Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = label,
-            fontSize = 10.sp,
-            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-            color = if (isActive) DeepIndigo else TextSlateMuted
+            fontSize = 11.sp,
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+            color = if (isActive) Color(0xFF007AFF) else Color(0xFF8E8E93),
+            letterSpacing = (-0.1).sp
         )
     }
 }

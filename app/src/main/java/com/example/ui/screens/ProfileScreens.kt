@@ -427,39 +427,54 @@ fun CustomerProfileView(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Settings & Actions Section
-        Card(
+        // Apple Inset Grouped Settings Section
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+            shape = RoundedCornerShape(18.dp),
+            color = Color.White,
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x0F000000)),
+            shadowElevation = 1.dp
         ) {
-            Column(modifier = Modifier.padding(8.dp)) {
+            Column {
                 // Switch Language
                 ProfileMenuRow(
                     icon = Icons.Default.Language,
                     title = Strings.get("app_language", language),
                     subtitle = if (language == AppLanguage.ENGLISH) "English" else "اردو",
+                    badgeColor = Color(0xFF007AFF),
+                    badgeContainerColor = Color(0xFFEBF5FF),
                     onClick = onToggleLanguage
                 )
 
-                HorizontalDivider(color = Color(0xFFF1F5F9))
+                HorizontalDivider(
+                    color = Color(0x0F000000),
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(start = 62.dp)
+                )
 
                 // Switch Role
                 ProfileMenuRow(
                     icon = Icons.Default.SwapHoriz,
                     title = Strings.get("role_provider_title", language),
                     subtitle = Strings.get("switch_to_provider_sub", language),
+                    badgeColor = Color(0xFF5856D6),
+                    badgeContainerColor = Color(0xFFEFEFFB),
                     onClick = onToggleRole
                 )
 
-                HorizontalDivider(color = Color(0xFFF1F5F9))
+                HorizontalDivider(
+                    color = Color(0x0F000000),
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(start = 62.dp)
+                )
 
                 // Help & Support
                 ProfileMenuRow(
                     icon = Icons.Default.HelpOutline,
                     title = Strings.get("help_and_support", language),
                     subtitle = if (language == AppLanguage.URDU) "ہیلپ لائن، عمومی سوالات اور واٹس ایپ" else "Helpline, FAQs & WhatsApp assistance",
+                    badgeColor = Color(0xFF34C759),
+                    badgeContainerColor = Color(0xFFEAF9EE),
                     onClick = { showHelpDialog = true }
                 )
             }
@@ -467,17 +482,38 @@ fun CustomerProfileView(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Logout Button
-        Button(
+        // Apple Settings style Logout Cell
+        Surface(
             onClick = onLogout,
-            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("customer_logout_btn"),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFEF2F2), contentColor = Color(0xFFDC2626)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA))
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .testTag("customer_logout_btn"),
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x0F000000)),
+            shadowElevation = 1.dp
         ) {
-            Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(Strings.get("logout_btn", language), fontWeight = FontWeight.Bold)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Logout,
+                        contentDescription = null,
+                        tint = Color(0xFFFF3B30),
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = Strings.get("logout_btn", language),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        color = Color(0xFFFF3B30)
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -1117,35 +1153,51 @@ fun ProviderProfileView(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Settings & Navigation Rows
-        Card(
+        // Apple Inset Grouped Settings Section
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+            shape = RoundedCornerShape(18.dp),
+            color = Color.White,
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x0F000000)),
+            shadowElevation = 1.dp
         ) {
-            Column(modifier = Modifier.padding(8.dp)) {
+            Column {
                 ProfileMenuRow(
                     icon = Icons.Default.Language,
                     title = Strings.get("app_language", language),
                     subtitle = if (language == AppLanguage.ENGLISH) "English" else "اردو",
+                    badgeColor = Color(0xFF007AFF),
+                    badgeContainerColor = Color(0xFFEBF5FF),
                     onClick = onToggleLanguage
                 )
 
-                HorizontalDivider(color = Color(0xFFF1F5F9))
+                HorizontalDivider(
+                    color = Color(0x0F000000),
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(start = 62.dp)
+                )
 
                 ProfileMenuRow(
                     icon = Icons.Default.SwapHoriz,
                     title = Strings.get("role_customer_title", language),
                     subtitle = Strings.get("switch_to_customer_sub", language),
+                    badgeColor = Color(0xFF5856D6),
+                    badgeContainerColor = Color(0xFFEFEFFB),
                     onClick = onToggleRole
                 )
 
-                HorizontalDivider(color = Color(0xFFF1F5F9))
+                HorizontalDivider(
+                    color = Color(0x0F000000),
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(start = 62.dp)
+                )
 
                 ProfileMenuRow(
                     icon = Icons.Default.HelpOutline,
                     title = Strings.get("help_and_support", language),
                     subtitle = if (language == AppLanguage.URDU) "ہیلپ لائن، تنازعات اور واٹس ایپ" else "Helpline, Dispute Support & WhatsApp",
+                    badgeColor = Color(0xFF34C759),
+                    badgeContainerColor = Color(0xFFEAF9EE),
                     onClick = { showHelpDialog = true }
                 )
             }
@@ -1153,17 +1205,38 @@ fun ProviderProfileView(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Logout Button
-        Button(
+        // Apple Settings style Logout Cell
+        Surface(
             onClick = onLogout,
-            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("provider_logout_btn"),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFEF2F2), contentColor = Color(0xFFDC2626)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA))
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .testTag("provider_logout_btn"),
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x0F000000)),
+            shadowElevation = 1.dp
         ) {
-            Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(Strings.get("logout_btn", language), fontWeight = FontWeight.Bold)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Logout,
+                        contentDescription = null,
+                        tint = Color(0xFFFF3B30),
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = Strings.get("logout_btn", language),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        color = Color(0xFFFF3B30)
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -1175,40 +1248,58 @@ fun ProfileMenuRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    badgeColor: Color = Color(0xFF007AFF),
+    badgeContainerColor: Color = Color(0xFFEBF5FF),
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(12.dp),
+            .padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Apple Settings style squircle icon container
         Box(
             modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFF1F5F9)),
+                .size(32.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(badgeContainerColor),
             contentAlignment = Alignment.Center
         ) {
-            Icon(imageVector = icon, contentDescription = null, tint = DeepIndigo, modifier = Modifier.size(20.dp))
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = badgeColor,
+                modifier = Modifier.size(18.dp)
+            )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = TextSlate
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
+                color = Color(0xFF1C1C1E),
+                letterSpacing = (-0.1).sp
             )
-            Text(
-                text = subtitle,
-                fontSize = 12.sp,
-                color = TextSlateMuted
-            )
+            if (subtitle.isNotBlank()) {
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = Color(0xFF8E8E93)
+                )
+            }
         }
+
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = "Navigate",
+            tint = Color(0xFFC7C7CC),
+            modifier = Modifier.size(16.dp)
+        )
     }
 }
 

@@ -6,38 +6,76 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import com.example.data.model.MobileAppTheme
 
-// HomEase Brand Colors — Option D: "Coral Sunset" (Default Fallback)
-val CoralPrimary = Color(0xFFDC5F45)
-val CoralPrimaryDark = Color(0xFFB8442D)
-val CoralPrimaryLight = Color(0xFFE97A63)
-val CoralPrimaryContainer = Color(0xFFFDF0ED) // Warm blush / peach container
+// Apple Human Interface Guidelines (HIG) System Palette
+val AppleSystemBlue = Color(0xFF007AFF)
+val AppleSystemBlueDark = Color(0xFF0056B3)
+val AppleSystemBlueLight = Color(0xFF47A0FF)
+val AppleSystemBlueContainer = Color(0xFFEBF5FF)
 
-val TealAccent = Color(0xFF2A9D8F)
-val TealAccentDark = Color(0xFF1F766C)
-val TealAccentLight = Color(0xFF4EB8AA)
-val TealAccentContainer = Color(0xFFE6F5F3) // Soft mint/teal container
+val AppleSystemOrange = Color(0xFFFF9500)
+val AppleSystemOrangeDark = Color(0xFFCC7700)
+val AppleSystemOrangeLight = Color(0xFFFFB340)
+val AppleSystemOrangeContainer = Color(0xFFFFF4E5)
 
-val BackgroundCream = Color(0xFFFFFBF7)
-val SurfaceCream = Color(0xFFFFFFFF)
-val SurfaceVariantCream = Color(0xFFF7F1EA) // Warm soft cream-beige variant
+val AppleSystemGreen = Color(0xFF34C759)
+val AppleSystemGreenContainer = Color(0xFFEAF9EE)
+val AppleSystemYellow = Color(0xFFFFCC00)
+val AppleSystemYellowContainer = Color(0xFFFFFBE5)
+val AppleSystemRed = Color(0xFFFF3B30)
+val AppleSystemRedContainer = Color(0xFFFFEBEA)
+val AppleSystemIndigo = Color(0xFF5856D6)
+val AppleSystemIndigoContainer = Color(0xFFEFEFFB)
+val AppleSystemTeal = Color(0xFF30B0C7)
+val AppleSystemTealContainer = Color(0xFFE6F7F9)
+val AppleSystemPurple = Color(0xFFAF52DE)
+val AppleSystemPink = Color(0xFFFF2D55)
 
-val TextWarmDark = Color(0xFF292524)
-val TextWarmMuted = Color(0xFF78716C) // Warm stone muted
-val TextWarmSubtle = Color(0xFFA8A29E) // Warm stone subtle
+// Apple Neutrals & Grouped Surfaces
+val AppleGroupedBackground = Color(0xFFF2F2F7)
+val AppleSecondaryGroupedBackground = Color(0xFFFFFFFF)
+val AppleTertiaryGroupedBackground = Color(0xFFF9F9FB)
 
-val WarmBorder = Color(0xFFEDE5DB)
-val WarmBorderFocused = Color(0xFFDC5F45)
+val AppleLabelPrimary = Color(0xFF1C1C1E)
+val AppleLabelSecondary = Color(0xFF8E8E93)
+val AppleLabelTertiary = Color(0xFFAEAEB2)
+val AppleLabelQuaternary = Color(0xFFC7C7CC)
 
-// Status indicators (warm-tuned)
-val StatusGreen = Color(0xFF10B981)
-val StatusGreenContainer = Color(0xFFECFDF5)
-val StatusYellow = Color(0xFFF59E0B)
-val StatusYellowContainer = Color(0xFFFFFBEB)
-val StatusRed = Color(0xFFEF4444)
-val StatusRedContainer = Color(0xFFFEF2F2)
+val AppleSeparator = Color(0x333C3C43) // 20% overlay
+val AppleOpaqueSeparator = Color(0xFFC6C6C8)
+val AppleHairlineBorder = Color(0x0F000000) // ~6% black hairline border
+
+// HomEase Brand Colors — Modern Apple HIG Palette
+val CoralPrimary = AppleSystemBlue
+val CoralPrimaryDark = AppleSystemBlueDark
+val CoralPrimaryLight = AppleSystemBlueLight
+val CoralPrimaryContainer = AppleSystemBlueContainer
+
+val TealAccent = AppleSystemOrange
+val TealAccentDark = AppleSystemOrangeDark
+val TealAccentLight = AppleSystemOrangeLight
+val TealAccentContainer = AppleSystemOrangeContainer
+
+val BackgroundCream = AppleGroupedBackground
+val SurfaceCream = AppleSecondaryGroupedBackground
+val SurfaceVariantCream = AppleTertiaryGroupedBackground
+
+val TextWarmDark = AppleLabelPrimary
+val TextWarmMuted = AppleLabelSecondary
+val TextWarmSubtle = AppleLabelTertiary
+
+val WarmBorder = AppleOpaqueSeparator
+val WarmBorderFocused = AppleSystemBlue
+
+// Status indicators (Apple-tuned)
+val StatusGreen = AppleSystemGreen
+val StatusGreenContainer = AppleSystemGreenContainer
+val StatusYellow = AppleSystemYellow
+val StatusYellowContainer = AppleSystemYellowContainer
+val StatusRed = AppleSystemRed
+val StatusRedContainer = AppleSystemRedContainer
 
 // Common modern UI accents
-val EmeraldGreen = Color(0xFF059669)
+val EmeraldGreen = AppleSystemGreen
 
 /**
  * Dynamic runtime theme state holder.

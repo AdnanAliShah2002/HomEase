@@ -68,12 +68,12 @@ data class MobileAppTheme(
 
     companion object {
         val DEFAULT_FALLBACK_THEME = MobileAppTheme(
-            id = "default_coral_sunset",
-            name = "Coral Sunset",
-            primaryColor = "#DC5F45",
-            accentColor = "#2A9D8F",
-            backgroundColor = "#FFFBF7",
-            textColor = "#292524",
+            id = "default_apple_cupertino",
+            name = "Apple Cupertino",
+            primaryColor = "#007AFF",
+            accentColor = "#FF9500",
+            backgroundColor = "#F2F2F7",
+            textColor = "#1C1C1E",
             isActive = true
         )
 
