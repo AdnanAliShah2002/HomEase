@@ -32,6 +32,17 @@ class OtpRemoteService(
 
         // Stores server-generated OTP from send-otp as fallback when verify-otp function is not deployed on Supabase
         private val pendingOtps = ConcurrentHashMap<String, String>()
+
+        fun normalizePhone(phone: String): String {
+            val digits = phone.filter { it.isDigit() }
+            val nationalNumber = when {
+                digits.startsWith("920") -> digits.removePrefix("920")
+                digits.startsWith("92") -> digits.removePrefix("92")
+                digits.startsWith("0") -> digits.removePrefix("0")
+                else -> digits
+            }
+            return "+92$nationalNumber"
+        }
     }
 
     /**
@@ -40,7 +51,7 @@ class OtpRemoteService(
      */
     suspend fun sendOtp(phone: String): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
-            val formattedPhone = if (phone.startsWith("+")) phone else "+$phone"
+            val formattedPhone = normalizePhone(phone)
             val payload = JSONObject().apply {
                 put("phone", formattedPhone)
             }.toString()
@@ -95,7 +106,7 @@ class OtpRemoteService(
      */
     suspend fun verifyOtp(phone: String, code: String): Result<OtpVerifyResult> = withContext(Dispatchers.IO) {
         try {
-            val formattedPhone = if (phone.startsWith("+")) phone else "+$phone"
+            val formattedPhone = normalizePhone(phone)
             val cleanCode = code.trim()
 
             val payload = JSONObject().apply {

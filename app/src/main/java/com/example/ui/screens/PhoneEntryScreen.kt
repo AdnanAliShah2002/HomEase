@@ -155,8 +155,15 @@ fun PhoneEntryScreen(
                     OutlinedTextField(
                         value = phoneNumber,
                         onValueChange = { input ->
-                            if (input.length <= 10 && input.all { it.isDigit() }) {
-                                phoneNumber = input
+                            val digits = input.filter { it.isDigit() }
+                            val withoutPrefix = when {
+                                digits.startsWith("920") -> digits.removePrefix("920")
+                                digits.startsWith("92") -> digits.removePrefix("92")
+                                digits.startsWith("0") -> digits.removePrefix("0")
+                                else -> digits
+                            }
+                            if (withoutPrefix.length <= 10) {
+                                phoneNumber = withoutPrefix
                             }
                         },
                         placeholder = {

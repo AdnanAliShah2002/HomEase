@@ -440,7 +440,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun onSendCode(phone: String) {
-        val formattedPhone = if (phone.startsWith("+")) phone else "+$phone"
+        val formattedPhone = OtpRemoteService.normalizePhone(phone)
         _currentPhoneNumber.value = formattedPhone
         _isSendingOtp.value = true
         _otpSendError.value = null
@@ -457,7 +457,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun resendOtpCode() {
-        val phone = _currentPhoneNumber.value
+        val phone = OtpRemoteService.normalizePhone(_currentPhoneNumber.value)
         _isSendingOtp.value = true
         _otpVerifyError.value = null
         viewModelScope.launch {
@@ -470,7 +470,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun onOtpVerified(code: String) {
-        val phone = _currentPhoneNumber.value
+        val phone = OtpRemoteService.normalizePhone(_currentPhoneNumber.value)
         _isVerifyingOtp.value = true
         _otpVerifyError.value = null
         viewModelScope.launch {
