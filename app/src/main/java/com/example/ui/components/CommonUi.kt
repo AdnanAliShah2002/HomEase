@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -157,30 +158,31 @@ fun HomEaseTopBar(
     onOpenProfile: (() -> Unit)? = null
 ) {
     Surface(
-        color = Color.White.copy(alpha = 0.92f),
+        color = Color.White.copy(alpha = 0.94f),
         modifier = modifier.fillMaxWidth(),
-        shadowElevation = 0.5.dp,
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x0F000000))
+        shadowElevation = 1.dp,
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 10.dp),
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            HomeaseHeaderLogo(markSize = 32.dp)
+            HomeaseHeaderLogo(markSize = 34.dp)
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // Apple-style Language Toggle Pill
                 Box(
                     modifier = Modifier
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(17.dp))
+                        .height(32.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xFFF2F2F7))
-                        .border(0.5.dp, Color(0x1A000000), RoundedCornerShape(17.dp))
+                        .border(0.5.dp, Color(0x1A000000), RoundedCornerShape(16.dp))
                         .clickable { onToggleLanguage() }
-                        .padding(horizontal = 12.dp)
+                        .padding(horizontal = 11.dp)
                         .testTag("language_toggle"),
                     contentAlignment = Alignment.Center
                 ) {
@@ -188,43 +190,44 @@ fun HomEaseTopBar(
                         text = if (language == AppLanguage.ENGLISH) "EN" else "اردو",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1C1C1E)
+                        color = Color(0xFF1C1C1E),
+                        letterSpacing = (-0.2).sp
                     )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
                 // Apple-style Profile Avatar
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFEBF5FF))
-                        .border(0.5.dp, Color(0x1A007AFF), CircleShape)
+                        .background(Color(0xFFF2F2F7))
+                        .border(0.5.dp, Color(0x1A000000), CircleShape)
                         .clickable(enabled = onOpenProfile != null) { onOpenProfile?.invoke() }
                         .testTag("top_bar_profile_icon"),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = userAvatar ?: "👤",
-                        fontSize = 16.sp
+                        fontSize = 15.sp
                     )
                 }
 
                 if (showRoleSwitcher) {
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     // Apple-style Role Switcher Pill
                     Box(
                         modifier = Modifier
-                            .height(34.dp)
-                            .clip(RoundedCornerShape(17.dp))
+                            .height(32.dp)
+                            .clip(RoundedCornerShape(16.dp))
                             .background(
                                 if (currentRole == UserRole.PROVIDER) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
                             )
                             .border(
                                 width = 0.5.dp,
                                 color = Color(0x1A000000),
-                                shape = RoundedCornerShape(17.dp)
+                                shape = RoundedCornerShape(16.dp)
                             )
                             .clickable { onToggleRole() }
                             .padding(horizontal = 10.dp)
@@ -236,7 +239,7 @@ fun HomEaseTopBar(
                                 imageVector = if (currentRole == UserRole.PROVIDER) Icons.Default.Handyman else Icons.Default.Home,
                                 contentDescription = if (currentRole == UserRole.PROVIDER) "Switch to Customer" else "Switch to Provider",
                                 tint = if (currentRole == UserRole.PROVIDER) Color.White else Color(0xFF1C1C1E),
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(

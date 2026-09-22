@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -214,10 +215,15 @@ fun CustomerRequestFlowScreen(
 
     Scaffold(
         topBar = {
-            Surface(color = Color.White, shadowElevation = 1.dp) {
+            Surface(
+                color = Color.White.copy(alpha = 0.94f),
+                shadowElevation = 1.dp,
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .statusBarsPadding()
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -228,7 +234,7 @@ fun CustomerRequestFlowScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = TextSlate
+                            tint = Color(0xFF1C1C1E)
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
@@ -236,7 +242,8 @@ fun CustomerRequestFlowScreen(
                         text = Strings.get("request_service_cta", language),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextSlate
+                        color = Color(0xFF1C1C1E),
+                        letterSpacing = (-0.3).sp
                     )
                 }
             }
@@ -1191,25 +1198,33 @@ fun FindingProvidersView(
 
     Scaffold(
         topBar = {
-            Surface(color = Color.White, shadowElevation = 1.dp) {
+            Surface(
+                color = Color.White.copy(alpha = 0.94f),
+                shadowElevation = 1.dp,
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextSlate)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF1C1C1E))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = request.serviceTitle,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextSlate
+                        color = Color(0xFF1C1C1E),
+                        letterSpacing = (-0.3).sp
                     )
                 }
             }
         },
-        containerColor = BackgroundLight
+        containerColor = Color(0xFFF4F5F9)
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp),
@@ -1221,9 +1236,9 @@ fun FindingProvidersView(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444))
+                        border = androidx.compose.foundation.BorderStroke(0.75.dp, Color(0xFFEF4444).copy(alpha = 0.5f))
                     ) {
                         Row(
                             modifier = Modifier
@@ -1261,30 +1276,48 @@ fun FindingProvidersView(
                 }
             }
 
-            // Radar Animation & Search Status
+            // Apple Liquid Glass Radar Animation & Search Status
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 3.dp,
+                            shape = RoundedCornerShape(22.dp),
+                            spotColor = Color(0x12000000),
+                            ambientColor = Color(0x06000000)
+                        )
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Color.White.copy(alpha = 0.92f))
+                        .border(
+                            width = 0.75.dp,
+                            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                                listOf(
+                                    Color.White,
+                                    Color(0x14000000)
+                                )
+                            ),
+                            shape = RoundedCornerShape(22.dp)
+                        )
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(20.dp),
+                        modifier = Modifier.fillMaxWidth().padding(22.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // Pulsing Apple Blue Radar Orb
                         Box(
                             modifier = Modifier
-                                .size(76.dp)
+                                .size(78.dp)
                                 .scale(scale)
                                 .clip(CircleShape)
-                                .background(DeepIndigoContainer),
+                                .background(Color(0xFFEBF5FF))
+                                .border(1.dp, Color(0x28007AFF), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Radar,
                                 contentDescription = "Searching",
-                                tint = DeepIndigo,
+                                tint = Color(0xFF007AFF),
                                 modifier = Modifier.size(40.dp)
                             )
                         }
@@ -1293,31 +1326,35 @@ fun FindingProvidersView(
 
                         Text(
                             text = Strings.get("finding_providers_title", language),
-                            fontSize = 18.sp,
+                            fontSize = 19.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextSlate
+                            color = Color(0xFF1C1C1E),
+                            letterSpacing = (-0.3).sp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = Strings.get("finding_providers_desc", language),
-                            fontSize = 13.sp,
-                            color = TextSlateMuted,
-                            lineHeight = 18.sp
+                            fontSize = 13.5.sp,
+                            color = Color(0xFF636366),
+                            lineHeight = 18.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
+                        // Frosted Offer Badge
                         Row(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(SoftOrangeContainer)
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFFFF7ED))
+                                .border(0.5.dp, Color(0x33FF9500), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Text(
-                                text = "${if (language == AppLanguage.URDU) "آپ کی پیشکش: روپے" else "Your Offer: Rs"} ${request.budgetRs} • 📍 ${request.cityArea}",
+                                text = "${if (language == AppLanguage.URDU) "آپ کی پیشکش: روپے" else "Your Offer: Rs"} ${request.budgetRs}  •  📍 ${request.cityArea}",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = SoftOrange
+                                color = Color(0xFFD97706)
                             )
                         }
                     }

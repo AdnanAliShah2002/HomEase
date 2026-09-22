@@ -97,6 +97,17 @@ import com.example.ui.theme.StatusYellowContainer
 import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.liquidGlassCard
+import com.example.ui.theme.AppleSystemBlue
+import com.example.ui.theme.AppleSystemGreen
+import com.example.ui.theme.AppleSystemGreenContainer
+import com.example.ui.theme.AppleSystemOrange
+import com.example.ui.theme.AppleSystemOrangeDark
+import com.example.ui.theme.AppleSystemOrangeContainer
+import com.example.ui.theme.AppleSystemIndigo
+import com.example.ui.theme.AppleSystemTeal
+import com.example.ui.theme.AppleLabelPrimary
+import com.example.ui.theme.AppleLabelSecondary
 
 @Composable
 fun ProviderHomeScreen(
@@ -500,18 +511,16 @@ fun ProviderHomeScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-            // Apple-style Inset Grouped Availability Card & Verification Status
+            // Apple Liquid Glass Availability Card & Verification Status
             item {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
-                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
-                        shadowElevation = 1.5.dp,
-                        modifier = Modifier.fillMaxWidth()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .liquidGlassCard(shape = RoundedCornerShape(22.dp))
                     ) {
                         Row(
                             modifier = Modifier
@@ -525,7 +534,7 @@ fun ProviderHomeScreen(
                                     modifier = Modifier
                                         .size(16.dp)
                                         .clip(CircleShape)
-                                        .background(if (isOnline) Color(0xFF34C759) else Color(0xFF8E8E93))
+                                        .background(if (isOnline) AppleSystemGreen else AppleLabelSecondary)
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
@@ -533,13 +542,13 @@ fun ProviderHomeScreen(
                                         text = if (isOnline) Strings.get("online", language) else Strings.get("offline", language),
                                         fontSize = 19.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1C1C1E),
+                                        color = AppleLabelPrimary,
                                         letterSpacing = (-0.3).sp
                                     )
                                     Text(
                                         text = if (isOnline) Strings.get("ready_for_jobs", language) else Strings.get("switch_on_to_get_jobs", language),
                                         fontSize = 13.sp,
-                                        color = Color(0xFF8E8E93)
+                                        color = AppleLabelSecondary
                                     )
                                 }
                             }
@@ -552,7 +561,7 @@ fun ProviderHomeScreen(
                                 },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF34C759),
+                                    checkedTrackColor = AppleSystemGreen,
                                     uncheckedThumbColor = Color.White,
                                     uncheckedTrackColor = Color(0xFFE5E5EA)
                                 ),
@@ -561,19 +570,20 @@ fun ProviderHomeScreen(
                         }
                     }
 
-                    // Verification Status Bar
+                    // Apple Inset Verification Status Pill
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isApproved) StatusGreenContainer else StatusYellowContainer)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (isApproved) AppleSystemGreenContainer else AppleSystemOrangeContainer)
+                            .border(0.5.dp, if (isApproved) AppleSystemGreen.copy(alpha = 0.25f) else AppleSystemOrange.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = if (isApproved) Icons.Default.CheckCircle else Icons.Default.HourglassTop,
                             contentDescription = null,
-                            tint = if (isApproved) StatusGreen else Color(0xFFB45309),
+                            tint = if (isApproved) AppleSystemGreen else AppleSystemOrangeDark,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -1036,14 +1046,11 @@ fun SimplifiedJobPingCard(
     onReject: () -> Unit,
     onCounter: () -> Unit
 ) {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("provider_job_card_${job.id}"),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, BorderStroke)
+            .testTag("provider_job_card_${job.id}")
+            .liquidGlassCard(shape = RoundedCornerShape(22.dp))
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             // Service Icon, Title, and Offer Price
@@ -1060,13 +1067,14 @@ fun SimplifiedJobPingCard(
                         modifier = Modifier
                             .size(52.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(DeepIndigoContainer),
+                            .background(AppleSystemBlue.copy(alpha = 0.12f))
+                            .border(0.5.dp, AppleSystemBlue.copy(alpha = 0.25f), RoundedCornerShape(14.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = getCategoryIcon(job.categoryId),
                             contentDescription = null,
-                            tint = DeepIndigo,
+                            tint = AppleSystemBlue,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -1074,24 +1082,24 @@ fun SimplifiedJobPingCard(
                     Column {
                         Text(
                             text = job.serviceTitle,
-                            fontSize = 20.sp,
+                            fontSize = 19.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextSlate
+                            color = AppleLabelPrimary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.LocationOn,
                                 contentDescription = null,
-                                tint = SoftOrange,
-                                modifier = Modifier.size(16.dp)
+                                tint = AppleSystemOrange,
+                                modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "${job.cityArea} • ~1.5 km",
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = TextSlateMuted
+                                color = AppleLabelSecondary
                             )
                         }
                     }
@@ -1103,14 +1111,14 @@ fun SimplifiedJobPingCard(
                         text = "OFFER",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextSlateMuted,
+                        color = AppleLabelSecondary,
                         letterSpacing = 0.5.sp
                     )
                     Text(
                         text = "Rs ${job.budgetRs}",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Black,
-                        color = DeepIndigo
+                        color = AppleLabelPrimary
                     )
                 }
             }
@@ -1120,51 +1128,51 @@ fun SimplifiedJobPingCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(SurfaceVariantLight)
-                        .border(1.dp, BorderStroke, RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFF2F2F7).copy(alpha = 0.8f))
+                        .border(0.5.dp, Color(0x10000000), RoundedCornerShape(12.dp))
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = "📝 \"${job.description}\"",
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         color = TextSlate,
                         fontWeight = FontWeight.Medium
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // 1. Massive Primary Green Accept Button (60dp height)
+            // 1. Primary Apple Green Accept Button
             Button(
                 onClick = onAccept,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(58.dp)
+                    .height(52.dp)
                     .testTag("accept_job_btn_${job.id}"),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = StatusGreen,
+                    containerColor = AppleSystemGreen,
                     contentColor = Color.White
                 )
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "${Strings.get("accept_job", language)} (Rs ${job.budgetRs})",
-                    fontSize = 17.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 2. Row of Counter Price and Decline Buttons (52dp height)
+            // 2. Row of Counter Price and Decline Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1174,23 +1182,24 @@ fun SimplifiedJobPingCard(
                     onClick = onCounter,
                     modifier = Modifier
                         .weight(1.3f)
-                        .height(52.dp)
+                        .height(46.dp)
                         .testTag("counter_job_btn_${job.id}"),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = SoftOrange,
-                        contentColor = Color.White
-                    )
+                        containerColor = AppleSystemOrangeContainer,
+                        contentColor = AppleSystemOrangeDark
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, AppleSystemOrange.copy(alpha = 0.35f))
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = Strings.get("counter_offer", language),
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -1200,18 +1209,19 @@ fun SimplifiedJobPingCard(
                     onClick = onReject,
                     modifier = Modifier
                         .weight(1f)
-                        .height(52.dp)
+                        .height(46.dp)
                         .testTag("reject_job_btn_${job.id}"),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = SurfaceVariantLight,
-                        contentColor = TextSlateMuted
-                    )
+                        containerColor = Color(0xFFF2F2F7),
+                        contentColor = AppleLabelSecondary
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -1240,13 +1250,11 @@ fun SimplifiedActiveJobCard(
     onStartCall: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("provider_active_job_card"),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
-        border = androidx.compose.foundation.BorderStroke(2.dp, DeepIndigo)
+            .testTag("provider_active_job_card")
+            .liquidGlassCard(shape = RoundedCornerShape(22.dp))
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             // Top Status & Agreed Price Row
@@ -1256,47 +1264,52 @@ fun SimplifiedActiveJobCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Trip Status Chip
-                val (statusText, statusBg, statusColor) = when (job.status.uppercase()) {
-                    "ON_THE_WAY" -> Triple(
+                val (statusText, statusColor) = when (job.status.uppercase()) {
+                    "ON_THE_WAY" -> Pair(
                         if (language == AppLanguage.URDU) "راستے میں ہے • لائیو ٹریکنگ" else "ON THE WAY • LIVE SHARING",
-                        Color(0xFFDCFCE7),
-                        StatusGreen
+                        AppleSystemBlue
                     )
-                    "ARRIVED" -> Triple(
+                    "ARRIVED" -> Pair(
                         if (language == AppLanguage.URDU) "پتہ پر پہنچ چکے ہیں" else "ARRIVED AT LOCATION",
-                        Color(0xFFE0F2FE),
-                        DeepIndigo
+                        AppleSystemIndigo
                     )
-                    "IN_PROGRESS" -> Triple(
+                    "IN_PROGRESS" -> Pair(
                         if (language == AppLanguage.URDU) "کام جاری ہے" else "WORK IN PROGRESS",
-                        Color(0xFFFEF3C7),
-                        Color(0xFFB45309)
+                        AppleSystemOrange
                     )
-                    "AWAITING_CUSTOMER_CONFIRMATION" -> Triple(
+                    "AWAITING_CUSTOMER_CONFIRMATION" -> Pair(
                         if (language == AppLanguage.URDU) "کسٹمر کی تصدیق کا انتظار" else "AWAITING CONFIRMATION",
-                        Color(0xFFF1F5F9),
-                        TextSlateMuted
+                        AppleLabelSecondary
                     )
-                    else -> Triple(
+                    else -> Pair(
                         if (language == AppLanguage.URDU) "روانگی کے لیے تیار" else "READY FOR DEPARTURE",
-                        DeepIndigoContainer,
-                        DeepIndigo
+                        AppleSystemBlue
                     )
                 }
 
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(statusBg)
+                        .background(statusColor.copy(alpha = 0.12f))
+                        .border(0.5.dp, statusColor.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
-                    Text(
-                        text = statusText,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = statusColor,
-                        letterSpacing = 0.5.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(statusColor)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = statusText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = statusColor,
+                            letterSpacing = 0.3.sp
+                        )
+                    }
                 }
 
                 val agreedOrBudget = if (job.agreedPriceRs > 0) job.agreedPriceRs else job.budgetRs
@@ -1305,27 +1318,27 @@ fun SimplifiedActiveJobCard(
                     text = "Rs $formattedPrice",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
-                    color = StatusGreen,
+                    color = AppleLabelPrimary,
                     maxLines = 1,
                     softWrap = false
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Column {
                 Text(
                     text = job.serviceTitle,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextSlate
+                    color = AppleLabelPrimary
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "${if (language == AppLanguage.URDU) "کسٹمر:" else "Customer:"} ${job.customerName}",
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = DeepIndigo
+                    color = AppleSystemBlue
                 )
             }
 
@@ -1335,24 +1348,34 @@ fun SimplifiedActiveJobCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White)
-                    .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFFF2F2F7).copy(alpha = 0.8f))
+                    .border(0.5.dp, Color(0x10000000), RoundedCornerShape(14.dp))
                     .padding(14.dp)
             ) {
                 Column {
-                    Text(
-                        text = "📍 ${if (language == AppLanguage.URDU) "سروس کا پتہ:" else "Service Address:"}",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextSlateMuted
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = AppleSystemBlue,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (language == AppLanguage.URDU) "سروس کا پتہ:" else "SERVICE ADDRESS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppleLabelSecondary,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(5.dp))
                     Text(
                         text = job.fullAddress.ifBlank { job.cityArea },
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextSlate
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AppleLabelPrimary
                     )
                 }
             }
@@ -1366,24 +1389,24 @@ fun SimplifiedActiveJobCard(
             ) {
                 Button(
                     onClick = onStartCall,
-                    modifier = Modifier.weight(1f).height(50.dp).testTag("provider_call_customer_btn"),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = StatusGreen)
+                    modifier = Modifier.weight(1f).height(48.dp).testTag("provider_call_customer_btn"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppleSystemGreen)
                 ) {
-                    Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                    Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (language == AppLanguage.URDU) "صوتی کال" else "VOICE CALL", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(if (language == AppLanguage.URDU) "صوتی کال" else "Voice Call", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
 
                 Button(
                     onClick = onOpenChat,
-                    modifier = Modifier.weight(1f).height(50.dp).testTag("provider_chat_customer_btn"),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = DeepIndigo)
+                    modifier = Modifier.weight(1f).height(48.dp).testTag("provider_chat_customer_btn"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppleSystemBlue)
                 ) {
-                    Icon(Icons.Default.Message, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                    Icon(Icons.Default.Message, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (language == AppLanguage.URDU) "چیٹ کریں" else "JOB CHAT", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(if (language == AppLanguage.URDU) "چیٹ کریں" else "Job Chat", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
 
@@ -1394,31 +1417,41 @@ fun SimplifiedActiveJobCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                OutlinedButton(
+                Button(
                     onClick = {
                         val phone = job.customerPhone.replace("+", "")
                         val url = "https://api.whatsapp.com/send?phone=$phone"
                         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
                         context.startActivity(intent)
                     },
-                    modifier = Modifier.weight(1f).height(40.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF25D366))
+                    modifier = Modifier.weight(1f).height(38.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF25D366).copy(alpha = 0.10f),
+                        contentColor = Color(0xFF1E7E34)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF25D366).copy(alpha = 0.35f)),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                 ) {
-                    Text("WhatsApp", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1E7E34))
+                    Text("WhatsApp", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
 
-                OutlinedButton(
+                Button(
                     onClick = {
                         val phone = job.customerPhone
                         val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:$phone"))
                         context.startActivity(intent)
                     },
-                    modifier = Modifier.weight(1f).height(40.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1))
+                    modifier = Modifier.weight(1f).height(38.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF2F2F7),
+                        contentColor = TextSlate
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                 ) {
-                    Text(if (language == AppLanguage.URDU) "سیلولر ڈائلر" else "Cellular Dial", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSlate)
+                    Text(if (language == AppLanguage.URDU) "سیلولر ڈائلر" else "Cellular Dial", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 
@@ -1433,23 +1466,23 @@ fun SimplifiedActiveJobCard(
                         onClick = onStartTrip,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(52.dp)
                             .testTag("provider_on_the_way_btn"),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFDC5F45), // Coral Sunset Primary
+                            containerColor = AppleSystemBlue,
                             contentColor = Color.White
                         )
                     ) {
                         Icon(
                             imageVector = Icons.Default.Navigation,
                             contentDescription = null,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = if (language == AppLanguage.URDU) "راستے میں ہیں (شروع کریں)" else "On the way",
-                            fontSize = 17.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1460,23 +1493,23 @@ fun SimplifiedActiveJobCard(
                         onClick = onArrived,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(52.dp)
                             .testTag("provider_arrived_btn"),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF2A9D8F), // Muted Teal Accent
+                            containerColor = AppleSystemIndigo,
                             contentColor = Color.White
                         )
                     ) {
                         Icon(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = null,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = if (language == AppLanguage.URDU) "پتہ پر پہنچ گئے ہیں" else "Arrived",
-                            fontSize = 17.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1487,23 +1520,23 @@ fun SimplifiedActiveJobCard(
                         onClick = onStartWork,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(52.dp)
                             .testTag("provider_start_work_btn"),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = DeepIndigo,
+                            containerColor = AppleSystemTeal,
                             contentColor = Color.White
                         )
                     ) {
                         Icon(
                             imageVector = Icons.Default.Work,
                             contentDescription = null,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = if (language == AppLanguage.URDU) "کام شروع کریں" else "Start Work",
-                            fontSize = 17.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1514,23 +1547,23 @@ fun SimplifiedActiveJobCard(
                         onClick = onComplete,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(58.dp)
+                            .height(54.dp)
                             .testTag("provider_complete_job_btn"),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = StatusGreen,
+                            containerColor = AppleSystemGreen,
                             contentColor = Color.White
                         )
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = Strings.get("job_completed", language),
-                            fontSize = 17.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1541,7 +1574,7 @@ fun SimplifiedActiveJobCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFF1F5F9))
+                            .background(Color(0xFFF2F2F7))
                             .padding(14.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -1549,7 +1582,7 @@ fun SimplifiedActiveJobCard(
                             text = if (language == AppLanguage.URDU) "کسٹمر کی تصدیق کا انتظار ہے..." else "Awaiting customer confirmation...",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
-                            color = TextSlateMuted
+                            color = AppleLabelSecondary
                         )
                     }
                 }

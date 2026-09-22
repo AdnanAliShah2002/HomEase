@@ -45,12 +45,20 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FormatPaint
+import androidx.compose.material.icons.filled.Handyman
+import androidx.compose.material.icons.filled.Iron
+import androidx.compose.material.icons.filled.Plumbing
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.AlertDialog
@@ -549,79 +557,99 @@ fun CustomerHomeScreen(
                 }
             }
 
-            // Section 2: Apple HIG Hero Card ("Need help today?")
+            // Section 2: Apple Liquid Glass Hero Card ("Need help today?")
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
-                            elevation = 3.dp,
+                            elevation = 4.dp,
                             shape = RoundedCornerShape(24.dp),
-                            spotColor = Color(0x20007AFF),
-                            ambientColor = Color(0x10007AFF)
+                            spotColor = Color(0x18007AFF),
+                            ambientColor = Color(0x0A000000)
                         )
                         .clip(RoundedCornerShape(24.dp))
                         .background(
                             Brush.linearGradient(
-                                colors = listOf(Color(0xFF007AFF), Color(0xFF5856D6))
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.96f),
+                                    Color(0xFFF2F6FF)
+                                )
                             )
+                        )
+                        .border(
+                            width = 0.75.dp,
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    Color.White,
+                                    Color(0x33007AFF),
+                                    Color(0x0F000000)
+                                )
+                            ),
+                            shape = RoundedCornerShape(24.dp)
                         )
                         .clickable { onStartNewRequest(null) }
                         .padding(22.dp)
                         .testTag("request_service_hero_card")
                 ) {
-                    // Subtle background watermark house icon
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .size(100.dp)
-                            .alpha(0.14f)
-                    ) {
-                        HomeaseLogoMark(
-                            size = 100.dp,
-                            primaryColor = Color.White,
-                            accentColor = Color.White,
-                            doorColor = Color(0xFF007AFF)
-                        )
-                    }
-
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(AppleSystemBlue)
+                            )
+                            Text(
+                                text = if (language == AppLanguage.URDU) "250+ تصدیق شدہ ماہر کاریگر" else "250+ Vetted Professionals",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppleSystemBlue,
+                                letterSpacing = 0.3.sp
+                            )
+                        }
+
                         Text(
                             text = if (language == AppLanguage.URDU) "کیا آج گھریلو مدد درکار ہے؟" else "Need help today?",
-                            fontSize = 24.sp,
+                            fontSize = 23.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            letterSpacing = (-0.4).sp
+                            color = Color(0xFF1C1C1E),
+                            letterSpacing = (-0.5).sp
                         )
                         Text(
-                            text = if (language == AppLanguage.URDU) "250 سے زائد تصدیق شدہ ماہر کاریگر" else "Connecting you to 250+ vetted pros",
-                            fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.88f),
-                            fontWeight = FontWeight.Normal
+                            text = if (language == AppLanguage.URDU) "پلمبنگ، الیکٹریشن، صفائی اور دیگر خدمات فوری حاصل کریں" else "Book trusted plumbers, electricians, cleaners & more in minutes.",
+                            fontSize = 13.5.sp,
+                            color = Color(0xFF636366),
+                            fontWeight = FontWeight.Normal,
+                            lineHeight = 18.sp
                         )
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                        // Apple-style translucent pill button
+                        // Apple-style vibrant CTA pill button with spring press
                         Surface(
                             onClick = { onStartNewRequest(null) },
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color.White,
-                            shadowElevation = 1.dp,
+                            shape = RoundedCornerShape(14.dp),
+                            color = AppleSystemBlue,
+                            shadowElevation = 2.dp,
                             modifier = Modifier.testTag("hero_request_service_btn")
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
                                     text = Strings.get("request_service_cta", language),
-                                    fontSize = 13.sp,
+                                    fontSize = 13.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF007AFF),
+                                    color = Color.White,
                                     letterSpacing = (-0.1).sp
                                 )
                             }
@@ -854,6 +882,32 @@ fun CustomerHomeScreen(
 }
 }
 
+fun getCategoryVectorIcon(id: String): ImageVector {
+    return when (id.lowercase()) {
+        "laundry" -> Icons.Default.Iron
+        "cleaning" -> Icons.Default.CleaningServices
+        "ac" -> Icons.Default.Thermostat
+        "car" -> Icons.Default.DirectionsCar
+        "plumbing" -> Icons.Default.Plumbing
+        "electrical" -> Icons.Default.ElectricBolt
+        "painting" -> Icons.Default.FormatPaint
+        else -> Icons.Default.Handyman
+    }
+}
+
+fun getCategoryTint(id: String): Color {
+    return when (id.lowercase()) {
+        "laundry" -> Color(0xFF007AFF)
+        "cleaning" -> Color(0xFF34C759)
+        "ac" -> Color(0xFF30B0C7)
+        "car" -> Color(0xFF5856D6)
+        "plumbing" -> Color(0xFF0A84FF)
+        "electrical" -> Color(0xFFFF9500)
+        "painting" -> Color(0xFFAF52DE)
+        else -> Color(0xFF007AFF)
+    }
+}
+
 @Composable
 fun ProfessionalCategoryCard(
     item: ServiceCategoryItem,
@@ -864,13 +918,16 @@ fun ProfessionalCategoryCard(
     val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isPressed) 0.94f else 1f,
+        targetValue = if (isPressed) 0.95f else 1f,
         animationSpec = androidx.compose.animation.core.spring(
             dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
             stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
         ),
         label = "category_card_press"
     )
+
+    val tint = getCategoryTint(item.id)
+    val icon = getCategoryVectorIcon(item.id)
 
     Surface(
         modifier = modifier
@@ -880,32 +937,54 @@ fun ProfessionalCategoryCard(
                 indication = null
             ) { onClick() }
             .testTag("cat_card_${item.id}"),
-        shape = RoundedCornerShape(18.dp),
-        color = Color.White,
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x0F000000)),
-        shadowElevation = if (isPressed) 0.5.dp else 1.5.dp
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White.copy(alpha = 0.90f),
+        border = androidx.compose.foundation.BorderStroke(
+            0.75.dp,
+            androidx.compose.ui.graphics.Brush.verticalGradient(
+                listOf(
+                    Color.White,
+                    Color(0x18000000)
+                )
+            )
+        ),
+        shadowElevation = if (isPressed) 1.dp else 2.5.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 4.dp),
+                .padding(vertical = 14.dp, horizontal = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Apple-style Pastel rounded squircle badge
+            // Apple-style Gradient Squircle Emblem with sharp icon
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(13.dp))
-                    .background(Color(item.pastelBgColor)),
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        androidx.compose.ui.graphics.Brush.linearGradient(
+                            listOf(
+                                tint.copy(alpha = 0.16f),
+                                tint.copy(alpha = 0.06f)
+                            )
+                        )
+                    )
+                    .border(
+                        0.5.dp,
+                        tint.copy(alpha = 0.22f),
+                        RoundedCornerShape(14.dp)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = item.emoji,
-                    fontSize = 22.sp
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(9.dp))
 
             // Apple SF Pro bold label
             Text(
@@ -916,6 +995,7 @@ fun ProfessionalCategoryCard(
                 textAlign = TextAlign.Center,
                 lineHeight = 15.sp,
                 maxLines = 2,
+                letterSpacing = (-0.2).sp,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
             )
         }

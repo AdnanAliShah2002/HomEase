@@ -99,48 +99,57 @@ fun HomeaseHeaderLogo(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Professional Polish logo container badge: rounded-xl with shadow
+        // Apple-style squircle logo badge with specular border
         Box(
             modifier = Modifier
                 .size(markSize)
-                .shadow(elevation = 6.dp, shape = RoundedCornerShape(10.dp), spotColor = DeepIndigo)
+                .shadow(elevation = 3.dp, shape = RoundedCornerShape(10.dp), spotColor = Color(0x1A007AFF))
                 .clip(RoundedCornerShape(10.dp))
-                .background(DeepIndigo),
+                .background(
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        colors = listOf(Color(0xFF007AFF), Color(0xFF0056B3))
+                    )
+                )
+                .border(
+                    0.5.dp,
+                    androidx.compose.ui.graphics.Color.White.copy(alpha = 0.4f),
+                    RoundedCornerShape(10.dp)
+                ),
             contentAlignment = Alignment.Center
         ) {
             HomeaseLogoMark(
-                size = markSize * 0.76f,
+                size = markSize * 0.72f,
                 primaryColor = Color.White,
-                accentColor = SoftOrange,
-                doorColor = DeepIndigo
+                accentColor = Color(0xFFFF9500),
+                doorColor = Color(0xFF0056B3)
             )
         }
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Column(verticalArrangement = Arrangement.Center) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "Hom",
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = DeepIndigo,
-                    letterSpacing = (-0.4).sp,
+                    color = Color(0xFF1C1C1E),
+                    letterSpacing = (-0.5).sp,
                     fontFamily = FontFamily.SansSerif
                 )
                 Text(
                     text = "Ease",
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.ExtraBold,
                     fontSize = 18.sp,
-                    color = SoftOrange,
-                    letterSpacing = (-0.4).sp,
+                    color = Color(0xFF007AFF),
+                    letterSpacing = (-0.5).sp,
                     fontFamily = FontFamily.SansSerif
                 )
             }
             Text(
-                text = "HOME HELP ON DEMAND",
-                fontSize = 9.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextSlateMuted,
-                letterSpacing = 1.2.sp
+                text = "HOME SERVICES",
+                fontSize = 8.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF8E8E93),
+                letterSpacing = 0.8.sp
             )
         }
     }

@@ -90,6 +90,17 @@ import com.example.ui.theme.StatusYellowContainer
 import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.liquidGlassCard
+import com.example.ui.theme.AppleSystemBlue
+import com.example.ui.theme.AppleSystemGreen
+import com.example.ui.theme.AppleSystemGreenContainer
+import com.example.ui.theme.AppleSystemOrange
+import com.example.ui.theme.AppleSystemOrangeDark
+import com.example.ui.theme.AppleSystemOrangeContainer
+import com.example.ui.theme.AppleSystemIndigo
+import com.example.ui.theme.AppleSystemTeal
+import com.example.ui.theme.AppleLabelPrimary
+import com.example.ui.theme.AppleLabelSecondary
 
 /**
  * Customer Profile Screen
@@ -148,12 +159,11 @@ fun CustomerProfileView(
             .padding(16.dp)
             .testTag("customer_profile_view")
     ) {
-        // Top Header Card with Avatar & Name - centered, polished layout
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+        // Top Header Card with Avatar & Name - centered, polished Apple Liquid Glass layout
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .liquidGlassCard(shape = RoundedCornerShape(22.dp))
         ) {
             Column(
                 modifier = Modifier
@@ -172,8 +182,8 @@ fun CustomerProfileView(
                         modifier = Modifier
                             .size(86.dp)
                             .clip(CircleShape)
-                            .background(DeepIndigoContainer)
-                            .border(2.5.dp, Color(0xFFFBDAD3), CircleShape),
+                            .background(AppleSystemBlue.copy(alpha = 0.12f))
+                            .border(1.5.dp, AppleSystemBlue.copy(alpha = 0.3f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         if (!user.profilePhotoUri.isNullOrBlank() && user.profilePhotoUri.length <= 4) {
@@ -185,7 +195,7 @@ fun CustomerProfileView(
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = null,
-                                tint = DeepIndigo,
+                                tint = AppleSystemBlue,
                                 modifier = Modifier.size(50.dp)
                             )
                         }
@@ -193,17 +203,17 @@ fun CustomerProfileView(
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .size(30.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
-                            .background(DeepIndigo)
-                            .border(2.5.dp, Color.White, CircleShape),
+                            .background(AppleSystemBlue)
+                            .border(2.dp, Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.CameraAlt,
                             contentDescription = "Change photo",
                             tint = Color.White,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
@@ -582,12 +592,11 @@ fun ProviderProfileView(
             .padding(16.dp)
             .testTag("provider_profile_view")
     ) {
-        // Provider Top Header with Avatar, Name, and Prominent Rating / Completed Jobs
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+        // Provider Top Header with Avatar, Name, and Prominent Apple Rating / Completed Jobs
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .liquidGlassCard(shape = RoundedCornerShape(22.dp))
         ) {
             Column(
                 modifier = Modifier
@@ -606,8 +615,8 @@ fun ProviderProfileView(
                         modifier = Modifier
                             .size(86.dp)
                             .clip(CircleShape)
-                            .background(DeepIndigoContainer)
-                            .border(2.5.dp, Color(0xFFFBDAD3), CircleShape),
+                            .background(AppleSystemBlue.copy(alpha = 0.12f))
+                            .border(1.5.dp, AppleSystemBlue.copy(alpha = 0.3f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         if (!user.profilePhotoUri.isNullOrBlank() && user.profilePhotoUri.length <= 4) {
@@ -619,7 +628,7 @@ fun ProviderProfileView(
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = null,
-                                tint = DeepIndigo,
+                                tint = AppleSystemBlue,
                                 modifier = Modifier.size(50.dp)
                             )
                         }
@@ -627,17 +636,17 @@ fun ProviderProfileView(
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .size(30.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
-                            .background(DeepIndigo)
-                            .border(2.5.dp, Color.White, CircleShape),
+                            .background(AppleSystemBlue)
+                            .border(2.dp, Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.CameraAlt,
                             contentDescription = "Change photo",
                             tint = Color.White,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
@@ -648,7 +657,7 @@ fun ProviderProfileView(
                     text = name,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
-                    color = TextSlate
+                    color = AppleLabelPrimary
                 )
 
                 if (shopName.isNotBlank()) {
@@ -657,7 +666,7 @@ fun ProviderProfileView(
                         text = shopName,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = DeepIndigo
+                        color = AppleSystemBlue
                     )
                 }
 
@@ -673,24 +682,24 @@ fun ProviderProfileView(
                         text = user.phone,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = TextSlateMuted
+                        color = AppleLabelSecondary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(StatusGreenContainer)
+                            .background(AppleSystemGreenContainer)
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = StatusGreen,
+                                tint = AppleSystemGreen,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Verified", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = StatusGreen)
+                            Text("Verified", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AppleSystemGreen)
                         }
                     }
 
@@ -707,7 +716,7 @@ fun ProviderProfileView(
                                 Icon(
                                     imageVector = Icons.Default.Work,
                                     contentDescription = null,
-                                    tint = DeepIndigo,
+                                    tint = AppleSystemIndigo,
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -716,7 +725,7 @@ fun ProviderProfileView(
                                 } else {
                                     "${user.yearsExperience} Yrs Exp"
                                 }
-                                Text(expLabel, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DeepIndigo)
+                                Text(expLabel, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AppleSystemIndigo)
                             }
                         }
                     }
@@ -724,14 +733,14 @@ fun ProviderProfileView(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // PROMINENT RATING & COMPLETED JOBS & EXPERIENCE BANNER
+                // Apple Inset Grouped Frosted Glass Stats Widget
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFFFFBEB))
-                        .border(1.5.dp, Color(0xFFFDE68A), RoundedCornerShape(16.dp))
-                        .padding(vertical = 12.dp, horizontal = 12.dp)
+                        .background(Color(0xFFF2F2F7).copy(alpha = 0.85f))
+                        .border(0.5.dp, Color(0x12000000), RoundedCornerShape(16.dp))
+                        .padding(vertical = 14.dp, horizontal = 12.dp)
                         .testTag("provider_rating_stats_card"),
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
@@ -742,30 +751,31 @@ fun ProviderProfileView(
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = null,
-                                tint = Color(0xFFF59E0B),
-                                modifier = Modifier.size(22.dp)
+                                tint = AppleSystemOrange,
+                                modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = String.format(java.util.Locale.US, "%.1f", user.avgRating),
                                 fontSize = 20.sp,
-                                fontWeight = FontWeight.Black,
-                                color = TextSlate
+                                fontWeight = FontWeight.Bold,
+                                color = AppleLabelPrimary
                             )
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = Strings.get("average_rating", language),
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF92400E)
+                            fontWeight = FontWeight.Medium,
+                            color = AppleLabelSecondary
                         )
                     }
 
                     Box(
                         modifier = Modifier
-                            .height(36.dp)
-                            .width(1.dp)
-                            .background(Color(0xFFFCD34D))
+                            .height(32.dp)
+                            .width(0.5.dp)
+                            .background(Color(0xFFC6C6C8))
                     )
 
                     // Total Jobs column
@@ -773,23 +783,24 @@ fun ProviderProfileView(
                         Text(
                             text = "${user.totalJobs}",
                             fontSize = 20.sp,
-                            fontWeight = FontWeight.Black,
-                            color = StatusGreen
+                            fontWeight = FontWeight.Bold,
+                            color = AppleLabelPrimary
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = Strings.get("jobs_completed", language),
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF065F46)
+                            fontWeight = FontWeight.Medium,
+                            color = AppleLabelSecondary
                         )
                     }
 
                     if (user.yearsExperience.isNotBlank()) {
                         Box(
                             modifier = Modifier
-                                .height(36.dp)
-                                .width(1.dp)
-                                .background(Color(0xFFFCD34D))
+                                .height(32.dp)
+                                .width(0.5.dp)
+                                .background(Color(0xFFC6C6C8))
                         )
 
                         // Experience column
@@ -797,14 +808,15 @@ fun ProviderProfileView(
                             Text(
                                 text = user.yearsExperience.replace(Regex("[^0-9+]"), "").ifBlank { user.yearsExperience },
                                 fontSize = 20.sp,
-                                fontWeight = FontWeight.Black,
-                                color = DeepIndigo
+                                fontWeight = FontWeight.Bold,
+                                color = AppleLabelPrimary
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Years Exp",
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = DeepIndigo
+                                fontWeight = FontWeight.Medium,
+                                color = AppleLabelSecondary
                             )
                         }
                     }
@@ -812,12 +824,13 @@ fun ProviderProfileView(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Verification Status Badge
+                // Apple Inset Verification Status Badge
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isApproved) StatusGreenContainer else StatusYellowContainer)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isApproved) AppleSystemGreenContainer else AppleSystemOrangeContainer)
+                        .border(0.5.dp, if (isApproved) AppleSystemGreen.copy(alpha = 0.25f) else AppleSystemOrange.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
                         .padding(10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -826,7 +839,7 @@ fun ProviderProfileView(
                         Icon(
                             imageVector = if (isApproved) Icons.Default.Verified else Icons.Default.Work,
                             contentDescription = null,
-                            tint = if (isApproved) StatusGreen else Color(0xFFB45309),
+                            tint = if (isApproved) AppleSystemGreen else AppleSystemOrangeDark,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -841,7 +854,7 @@ fun ProviderProfileView(
                         text = "Refresh",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = DeepIndigo,
+                        color = AppleSystemBlue,
                         modifier = Modifier
                             .clickable { onCheckVerificationStatus() }
                             .padding(4.dp)
