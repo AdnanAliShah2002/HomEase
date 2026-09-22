@@ -110,6 +110,7 @@ import com.example.ui.components.HowDidItGoDialog
 import com.example.ui.components.PaymentStubDialog
 import com.example.ui.components.RatingStubDialog
 import com.example.ui.components.StatusBadge
+import com.example.ui.theme.AppleSystemBlue
 import com.example.ui.theme.BackgroundLight
 import com.example.ui.theme.BorderStroke
 import com.example.ui.theme.DeepIndigo
