@@ -96,6 +96,10 @@ class HomeaseRepository(private val database: AppDatabase) {
     suspend fun getRequestByRemoteId(remoteId: String): ServiceRequestEntity? =
         requestDao.getRequestByRemoteId(remoteId)
 
+    suspend fun reconcileOpenJobs(openRemoteIds: List<String>) {
+        requestDao.clearObsoleteSearchingJobs(openRemoteIds)
+    }
+
     suspend fun syncRemoteJob(job: ServiceRequestEntity): Long {
         val remoteId = job.remoteId
         if (!remoteId.isNullOrBlank()) {

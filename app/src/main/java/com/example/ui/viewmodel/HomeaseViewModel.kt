@@ -1422,6 +1422,9 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                             val jobsResult = supabaseClient.getOpenJobs(category)
                             if (jobsResult.isSuccess) {
                                 val jobList = jobsResult.getOrThrow()
+                                val openRemoteIds = jobList.mapNotNull { it.optString("id").takeIf { id -> id.isNotBlank() } }
+                                repository.reconcileOpenJobs(openRemoteIds)
+
                                 for (jobObj in jobList) {
                                     val remoteId = jobObj.optString("id")
                                     val isNew = remoteId.isNotBlank() && seenJobIds.add(remoteId)

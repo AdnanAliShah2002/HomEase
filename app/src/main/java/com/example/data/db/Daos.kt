@@ -128,6 +128,9 @@ interface ServiceRequestDao {
     @Query("UPDATE service_requests SET agreedPriceRs = 1500 WHERE agreedPriceRs > 100000")
     suspend fun sanitizeCorruptedAgreedPrices()
 
+    @Query("DELETE FROM service_requests WHERE status = 'SEARCHING' AND remoteId NOT IN (:openRemoteIds)")
+    suspend fun clearObsoleteSearchingJobs(openRemoteIds: List<String>)
+
     @Query("DELETE FROM service_requests WHERE customerPhone IN ('+923001234567', '+923217654321') OR selectedProviderPhone IN ('+923001234567', '+923217654321')")
     suspend fun deleteDemoRequests()
 }
