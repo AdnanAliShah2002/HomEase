@@ -57,14 +57,20 @@ import com.example.data.localization.Strings
 import com.example.ui.components.AutoLocationFetcher
 import com.example.ui.components.LocationPickerInput
 import com.example.ui.components.HomeaseLogoMark
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import com.example.ui.components.PrimaryCtaButton
+import com.example.ui.theme.AppleIrisPrimary
+import com.example.ui.theme.AppleIrisContainer
 import com.example.ui.theme.BackgroundLight
 import com.example.ui.theme.BorderStroke
 import com.example.ui.theme.DeepIndigo
 import com.example.ui.theme.DeepIndigoContainer
+import com.example.ui.theme.LiquidAmbientCanvas
 import com.example.ui.theme.SoftOrange
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.liquidGlassCard
 import com.example.util.LocationHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -98,36 +104,48 @@ fun CustomerRegistrationScreen(
 
     val avatarList = listOf("👨‍💼", "👩‍💼", "🧔", "🧕", "🧑‍🦱")
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = BackgroundLight
-    ) {
+    LiquidAmbientCanvas {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(10.dp))
             HomeaseLogoMark(size = 54.dp)
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
                 text = Strings.get("customer_reg_title", language),
-                fontSize = 22.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextSlate
+                color = TextSlate,
+                letterSpacing = (-0.5).sp
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "${if (language == AppLanguage.URDU) "فون:" else "Phone:"} $phoneNumber",
                 fontSize = 13.sp,
-                color = DeepIndigo,
+                color = AppleIrisPrimary,
                 fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Liquid glass form container
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .liquidGlassCard(
+                        shape = RoundedCornerShape(26.dp),
+                        backgroundColor = Color.White.copy(alpha = 0.85f),
+                        elevation = 4.dp
+                    )
+                    .padding(20.dp)
+            ) {
 
             // Profile Photo (Optional avatar selector)
             Text(
@@ -300,8 +318,9 @@ fun CustomerRegistrationScreen(
                 enabled = fullName.isNotBlank(),
                 testTag = "finish_customer_setup_button"
             )
+            } // Close inner liquid glass card
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

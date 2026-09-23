@@ -13,20 +13,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -47,13 +46,15 @@ import com.example.data.localization.Strings
 import com.example.data.model.UserRole
 import com.example.ui.components.HomeaseLogoMark
 import com.example.ui.components.PrimaryCtaButton
-import com.example.ui.theme.BackgroundLight
-import com.example.ui.theme.BorderStroke
-import com.example.ui.theme.DeepIndigo
-import com.example.ui.theme.DeepIndigoContainer
-import com.example.ui.theme.SoftOrange
-import com.example.ui.theme.TextSlate
-import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.AppleGlassSpecularBorder
+import com.example.ui.theme.AppleIrisContainer
+import com.example.ui.theme.AppleIrisPrimary
+import com.example.ui.theme.AppleLabelPrimary
+import com.example.ui.theme.AppleLabelSecondary
+import com.example.ui.theme.AppleWarmChampagne
+import com.example.ui.theme.LiquidAmbientCanvas
+import com.example.ui.theme.liquidGlassCard
+import com.example.ui.theme.liquidGlassPill
 
 @Composable
 fun PhoneEntryScreen(
@@ -65,199 +66,218 @@ fun PhoneEntryScreen(
     onBack: () -> Unit,
     onSendCode: (String) -> Unit
 ) {
-    var phoneNumber by remember {
-        mutableStateOf("")
-    }
+    var phoneNumber by remember { mutableStateOf("") }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = BackgroundLight
-    ) {
+    LiquidAmbientCanvas {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Header with back button
+                // Apple-style Frosted Back Button & Title Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.testTag("phone_entry_back_button")
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .liquidGlassPill(shape = CircleShape)
+                            .clickable { onBack() }
+                            .testTag("phone_entry_back_button"),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = TextSlate
+                            tint = AppleLabelPrimary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
                     Text(
                         text = if (isSignIn) Strings.get("sign_in_title", language) else Strings.get("create_account", language),
-                        fontSize = 18.sp,
+                        fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextSlate
+                        color = AppleLabelPrimary,
+                        letterSpacing = (-0.3).sp
                     )
                 }
-
-                Spacer(modifier = Modifier.height(28.dp))
-
-                HomeaseLogoMark(size = 56.dp)
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Text(
-                    text = Strings.get("phone_entry_title", language),
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSlate
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = Strings.get("phone_entry_sub", language),
-                    fontSize = 14.sp,
-                    color = TextSlateMuted
-                )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Phone Input with +92 Country Code
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Country code box
-                    Box(
-                        modifier = Modifier
-                            .height(56.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(DeepIndigoContainer)
-                            .border(1.dp, BorderStroke, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 14.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "🇵🇰 +92",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = DeepIndigo
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    // Phone textfield
-                    OutlinedTextField(
-                        value = phoneNumber,
-                        onValueChange = { input ->
-                            val digits = input.filter { it.isDigit() }
-                            val withoutPrefix = when {
-                                digits.startsWith("920") -> digits.removePrefix("920")
-                                digits.startsWith("92") -> digits.removePrefix("92")
-                                digits.startsWith("0") -> digits.removePrefix("0")
-                                else -> digits
-                            }
-                            if (withoutPrefix.length <= 10) {
-                                phoneNumber = withoutPrefix
-                            }
-                        },
-                        placeholder = {
-                            Text(
-                                text = Strings.get("phone_placeholder", language),
-                                color = TextSlateMuted.copy(alpha = 0.6f),
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Normal
-                            )
-                        },
-                        trailingIcon = {
-                            if (phoneNumber.isNotEmpty()) {
-                                IconButton(onClick = { phoneNumber = "" }) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Clear",
-                                        tint = TextSlateMuted,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(
-                            color = TextSlate,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .testTag("phone_number_input"),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextSlate,
-                            unfocusedTextColor = TextSlate,
-                            cursorColor = DeepIndigo,
-                            focusedBorderColor = DeepIndigo,
-                            unfocusedBorderColor = BorderStroke,
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // WhatsApp info banner - soft neutral styling
+                // Floating Apple Liquid Glass Form Card
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
-                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .liquidGlassCard(shape = RoundedCornerShape(26.dp), elevation = 4.dp)
+                        .padding(22.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = null,
-                            tint = DeepIndigo,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = Strings.get("whatsapp_notice", language),
-                            color = TextSlate,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
+                        HomeaseLogoMark(size = 56.dp)
 
-                if (!errorMessage.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFFEF2F2))
-                            .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(10.dp))
-                            .padding(12.dp)
-                    ) {
+                        Spacer(modifier = Modifier.height(18.dp))
+
                         Text(
-                            text = "⚠️ $errorMessage",
-                            color = Color(0xFFDC2626),
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
-                            fontWeight = FontWeight.Medium
+                            text = Strings.get("phone_entry_title", language),
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppleLabelPrimary
                         )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = Strings.get("phone_entry_sub", language),
+                            fontSize = 13.5.sp,
+                            color = AppleLabelSecondary
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Phone Input Row with Frosted Country Code
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Country Code Glass Pill
+                            Box(
+                                modifier = Modifier
+                                    .height(56.dp)
+                                    .liquidGlassCard(
+                                        shape = RoundedCornerShape(14.dp),
+                                        backgroundColor = AppleIrisContainer.copy(alpha = 0.85f),
+                                        elevation = 1.dp
+                                    )
+                                    .padding(horizontal = 14.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "🇵🇰 +92",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppleIrisPrimary
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            // Phone Textfield with Liquid Frosted Styling
+                            OutlinedTextField(
+                                value = phoneNumber,
+                                onValueChange = { input ->
+                                    val digits = input.filter { it.isDigit() }
+                                    val withoutPrefix = when {
+                                        digits.startsWith("920") -> digits.removePrefix("920")
+                                        digits.startsWith("92") -> digits.removePrefix("92")
+                                        digits.startsWith("0") -> digits.removePrefix("0")
+                                        else -> digits
+                                    }
+                                    if (withoutPrefix.length <= 10) {
+                                        phoneNumber = withoutPrefix
+                                    }
+                                },
+                                placeholder = {
+                                    Text(
+                                        text = Strings.get("phone_placeholder", language),
+                                        color = AppleLabelSecondary.copy(alpha = 0.65f),
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (phoneNumber.isNotEmpty()) {
+                                        IconButton(onClick = { phoneNumber = "" }) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                                contentDescription = "Clear",
+                                                tint = AppleLabelSecondary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                textStyle = androidx.compose.ui.text.TextStyle(
+                                    color = AppleLabelPrimary,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp)
+                                    .testTag("phone_number_input"),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = AppleLabelPrimary,
+                                    unfocusedTextColor = AppleLabelPrimary,
+                                    cursorColor = AppleIrisPrimary,
+                                    focusedBorderColor = AppleIrisPrimary,
+                                    unfocusedBorderColor = Color(0x18000000),
+                                    focusedContainerColor = Color.White.copy(alpha = 0.85f),
+                                    unfocusedContainerColor = Color.White.copy(alpha = 0.65f)
+                                )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // WhatsApp info banner - Frosted Liquid Glass Styling
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .liquidGlassCard(
+                                    shape = RoundedCornerShape(14.dp),
+                                    backgroundColor = Color.White.copy(alpha = 0.65f),
+                                    elevation = 0.dp
+                                )
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = AppleIrisPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = Strings.get("whatsapp_notice", language),
+                                    color = AppleLabelPrimary,
+                                    fontSize = 13.sp,
+                                    lineHeight = 18.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        if (!errorMessage.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFFEF2F2))
+                                    .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(12.dp))
+                                    .padding(12.dp)
+                            ) {
+                                Text(
+                                    text = "⚠️ $errorMessage",
+                                    color = Color(0xFFDC2626),
+                                    fontSize = 13.sp,
+                                    lineHeight = 18.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -271,7 +291,7 @@ fun PhoneEntryScreen(
                         onSendCode(fullPhone)
                     },
                     enabled = phoneNumber.length >= 9 && !isLoading,
-                    backgroundColor = if (role == UserRole.PROVIDER) DeepIndigo else SoftOrange,
+                    backgroundColor = if (role == UserRole.PROVIDER) AppleIrisPrimary else AppleWarmChampagne,
                     isProviderStyle = role == UserRole.PROVIDER,
                     testTag = "send_code_button"
                 )

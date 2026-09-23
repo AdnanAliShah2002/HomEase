@@ -113,6 +113,7 @@ import com.example.ui.theme.DeepIndigo
 import com.example.ui.theme.DeepIndigoContainer
 import com.example.ui.theme.SoftOrange
 import com.example.ui.theme.SoftOrangeContainer
+import com.example.ui.theme.LiquidAmbientCanvas
 import com.example.ui.theme.StatusGreen
 import com.example.ui.theme.StatusYellowContainer
 import com.example.ui.theme.TextSlate
@@ -299,10 +300,7 @@ fun ProviderRegistrationScreen(
         )
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = BackgroundLight
-    ) {
+    LiquidAmbientCanvas {
         if (isSubmittedConfirmation) {
             // ==========================================
             // CONFIRMATION SCREEN (Review pending 24h)

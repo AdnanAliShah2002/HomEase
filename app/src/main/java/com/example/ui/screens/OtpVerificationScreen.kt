@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,7 +26,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,12 +50,15 @@ import com.example.data.localization.AppLanguage
 import com.example.data.localization.Strings
 import com.example.ui.components.HomeaseLogoMark
 import com.example.ui.components.PrimaryCtaButton
-import com.example.ui.theme.BackgroundLight
-import com.example.ui.theme.BorderStroke
-import com.example.ui.theme.DeepIndigo
-import com.example.ui.theme.SoftOrange
-import com.example.ui.theme.TextSlate
-import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.AppleGlassSpecularBorder
+import com.example.ui.theme.AppleIrisContainer
+import com.example.ui.theme.AppleIrisPrimary
+import com.example.ui.theme.AppleLabelPrimary
+import com.example.ui.theme.AppleLabelSecondary
+import com.example.ui.theme.AppleWarmChampagne
+import com.example.ui.theme.LiquidAmbientCanvas
+import com.example.ui.theme.liquidGlassCard
+import com.example.ui.theme.liquidGlassPill
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -88,11 +93,12 @@ fun OtpVerificationScreen(
         }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = BackgroundLight
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+    LiquidAmbientCanvas {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -101,167 +107,208 @@ fun OtpVerificationScreen(
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    // Apple-style Frosted Back Button & Title Header
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier.testTag("otp_back_button")
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .liquidGlassPill(shape = CircleShape)
+                                .clickable { onBack() }
+                                .testTag("otp_back_button"),
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = TextSlate
+                                tint = AppleLabelPrimary,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Text(
+                            text = Strings.get("verify_number_title", language),
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppleLabelPrimary,
+                            letterSpacing = (-0.3).sp
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                    HomeaseLogoMark(size = 56.dp)
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Text(
-                        text = Strings.get("verify_number_title", language),
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextSlate
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "${Strings.get("verify_number_sub", language)} $phoneNumber",
-                        fontSize = 14.sp,
-                        color = TextSlateMuted
-                    )
-
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    // 4-digit OTP Display Boxes with Hidden BasicTextField
-                    BasicTextField(
-                        value = otpValue,
-                        onValueChange = { input ->
-                            if (input.length <= 4 && input.all { it.isDigit() }) {
-                                otpValue = input
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    // Floating Apple Liquid Glass OTP Form Card
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("otp_input_field"),
-                        decorationBox = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                for (i in 0 until 4) {
-                                    val digit = if (i < otpValue.length) otpValue[i].toString() else ""
-                                    val isFocused = i == otpValue.length
-                                    Box(
-                                        modifier = Modifier
-                                            .size(64.dp)
-                                            .clip(RoundedCornerShape(14.dp))
-                                            .background(Color.White)
-                                            .border(
-                                                width = if (isFocused) 2.dp else 1.5.dp,
-                                                color = if (isFocused) DeepIndigo else BorderStroke,
-                                                shape = RoundedCornerShape(14.dp)
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = digit,
-                                            fontSize = 28.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = DeepIndigo,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                    if (i < 3) {
-                                        Spacer(modifier = Modifier.width(16.dp))
-                                    }
-                                }
-                            }
-                        }
-                    )
-
-                    // Error Message Banner if validation failed
-                    if (!errorMessage.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFFEF2F2))
-                                .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(10.dp))
-                                .padding(12.dp)
-                        ) {
-                            Text(
-                                text = "⚠️ $errorMessage",
-                                color = Color(0xFFDC2626),
-                                fontSize = 13.sp,
-                                lineHeight = 18.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(28.dp))
-
-                    // Resend Code link with 30s countdown
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                            .liquidGlassCard(shape = RoundedCornerShape(26.dp), elevation = 4.dp)
+                            .padding(22.dp)
                     ) {
-                        if (countdown > 0) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            HomeaseLogoMark(size = 56.dp)
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
                             Text(
-                                text = "${Strings.get("resend_code_cooldown", language)} ${countdown}${Strings.get("seconds", language)}",
-                                color = TextSlateMuted,
-                                fontSize = 14.sp
-                            )
-                        } else {
-                            Text(
-                                text = Strings.get("resend_code", language),
-                                color = DeepIndigo,
-                                fontSize = 14.sp,
+                                text = Strings.get("verify_number_title", language),
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
+                                color = AppleLabelPrimary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "${Strings.get("verify_number_sub", language)} $phoneNumber",
+                                fontSize = 13.5.sp,
+                                color = AppleLabelSecondary,
+                                textAlign = TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(28.dp))
+
+                            // 4-digit Liquid Glass OTP Tiles with Hidden BasicTextField
+                            BasicTextField(
+                                value = otpValue,
+                                onValueChange = { input ->
+                                    if (input.length <= 4 && input.all { it.isDigit() }) {
+                                        otpValue = input
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier
-                                    .clickable {
-                                        countdown = 30
-                                        otpValue = ""
-                                        onResend()
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar(if (language == AppLanguage.URDU) "تصدیقی کوڈ واٹس ایپ پر دوبارہ بھیج دیا گیا۔" else "Verification code resent via WhatsApp.")
+                                    .fillMaxWidth()
+                                    .testTag("otp_input_field"),
+                                decorationBox = {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        for (i in 0 until 4) {
+                                            val digit = if (i < otpValue.length) otpValue[i].toString() else ""
+                                            val isFocused = i == otpValue.length
+                                            val tileBg = if (isFocused) {
+                                                AppleIrisContainer.copy(alpha = 0.85f)
+                                            } else {
+                                                Color.White.copy(alpha = 0.78f)
+                                            }
+                                            val tileBorder = if (isFocused) {
+                                                SolidColor(AppleIrisPrimary)
+                                            } else {
+                                                AppleGlassSpecularBorder
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(66.dp)
+                                                    .liquidGlassCard(
+                                                        shape = RoundedCornerShape(16.dp),
+                                                        backgroundColor = tileBg,
+                                                        borderBrush = tileBorder,
+                                                        borderWidth = if (isFocused) 2.dp else 0.75.dp,
+                                                        elevation = if (isFocused) 4.dp else 1.dp
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = digit,
+                                                    fontSize = 28.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = AppleIrisPrimary,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                            }
+                                            if (i < 3) {
+                                                Spacer(modifier = Modifier.width(14.dp))
+                                            }
                                         }
                                     }
-                                    .testTag("resend_code_button")
+                                }
+                            )
+
+                            // Error Message Banner if validation failed
+                            if (!errorMessage.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(20.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFFEF2F2))
+                                        .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(12.dp))
+                                        .padding(12.dp)
+                                ) {
+                                    Text(
+                                        text = "⚠️ $errorMessage",
+                                        color = Color(0xFFDC2626),
+                                        fontSize = 13.sp,
+                                        lineHeight = 18.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(26.dp))
+
+                            // Resend Code link with 30s countdown in frosted pill
+                            Box(
+                                modifier = Modifier
+                                    .liquidGlassPill(
+                                        shape = RoundedCornerShape(16.dp),
+                                        backgroundColor = Color.White.copy(alpha = 0.70f)
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (countdown > 0) {
+                                    Text(
+                                        text = "${Strings.get("resend_code_cooldown", language)} ${countdown}${Strings.get("seconds", language)}",
+                                        color = AppleLabelSecondary,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                } else {
+                                    Text(
+                                        text = Strings.get("resend_code", language),
+                                        color = AppleIrisPrimary,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .clickable {
+                                                countdown = 30
+                                                otpValue = ""
+                                                onResend()
+                                                coroutineScope.launch {
+                                                    snackbarHostState.showSnackbar(
+                                                        if (language == AppLanguage.URDU) "تصدیقی کوڈ واٹس ایپ پر دوبارہ بھیج دیا گیا۔" else "Verification code resent via WhatsApp."
+                                                    )
+                                                }
+                                            }
+                                            .testTag("resend_code_button")
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Fallback link: "Didn't get it? Send via SMS instead"
+                            Text(
+                                text = Strings.get("sms_fallback", language),
+                                color = AppleWarmChampagne,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier
+                                    .clickable {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar(Strings.get("sms_sent_notice", language))
+                                        }
+                                    }
+                                    .testTag("sms_fallback_link")
                             )
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Fallback link: "Didn't get it? Send via SMS instead"
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = Strings.get("sms_fallback", language),
-                            color = SoftOrange,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier
-                                .clickable {
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar(Strings.get("sms_sent_notice", language))
-                                    }
-                                }
-                                .testTag("sms_fallback_link")
-                        )
                     }
                 }
 
@@ -271,6 +318,7 @@ fun OtpVerificationScreen(
                         text = if (isLoading) Strings.get("verifying_code", language) else Strings.get("confirm", language),
                         onClick = { onVerified(otpValue) },
                         enabled = otpValue.length == 4 && !isLoading,
+                        backgroundColor = AppleIrisPrimary,
                         testTag = "verify_otp_button"
                     )
                     Spacer(modifier = Modifier.height(16.dp))
