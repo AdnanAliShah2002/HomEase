@@ -6,54 +6,88 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import com.example.data.model.MobileAppTheme
 
-// Apple Human Interface Guidelines (HIG) System Palette
-val AppleSystemBlue = Color(0xFF007AFF)
-val AppleSystemBlueDark = Color(0xFF0056B3)
-val AppleSystemBlueLight = Color(0xFF47A0FF)
-val AppleSystemBlueContainer = Color(0xFFEBF5FF)
+/**
+ * Apple Pro Liquid Glass Palette for HomEase.
+ *
+ * Eliminates the harsh electric-blue (#007AFF) and carrot-orange (#FF9500) clash.
+ * Delivers an authentic luxury aesthetic with:
+ * - Apple Iris / Royal Sapphire (#4F46E5) as the primary brand tone
+ * - Warm Champagne / Muted Amber (#D97706) as the craftsman warm accent
+ * - Apple System Emerald (#10B981) for live active states
+ * - Deep Slate (#1E293B) and clean grouped surfaces (#F6F7FB)
+ */
 
-val AppleSystemOrange = Color(0xFFFF9500)
-val AppleSystemOrangeDark = Color(0xFFCC7700)
-val AppleSystemOrangeLight = Color(0xFFFFB340)
-val AppleSystemOrangeContainer = Color(0xFFFFF4E5)
+// Apple Pro Primary - Deep Iris Sapphire
+val AppleIrisPrimary = Color(0xFF4F46E5)
+val AppleIrisPrimaryDark = Color(0xFF3730A3)
+val AppleIrisPrimaryLight = Color(0xFF6366F1)
+val AppleIrisContainer = Color(0xFFEEF2FF)
 
-val AppleSystemGreen = Color(0xFF34C759)
-val AppleSystemGreenContainer = Color(0xFFEAF9EE)
-val AppleSystemYellow = Color(0xFFFFCC00)
-val AppleSystemYellowContainer = Color(0xFFFFFBE5)
-val AppleSystemRed = Color(0xFFFF3B30)
-val AppleSystemRedContainer = Color(0xFFFFEBEA)
-val AppleSystemIndigo = Color(0xFF5856D6)
-val AppleSystemIndigoContainer = Color(0xFFEFEFFB)
-val AppleSystemTeal = Color(0xFF30B0C7)
-val AppleSystemTealContainer = Color(0xFFE6F7F9)
-val AppleSystemPurple = Color(0xFFAF52DE)
-val AppleSystemPink = Color(0xFFFF2D55)
+// Apple Pro Accent - Warm Champagne Bronze & Amber
+val AppleWarmChampagne = Color(0xFFD97706)
+val AppleWarmChampagneDark = Color(0xFFB45309)
+val AppleWarmChampagneLight = Color(0xFFF59E0B)
+val AppleWarmChampagneContainer = Color(0xFFFEF3C7)
+
+// Apple System Functional Colors
+val AppleSystemEmerald = Color(0xFF10B981)
+val AppleSystemEmeraldDark = Color(0xFF059669)
+val AppleSystemEmeraldLight = Color(0xFF34D399)
+val AppleSystemEmeraldContainer = Color(0xFFECFDF5)
+
+val AppleSystemGreen = AppleSystemEmerald
+val AppleSystemGreenContainer = AppleSystemEmeraldContainer
+
+val AppleSystemYellow = Color(0xFFF59E0B)
+val AppleSystemYellowContainer = Color(0xFFFEF3C7)
+
+val AppleSystemRed = Color(0xFFEF4444)
+val AppleSystemRedContainer = Color(0xFFFEE2E2)
+
+val AppleSystemIndigo = Color(0xFF6366F1)
+val AppleSystemIndigoContainer = Color(0xFFEEF2FF)
+
+val AppleSystemTeal = Color(0xFF0EA5E9)
+val AppleSystemTealContainer = Color(0xFFE0F2FE)
+
+val AppleSystemPurple = Color(0xFF8B5CF6)
+val AppleSystemPink = Color(0xFFEC4899)
+
+// Unified aliases so all existing references cleanly inherit the refined Apple Pro palette
+val AppleSystemBlue = AppleIrisPrimary
+val AppleSystemBlueDark = AppleIrisPrimaryDark
+val AppleSystemBlueLight = AppleIrisPrimaryLight
+val AppleSystemBlueContainer = AppleIrisContainer
+
+val AppleSystemOrange = AppleWarmChampagne
+val AppleSystemOrangeDark = AppleWarmChampagneDark
+val AppleSystemOrangeLight = AppleWarmChampagneLight
+val AppleSystemOrangeContainer = AppleWarmChampagneContainer
 
 // Apple Neutrals & Grouped Surfaces
-val AppleGroupedBackground = Color(0xFFF2F2F7)
+val AppleGroupedBackground = Color(0xFFF6F7FB)
 val AppleSecondaryGroupedBackground = Color(0xFFFFFFFF)
-val AppleTertiaryGroupedBackground = Color(0xFFF9F9FB)
+val AppleTertiaryGroupedBackground = Color(0xFFF9FAFC)
 
-val AppleLabelPrimary = Color(0xFF1C1C1E)
-val AppleLabelSecondary = Color(0xFF8E8E93)
-val AppleLabelTertiary = Color(0xFFAEAEB2)
-val AppleLabelQuaternary = Color(0xFFC7C7CC)
+val AppleLabelPrimary = Color(0xFF1E293B)
+val AppleLabelSecondary = Color(0xFF64748B)
+val AppleLabelTertiary = Color(0xFF94A3B8)
+val AppleLabelQuaternary = Color(0xFFCBD5E1)
 
-val AppleSeparator = Color(0x333C3C43) // 20% overlay
-val AppleOpaqueSeparator = Color(0xFFC6C6C8)
-val AppleHairlineBorder = Color(0x0F000000) // ~6% black hairline border
+val AppleSeparator = Color(0x1F1E293B)
+val AppleOpaqueSeparator = Color(0xFFE2E8F0)
+val AppleHairlineBorder = Color(0x0F000000)
 
-// HomEase Brand Colors — Modern Apple HIG Palette
-val CoralPrimary = AppleSystemBlue
-val CoralPrimaryDark = AppleSystemBlueDark
-val CoralPrimaryLight = AppleSystemBlueLight
-val CoralPrimaryContainer = AppleSystemBlueContainer
+// HomEase Brand Colors
+val CoralPrimary = AppleIrisPrimary
+val CoralPrimaryDark = AppleIrisPrimaryDark
+val CoralPrimaryLight = AppleIrisPrimaryLight
+val CoralPrimaryContainer = AppleIrisContainer
 
-val TealAccent = AppleSystemOrange
-val TealAccentDark = AppleSystemOrangeDark
-val TealAccentLight = AppleSystemOrangeLight
-val TealAccentContainer = AppleSystemOrangeContainer
+val TealAccent = AppleWarmChampagne
+val TealAccentDark = AppleWarmChampagneDark
+val TealAccentLight = AppleWarmChampagneLight
+val TealAccentContainer = AppleWarmChampagneContainer
 
 val BackgroundCream = AppleGroupedBackground
 val SurfaceCream = AppleSecondaryGroupedBackground
@@ -64,23 +98,20 @@ val TextWarmMuted = AppleLabelSecondary
 val TextWarmSubtle = AppleLabelTertiary
 
 val WarmBorder = AppleOpaqueSeparator
-val WarmBorderFocused = AppleSystemBlue
+val WarmBorderFocused = AppleIrisPrimary
 
-// Status indicators (Apple-tuned)
-val StatusGreen = AppleSystemGreen
-val StatusGreenContainer = AppleSystemGreenContainer
+// Status indicators
+val StatusGreen = AppleSystemEmerald
+val StatusGreenContainer = AppleSystemEmeraldContainer
 val StatusYellow = AppleSystemYellow
 val StatusYellowContainer = AppleSystemYellowContainer
 val StatusRed = AppleSystemRed
 val StatusRedContainer = AppleSystemRedContainer
 
-// Common modern UI accents
-val EmeraldGreen = AppleSystemGreen
+val EmeraldGreen = AppleSystemEmerald
 
 /**
  * Dynamic runtime theme state holder.
- * Backed by Compose mutableStateOf properties, allowing any composable reading
- * semantic colors to automatically recompose when a new theme is fetched remotely.
  */
 object DynamicThemeHolder {
     var currentTheme by mutableStateOf(MobileAppTheme.DEFAULT_FALLBACK_THEME)
@@ -162,7 +193,7 @@ fun lighten(color: Color, factor: Float = 0.2f): Color {
     return Color(r, g, b, color.alpha)
 }
 
-// Dynamic semantic bindings mapped directly to the active runtime theme
+// Semantic dynamic tokens
 val DeepIndigo: Color get() = DynamicThemeHolder.primary
 val DeepIndigoDark: Color get() = DynamicThemeHolder.primaryDark
 val DeepIndigoLight: Color get() = DynamicThemeHolder.primaryLight

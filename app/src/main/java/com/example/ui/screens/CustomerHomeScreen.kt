@@ -620,13 +620,13 @@ fun CustomerHomeScreen(
                             text = if (language == AppLanguage.URDU) "کیا آج گھریلو مدد درکار ہے؟" else "Need help today?",
                             fontSize = 23.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1C1C1E),
+                            color = com.example.ui.theme.AppleLabelPrimary,
                             letterSpacing = (-0.5).sp
                         )
                         Text(
                             text = if (language == AppLanguage.URDU) "پلمبنگ، الیکٹریشن، صفائی اور دیگر خدمات فوری حاصل کریں" else "Book trusted plumbers, electricians, cleaners & more in minutes.",
                             fontSize = 13.5.sp,
-                            color = Color(0xFF636366),
+                            color = com.example.ui.theme.AppleLabelSecondary,
                             fontWeight = FontWeight.Normal,
                             lineHeight = 18.sp
                         )
@@ -898,14 +898,14 @@ fun getCategoryVectorIcon(id: String): ImageVector {
 
 fun getCategoryTint(id: String): Color {
     return when (id.lowercase()) {
-        "laundry" -> Color(0xFF007AFF)
-        "cleaning" -> Color(0xFF34C759)
-        "ac" -> Color(0xFF30B0C7)
-        "car" -> Color(0xFF5856D6)
-        "plumbing" -> Color(0xFF0A84FF)
-        "electrical" -> Color(0xFFFF9500)
-        "painting" -> Color(0xFFAF52DE)
-        else -> Color(0xFF007AFF)
+        "laundry" -> Color(0xFF4F46E5)   // Apple Iris Sapphire
+        "cleaning" -> Color(0xFF10B981)  // Apple System Emerald
+        "ac" -> Color(0xFF0EA5E9)        // Apple Cerulean Sky
+        "car" -> Color(0xFF6366F1)       // Apple Royal Indigo
+        "plumbing" -> Color(0xFF2563EB)  // Apple Deep Cobalt
+        "electrical" -> Color(0xFFD97706)// Apple Warm Champagne Amber
+        "painting" -> Color(0xFF8B5CF6)  // Apple Radiant Violet
+        else -> Color(0xFF4F46E5)        // Apple Iris Sapphire
     }
 }
 
@@ -1031,7 +1031,7 @@ fun ProfessionalBottomNavItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (isActive) Color(0xFF007AFF) else Color(0xFF8E8E93),
+            tint = if (isActive) com.example.ui.theme.AppleIrisPrimary else Color(0xFF8E8E93),
             modifier = Modifier
                 .size(24.dp)
                 .scale(scale)
@@ -1041,7 +1041,7 @@ fun ProfessionalBottomNavItem(
             text = label,
             fontSize = 11.sp,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-            color = if (isActive) Color(0xFF007AFF) else Color(0xFF8E8E93),
+            color = if (isActive) com.example.ui.theme.AppleIrisPrimary else Color(0xFF8E8E93),
             letterSpacing = (-0.1).sp
         )
     }

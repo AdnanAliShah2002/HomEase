@@ -22,12 +22,12 @@ annotation class SerialName(val value: String)
  */
 @Serializable
 data class MobileAppTheme(
-    val id: String = "default_coral_sunset",
-    val name: String = "Coral Sunset",
-    @SerialName("primary_color") val primaryColor: String = "#DC5F45",
-    @SerialName("accent_color") val accentColor: String = "#2A9D8F",
-    @SerialName("background_color") val backgroundColor: String = "#FFFBF7",
-    @SerialName("text_color") val textColor: String = "#292524",
+    val id: String = "default_apple_pro_liquid",
+    val name: String = "Apple Pro Liquid",
+    @SerialName("primary_color") val primaryColor: String = "#4F46E5",
+    @SerialName("accent_color") val accentColor: String = "#D97706",
+    @SerialName("background_color") val backgroundColor: String = "#F6F7FB",
+    @SerialName("text_color") val textColor: String = "#1E293B",
     @SerialName("is_active") val isActive: Boolean = true
 ) {
     fun toJson(): JSONObject {
@@ -45,35 +45,35 @@ data class MobileAppTheme(
     val primaryColorInt: Int get() = try {
         android.graphics.Color.parseColor(primaryColor)
     } catch (e: Exception) {
-        0xFFDC5F45.toInt()
+        0xFF4F46E5.toInt()
     }
 
     val accentColorInt: Int get() = try {
         android.graphics.Color.parseColor(accentColor)
     } catch (e: Exception) {
-        0xFF2A9D8F.toInt()
+        0xFFD97706.toInt()
     }
 
     val backgroundColorInt: Int get() = try {
         android.graphics.Color.parseColor(backgroundColor)
     } catch (e: Exception) {
-        0xFFFFFBF7.toInt()
+        0xFFF6F7FB.toInt()
     }
 
     val textColorInt: Int get() = try {
         android.graphics.Color.parseColor(textColor)
     } catch (e: Exception) {
-        0xFF292524.toInt()
+        0xFF1E293B.toInt()
     }
 
     companion object {
         val DEFAULT_FALLBACK_THEME = MobileAppTheme(
-            id = "default_apple_cupertino",
-            name = "Apple Cupertino",
-            primaryColor = "#007AFF",
-            accentColor = "#FF9500",
-            backgroundColor = "#F2F2F7",
-            textColor = "#1C1C1E",
+            id = "default_apple_pro_liquid",
+            name = "Apple Pro Liquid",
+            primaryColor = "#4F46E5",
+            accentColor = "#D97706",
+            backgroundColor = "#F6F7FB",
+            textColor = "#1E293B",
             isActive = true
         )
 

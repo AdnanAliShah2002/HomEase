@@ -132,7 +132,7 @@ fun HomeaseHeaderLogo(
                     text = "Hom",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = Color(0xFF1C1C1E),
+                    color = com.example.ui.theme.AppleLabelPrimary,
                     letterSpacing = (-0.5).sp,
                     fontFamily = FontFamily.SansSerif
                 )
@@ -140,7 +140,7 @@ fun HomeaseHeaderLogo(
                     text = "Ease",
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 18.sp,
-                    color = Color(0xFF007AFF),
+                    color = com.example.ui.theme.AppleIrisPrimary,
                     letterSpacing = (-0.5).sp,
                     fontFamily = FontFamily.SansSerif
                 )
@@ -149,7 +149,7 @@ fun HomeaseHeaderLogo(
                 text = "HOME SERVICES",
                 fontSize = 8.5.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF8E8E93),
+                color = com.example.ui.theme.AppleLabelSecondary,
                 letterSpacing = 0.8.sp
             )
         }

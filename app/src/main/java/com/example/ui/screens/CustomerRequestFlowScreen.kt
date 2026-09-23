@@ -1282,43 +1282,26 @@ fun FindingProvidersView(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shadow(
-                            elevation = 3.dp,
-                            shape = RoundedCornerShape(22.dp),
-                            spotColor = Color(0x12000000),
-                            ambientColor = Color(0x06000000)
-                        )
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(Color.White.copy(alpha = 0.92f))
-                        .border(
-                            width = 0.75.dp,
-                            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                                listOf(
-                                    Color.White,
-                                    Color(0x14000000)
-                                )
-                            ),
-                            shape = RoundedCornerShape(22.dp)
-                        )
+                        .com.example.ui.theme.liquidGlassCard(shape = RoundedCornerShape(22.dp))
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(22.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Pulsing Apple Blue Radar Orb
+                        // Pulsing Apple Iris Radar Orb
                         Box(
                             modifier = Modifier
                                 .size(78.dp)
                                 .scale(scale)
                                 .clip(CircleShape)
-                                .background(Color(0xFFEBF5FF))
-                                .border(1.dp, Color(0x28007AFF), CircleShape),
+                                .background(com.example.ui.theme.AppleIrisContainer)
+                                .border(1.dp, com.example.ui.theme.AppleIrisPrimary.copy(alpha = 0.25f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Radar,
                                 contentDescription = "Searching",
-                                tint = Color(0xFF007AFF),
+                                tint = com.example.ui.theme.AppleIrisPrimary,
                                 modifier = Modifier.size(40.dp)
                             )
                         }
@@ -1329,14 +1312,14 @@ fun FindingProvidersView(
                             text = Strings.get("finding_providers_title", language),
                             fontSize = 19.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1C1C1E),
+                            color = com.example.ui.theme.AppleLabelPrimary,
                             letterSpacing = (-0.3).sp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = Strings.get("finding_providers_desc", language),
                             fontSize = 13.5.sp,
-                            color = Color(0xFF636366),
+                            color = com.example.ui.theme.AppleLabelSecondary,
                             lineHeight = 18.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
@@ -1347,15 +1330,15 @@ fun FindingProvidersView(
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFFFF7ED))
-                                .border(0.5.dp, Color(0x33FF9500), RoundedCornerShape(12.dp))
+                                .background(com.example.ui.theme.AppleWarmChampagneContainer.copy(alpha = 0.85f))
+                                .border(0.5.dp, com.example.ui.theme.AppleWarmChampagne.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                 .padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Text(
                                 text = "${if (language == AppLanguage.URDU) "آپ کی پیشکش: روپے" else "Your Offer: Rs"} ${request.budgetRs}  •  📍 ${request.cityArea}",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFD97706)
+                                color = com.example.ui.theme.AppleWarmChampagneDark
                             )
                         }
                     }
