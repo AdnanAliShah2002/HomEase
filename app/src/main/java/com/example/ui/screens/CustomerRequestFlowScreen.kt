@@ -101,6 +101,14 @@ import com.example.ui.theme.StatusGreenContainer
 import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.AppleIrisContainer
+import com.example.ui.theme.AppleIrisPrimary
+import com.example.ui.theme.AppleLabelPrimary
+import com.example.ui.theme.AppleLabelSecondary
+import com.example.ui.theme.AppleWarmChampagne
+import com.example.ui.theme.AppleWarmChampagneContainer
+import com.example.ui.theme.AppleWarmChampagneDark
+import com.example.ui.theme.liquidGlassCard
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1282,7 +1290,7 @@ fun FindingProvidersView(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .com.example.ui.theme.liquidGlassCard(shape = RoundedCornerShape(22.dp))
+                        .liquidGlassCard(shape = RoundedCornerShape(22.dp))
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(22.dp),
@@ -1294,14 +1302,14 @@ fun FindingProvidersView(
                                 .size(78.dp)
                                 .scale(scale)
                                 .clip(CircleShape)
-                                .background(com.example.ui.theme.AppleIrisContainer)
-                                .border(1.dp, com.example.ui.theme.AppleIrisPrimary.copy(alpha = 0.25f), CircleShape),
+                                .background(AppleIrisContainer)
+                                .border(1.dp, AppleIrisPrimary.copy(alpha = 0.25f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Radar,
                                 contentDescription = "Searching",
-                                tint = com.example.ui.theme.AppleIrisPrimary,
+                                tint = AppleIrisPrimary,
                                 modifier = Modifier.size(40.dp)
                             )
                         }
@@ -1312,14 +1320,14 @@ fun FindingProvidersView(
                             text = Strings.get("finding_providers_title", language),
                             fontSize = 19.sp,
                             fontWeight = FontWeight.Bold,
-                            color = com.example.ui.theme.AppleLabelPrimary,
+                            color = AppleLabelPrimary,
                             letterSpacing = (-0.3).sp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = Strings.get("finding_providers_desc", language),
                             fontSize = 13.5.sp,
-                            color = com.example.ui.theme.AppleLabelSecondary,
+                            color = AppleLabelSecondary,
                             lineHeight = 18.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
@@ -1330,15 +1338,15 @@ fun FindingProvidersView(
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(com.example.ui.theme.AppleWarmChampagneContainer.copy(alpha = 0.85f))
-                                .border(0.5.dp, com.example.ui.theme.AppleWarmChampagne.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .background(AppleWarmChampagneContainer.copy(alpha = 0.85f))
+                                .border(0.5.dp, AppleWarmChampagne.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                 .padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Text(
                                 text = "${if (language == AppLanguage.URDU) "آپ کی پیشکش: روپے" else "Your Offer: Rs"} ${request.budgetRs}  •  📍 ${request.cityArea}",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = com.example.ui.theme.AppleWarmChampagneDark
+                                color = AppleWarmChampagneDark
                             )
                         }
                     }
