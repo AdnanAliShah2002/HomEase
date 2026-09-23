@@ -108,6 +108,7 @@ import com.example.ui.theme.AppleLabelSecondary
 import com.example.ui.theme.AppleWarmChampagne
 import com.example.ui.theme.AppleWarmChampagneContainer
 import com.example.ui.theme.AppleWarmChampagneDark
+import com.example.ui.theme.LiquidAmbientCanvas
 import com.example.ui.theme.liquidGlassCard
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -222,59 +223,58 @@ fun CustomerRequestFlowScreen(
         budgetInput = newMidpoint.toString()
     }
 
-    Scaffold(
-        topBar = {
-            Surface(
-                color = Color.White.copy(alpha = 0.94f),
-                shadowElevation = 1.dp,
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+    LiquidAmbientCanvas {
+        Scaffold(
+            topBar = {
+                Surface(
+                    color = Color.White.copy(alpha = 0.82f),
+                    shadowElevation = 0.dp,
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
                 ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.testTag("request_flow_back_btn")
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color(0xFF1C1C1E)
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier.testTag("request_flow_back_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color(0xFF1C1C1E)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = Strings.get("request_service_cta", language),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1C1C1E),
+                            letterSpacing = (-0.3).sp
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = Strings.get("request_service_cta", language),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1C1C1E),
-                        letterSpacing = (-0.3).sp
-                    )
                 }
-            }
-        },
-        containerColor = BackgroundLight
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp)
-        ) {
-            // AI Smart Assistant: Describe Your Problem Card
-            Card(
+            },
+            containerColor = Color.Transparent
+        ) { innerPadding ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("ai_assistant_card"),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp)
             ) {
+                // AI Smart Assistant: Describe Your Problem Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .liquidGlassCard(shape = RoundedCornerShape(20.dp))
+                        .testTag("ai_assistant_card")
+                ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
@@ -1183,6 +1183,7 @@ fun CustomerRequestFlowScreen(
         }
     }
 }
+}
 
 @Composable
 fun FindingProvidersView(
@@ -1205,36 +1206,37 @@ fun FindingProvidersView(
         label = "radar"
     )
 
-    Scaffold(
-        topBar = {
-            Surface(
-                color = Color.White.copy(alpha = 0.94f),
-                shadowElevation = 1.dp,
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+    LiquidAmbientCanvas {
+        Scaffold(
+            topBar = {
+                Surface(
+                    color = Color.White.copy(alpha = 0.82f),
+                    shadowElevation = 0.dp,
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF1C1C1E))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF1C1C1E))
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = request.serviceTitle,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1C1C1E),
+                            letterSpacing = (-0.3).sp
+                        )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = request.serviceTitle,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1C1C1E),
-                        letterSpacing = (-0.3).sp
-                    )
                 }
-            }
-        },
-        containerColor = Color(0xFFF4F5F9)
-    ) { innerPadding ->
+            },
+            containerColor = Color.Transparent
+        ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp),
@@ -1405,6 +1407,7 @@ fun FindingProvidersView(
         }
     }
 }
+}
 
 @Composable
 fun ProviderOfferCard(
@@ -1416,14 +1419,11 @@ fun ProviderOfferCard(
     val isCounter = offer.counterPriceRs != customerBudget
     val displayPrice = if (offer.offerPriceRs > 0) offer.offerPriceRs else offer.counterPriceRs
 
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("provider_offer_card_${offer.id}"),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+            .liquidGlassCard(shape = RoundedCornerShape(20.dp))
+            .testTag("provider_offer_card_${offer.id}")
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             Row(

@@ -227,7 +227,7 @@ val AppleGlassAccentBorder = AppleGlassIrisBorder
  */
 fun Modifier.liquidGlassCard(
     shape: Shape = RoundedCornerShape(22.dp),
-    backgroundColor: Color = Color.White.copy(alpha = 0.84f),
+    backgroundColor: Color = Color.White.copy(alpha = 0.76f),
     elevation: Dp = 4.dp,
     borderBrush: Brush = AppleGlassSpecularBorder,
     borderWidth: Dp = 0.75.dp
@@ -235,11 +235,22 @@ fun Modifier.liquidGlassCard(
     .shadow(
         elevation = elevation,
         shape = shape,
-        spotColor = Color(0x141E293B),
-        ambientColor = Color(0x0A1E293B)
+        spotColor = Color(0x181E293B),
+        ambientColor = Color(0x0C1E293B)
     )
     .clip(shape)
     .background(backgroundColor)
+    .background(
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.45f), // Specular sheen top-left
+                Color.White.copy(alpha = 0.08f),
+                Color.Transparent
+            ),
+            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+            end = androidx.compose.ui.geometry.Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+        )
+    )
     .border(borderWidth, borderBrush, shape)
 
 /**
@@ -273,7 +284,7 @@ fun Modifier.liquidGlassDarkCard(
  */
 fun Modifier.liquidGlassPill(
     shape: Shape = RoundedCornerShape(16.dp),
-    backgroundColor: Color = Color.White.copy(alpha = 0.88f),
+    backgroundColor: Color = Color.White.copy(alpha = 0.82f),
     borderBrush: Brush = AppleGlassSpecularBorder
 ): Modifier = this
     .clip(shape)
@@ -286,7 +297,7 @@ fun Modifier.liquidGlassPill(
 fun Modifier.liquidGlassButton(
     onClick: () -> Unit,
     shape: Shape = RoundedCornerShape(18.dp),
-    backgroundColor: Color = Color.White.copy(alpha = 0.90f),
+    backgroundColor: Color = Color.White.copy(alpha = 0.88f),
     borderBrush: Brush = AppleGlassSpecularBorder
 ): Modifier = this
     .liquidGlassCard(shape = shape, backgroundColor = backgroundColor, borderBrush = borderBrush)
@@ -345,9 +356,9 @@ fun LiquidAmbientCanvas(
                 .fillMaxSize()
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color(0x0F4F46E5), Color.Transparent),
-                        center = androidx.compose.ui.geometry.Offset(1000f, 150f),
-                        radius = 950f
+                        colors = listOf(Color(0x1A4F46E5), Color.Transparent),
+                        center = androidx.compose.ui.geometry.Offset(1050f, 200f),
+                        radius = 1100f
                     )
                 )
         )
@@ -357,9 +368,9 @@ fun LiquidAmbientCanvas(
                 .fillMaxSize()
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color(0x0AD97706), Color.Transparent),
-                        center = androidx.compose.ui.geometry.Offset(100f, 900f),
-                        radius = 850f
+                        colors = listOf(Color(0x18D97706), Color.Transparent),
+                        center = androidx.compose.ui.geometry.Offset(80f, 950f),
+                        radius = 950f
                     )
                 )
         )
@@ -369,9 +380,9 @@ fun LiquidAmbientCanvas(
                 .fillMaxSize()
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color(0x0810B981), Color.Transparent),
+                        colors = listOf(Color(0x1210B981), Color.Transparent),
                         center = androidx.compose.ui.geometry.Offset(900f, 1800f),
-                        radius = 800f
+                        radius = 900f
                     )
                 )
         )

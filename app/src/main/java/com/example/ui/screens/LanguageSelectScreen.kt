@@ -46,6 +46,9 @@ import com.example.ui.theme.DeepIndigo
 import com.example.ui.theme.DeepIndigoContainer
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.LiquidAmbientCanvas
+import com.example.ui.theme.liquidGlassCard
+import com.example.ui.theme.AppleGlassSpecularBorder
 
 @Composable
 fun LanguageSelectScreen(
@@ -55,10 +58,7 @@ fun LanguageSelectScreen(
 ) {
     var selectedLang by remember { mutableStateOf(currentLanguage) }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = BackgroundLight
-    ) {
+    LiquidAmbientCanvas {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -144,18 +144,17 @@ private fun LanguageCard(
     onClick: () -> Unit,
     testTag: String
 ) {
-    val borderColor = if (isSelected) DeepIndigo else BorderStroke
-    val bgColor = if (isSelected) DeepIndigoContainer else Color.White
+    val borderBrush = if (isSelected) androidx.compose.ui.graphics.SolidColor(DeepIndigo) else AppleGlassSpecularBorder
+    val bgColor = if (isSelected) DeepIndigoContainer.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.78f)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(bgColor)
-            .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(16.dp)
+            .liquidGlassCard(
+                shape = RoundedCornerShape(18.dp),
+                backgroundColor = bgColor,
+                borderBrush = borderBrush,
+                borderWidth = if (isSelected) 1.5.dp else 0.75.dp
             )
             .clickable { onClick() }
             .padding(20.dp)

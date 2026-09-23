@@ -97,6 +97,7 @@ import com.example.ui.theme.StatusYellowContainer
 import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.LiquidAmbientCanvas
 import com.example.ui.theme.liquidGlassCard
 import com.example.ui.theme.AppleSystemBlue
 import com.example.ui.theme.AppleSystemGreen
@@ -430,24 +431,25 @@ fun ProviderHomeScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            HomEaseTopBar(
-                currentRole = UserRole.PROVIDER,
-                language = language,
-                onToggleRole = onToggleRole,
-                onToggleLanguage = onToggleLanguage,
-                userAvatar = provider.profilePhotoUri ?: "👤",
-                onLogout = onLogout,
-                onOpenProfile = { currentNavTab = "profile" }
-            )
-        },
-        bottomBar = {
-            // Apple-style Frosted Glass Bottom Navigation Bar
-            Surface(
-                color = Color.White.copy(alpha = 0.94f),
-                shadowElevation = 0.dp,
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
+    LiquidAmbientCanvas {
+        Scaffold(
+            topBar = {
+                HomEaseTopBar(
+                    currentRole = UserRole.PROVIDER,
+                    language = language,
+                    onToggleRole = onToggleRole,
+                    onToggleLanguage = onToggleLanguage,
+                    userAvatar = provider.profilePhotoUri ?: "👤",
+                    onLogout = onLogout,
+                    onOpenProfile = { currentNavTab = "profile" }
+                )
+            },
+            bottomBar = {
+                // Apple-style Frosted Glass Bottom Navigation Bar
+                Surface(
+                    color = Color.White.copy(alpha = 0.82f),
+                    shadowElevation = 0.dp,
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
@@ -480,7 +482,7 @@ fun ProviderHomeScreen(
                 }
             }
         },
-        containerColor = Color(0xFFF2F2F7)
+        containerColor = Color.Transparent
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -796,9 +798,7 @@ fun ProviderHomeScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color.White)
-                                .border(1.dp, BorderStroke, RoundedCornerShape(16.dp))
+                                .liquidGlassCard(shape = RoundedCornerShape(16.dp))
                                 .padding(18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -835,6 +835,7 @@ fun ProviderHomeScreen(
             }
         }
     }
+}
 }
 }
 }

@@ -158,9 +158,9 @@ fun HomEaseTopBar(
     onOpenProfile: (() -> Unit)? = null
 ) {
     Surface(
-        color = Color.White.copy(alpha = 0.94f),
+        color = Color.White.copy(alpha = 0.82f),
         modifier = modifier.fillMaxWidth(),
-        shadowElevation = 1.dp,
+        shadowElevation = 0.dp,
         border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
     ) {
         Row(

@@ -122,6 +122,8 @@ import com.example.ui.theme.StatusGreenContainer
 import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.LiquidAmbientCanvas
+import com.example.ui.theme.liquidGlassCard
 import com.example.util.LocationHelper
 
 @Composable
@@ -275,66 +277,67 @@ fun CustomerHomeScreen(
         RatingStubDialog(language = language, onDismiss = { showRatingDialog = false })
     }
 
-    Scaffold(
-        topBar = {
-            HomEaseTopBar(
-                currentRole = UserRole.CUSTOMER,
-                language = language,
-                onToggleRole = onToggleRole,
-                onToggleLanguage = onToggleLanguage,
-                userAvatar = user.profilePhotoUri ?: "👤",
-                onLogout = onLogout,
-                onOpenProfile = { currentNavTab = "profile" }
-            )
-        },
-        bottomBar = {
-            // Apple-style Frosted Glass Bottom Navigation Bar
-            Surface(
-                color = Color.White.copy(alpha = 0.94f),
-                shadowElevation = 0.dp,
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-            ) {
-                Row(
+    LiquidAmbientCanvas {
+        Scaffold(
+            topBar = {
+                HomEaseTopBar(
+                    currentRole = UserRole.CUSTOMER,
+                    language = language,
+                    onToggleRole = onToggleRole,
+                    onToggleLanguage = onToggleLanguage,
+                    userAvatar = user.profilePhotoUri ?: "👤",
+                    onLogout = onLogout,
+                    onOpenProfile = { currentNavTab = "profile" }
+                )
+            },
+            bottomBar = {
+                // Apple-style Frosted Glass Bottom Navigation Bar
+                Surface(
+                    color = Color.White.copy(alpha = 0.82f),
+                    shadowElevation = 0.dp,
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .navigationBarsPadding()
                 ) {
-                    ProfessionalBottomNavItem(
-                        icon = Icons.Default.Home,
-                        label = if (language == AppLanguage.URDU) "ہوم" else "Home",
-                        isActive = currentNavTab == "home",
-                        onClick = { currentNavTab = "home" }
-                    )
-                    ProfessionalBottomNavItem(
-                        icon = Icons.Default.Assignment,
-                        label = if (language == AppLanguage.URDU) "بکنگز" else "Bookings",
-                        isActive = currentNavTab == "bookings",
-                        onClick = { currentNavTab = "bookings" }
-                    )
-                    ProfessionalBottomNavItem(
-                        icon = Icons.AutoMirrored.Filled.HelpOutline,
-                        label = if (language == AppLanguage.URDU) "مدد" else "Help",
-                        isActive = currentNavTab == "help",
-                        onClick = {
-                            currentNavTab = "help"
-                        }
-                    )
-                    ProfessionalBottomNavItem(
-                        icon = Icons.Default.Person,
-                        label = if (language == AppLanguage.URDU) "پروفائل" else "Profile",
-                        isActive = currentNavTab == "profile",
-                        onClick = { currentNavTab = "profile" }
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ProfessionalBottomNavItem(
+                            icon = Icons.Default.Home,
+                            label = if (language == AppLanguage.URDU) "ہوم" else "Home",
+                            isActive = currentNavTab == "home",
+                            onClick = { currentNavTab = "home" }
+                        )
+                        ProfessionalBottomNavItem(
+                            icon = Icons.Default.Assignment,
+                            label = if (language == AppLanguage.URDU) "بکنگز" else "Bookings",
+                            isActive = currentNavTab == "bookings",
+                            onClick = { currentNavTab = "bookings" }
+                        )
+                        ProfessionalBottomNavItem(
+                            icon = Icons.AutoMirrored.Filled.HelpOutline,
+                            label = if (language == AppLanguage.URDU) "مدد" else "Help",
+                            isActive = currentNavTab == "help",
+                            onClick = {
+                                currentNavTab = "help"
+                            }
+                        )
+                        ProfessionalBottomNavItem(
+                            icon = Icons.Default.Person,
+                            label = if (language == AppLanguage.URDU) "پروفائل" else "Profile",
+                            isActive = currentNavTab == "profile",
+                            onClick = { currentNavTab = "profile" }
+                        )
+                    }
                 }
-            }
-        },
-        containerColor = Color(0xFFF2F2F7)
-    ) { innerPadding ->
+            },
+            containerColor = Color.Transparent
+        ) { innerPadding ->
         if (activeJobForRatingDialog != null) {
             HowDidItGoDialog(
                 job = activeJobForRatingDialog!!,
@@ -563,32 +566,7 @@ fun CustomerHomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shadow(
-                            elevation = 4.dp,
-                            shape = RoundedCornerShape(24.dp),
-                            spotColor = Color(0x18007AFF),
-                            ambientColor = Color(0x0A000000)
-                        )
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.96f),
-                                    Color(0xFFF2F6FF)
-                                )
-                            )
-                        )
-                        .border(
-                            width = 0.75.dp,
-                            brush = Brush.verticalGradient(
-                                listOf(
-                                    Color.White,
-                                    Color(0x33007AFF),
-                                    Color(0x0F000000)
-                                )
-                            ),
-                            shape = RoundedCornerShape(24.dp)
-                        )
+                        .liquidGlassCard(shape = RoundedCornerShape(24.dp))
                         .clickable { onStartNewRequest(null) }
                         .padding(22.dp)
                         .testTag("request_service_hero_card")
@@ -874,6 +852,7 @@ fun CustomerHomeScreen(
                             }
                         }
                     }
+                    }
                 }
             }
         }
@@ -939,7 +918,7 @@ fun ProfessionalCategoryCard(
             ) { onClick() }
             .testTag("cat_card_${item.id}"),
         shape = RoundedCornerShape(20.dp),
-        color = Color.White.copy(alpha = 0.90f),
+        color = Color.White.copy(alpha = 0.76f),
         border = androidx.compose.foundation.BorderStroke(
             0.75.dp,
             androidx.compose.ui.graphics.Brush.verticalGradient(

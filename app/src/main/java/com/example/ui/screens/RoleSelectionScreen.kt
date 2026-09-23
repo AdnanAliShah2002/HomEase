@@ -50,16 +50,15 @@ import com.example.ui.theme.SoftOrange
 import com.example.ui.theme.SoftOrangeContainer
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.LiquidAmbientCanvas
+import com.example.ui.theme.liquidGlassCard
 
 @Composable
 fun RoleSelectionScreen(
     language: AppLanguage,
     onRoleSelected: (UserRole) -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = BackgroundLight
-    ) {
+    LiquidAmbientCanvas {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -137,14 +136,11 @@ private fun RoleCard(
         modifier = Modifier
             .fillMaxWidth()
             .scale(scale)
-            .shadow(
-                elevation = if (isPressed) 0.5.dp else 2.dp,
+            .liquidGlassCard(
                 shape = RoundedCornerShape(20.dp),
-                spotColor = Color(0x0A000000)
+                backgroundColor = Color.White.copy(alpha = 0.78f),
+                elevation = if (isPressed) 1.dp else 4.dp
             )
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.White)
-            .border(width = 0.5.dp, color = Color(0x14000000), shape = RoundedCornerShape(20.dp))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
