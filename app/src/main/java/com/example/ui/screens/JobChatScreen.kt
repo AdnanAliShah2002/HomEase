@@ -79,7 +79,8 @@ fun JobChatScreen(
     onStartCall: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val messages by viewModel.getJobMessagesFlow(job.id.toString()).collectAsStateWithLifecycle(initialValue = emptyList())
+    val canonicalJobId = job.remoteId ?: job.id.toString()
+    val messages by viewModel.getJobMessagesFlow(canonicalJobId).collectAsStateWithLifecycle(initialValue = emptyList())
     val language by viewModel.language.collectAsStateWithLifecycle()
     val activeRole by viewModel.activeRole.collectAsStateWithLifecycle()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
@@ -110,8 +111,8 @@ fun JobChatScreen(
     }
 
     // Mark messages read as soon as user opens chat
-    LaunchedEffect(job.id) {
-        viewModel.markMessagesAsRead(job.id.toString())
+    LaunchedEffect(canonicalJobId) {
+        viewModel.markMessagesAsRead(canonicalJobId)
     }
 
     val quickReplies = remember(language) {
@@ -359,7 +360,7 @@ fun JobChatScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(18.dp))
                             .clickable {
-                                viewModel.sendJobMessage(job.id.toString(), reply)
+                                viewModel.sendJobMessage(canonicalJobId, reply)
                             },
                         color = Color.White,
                         shape = RoundedCornerShape(18.dp),
@@ -417,7 +418,7 @@ fun JobChatScreen(
                     FilledIconButton(
                         onClick = {
                             if (textInput.isNotBlank()) {
-                                viewModel.sendJobMessage(job.id.toString(), textInput.trim())
+                                viewModel.sendJobMessage(canonicalJobId, textInput.trim())
                                 textInput = ""
                             }
                         },

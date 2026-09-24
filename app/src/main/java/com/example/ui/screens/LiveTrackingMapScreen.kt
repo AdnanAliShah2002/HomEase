@@ -116,11 +116,13 @@ fun LiveTrackingMapScreen(
     val primaryColor = Color(theme.primaryColorInt)
     val accentColor = Color(theme.accentColorInt)
 
+    val canonicalJobId = job.remoteId ?: job.id.toString()
+
     // Collect latest live location from Supabase Realtime channel or local simulation
-    val latestLocation by viewModel.getLiveTrackingLocationFlow(job.id)
+    val latestLocation by viewModel.getLiveTrackingLocationFlow(canonicalJobId)
         .collectAsState(
             initial = ProviderLocation(
-                jobId = job.id.toString(),
+                jobId = canonicalJobId,
                 providerId = job.selectedProviderPhone ?: "",
                 lat = 33.6912,
                 lng = 73.0315,
@@ -676,9 +678,7 @@ fun LiveTrackingMapScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                val unreadCount by viewModel.getUnreadCountFlow(job.id.toString()).collectAsState(initial = 0)
+                val unreadCount by viewModel.getUnreadCountFlow(canonicalJobId).collectAsState(initial = 0)
 
                 // Primary Action Buttons: In-App Voice Call (Agora HD) & In-App Chat
                 Row(

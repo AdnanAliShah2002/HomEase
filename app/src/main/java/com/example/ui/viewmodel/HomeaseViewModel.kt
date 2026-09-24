@@ -693,9 +693,10 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         _activeChatJob.value = job
         _currentDestination.value = AppNavDestination.JOB_CHAT
         val currentUserId = _currentUser.value?.phone ?: _currentPhoneNumber.value
+        val canonicalJobId = job.remoteId ?: job.id.toString()
         viewModelScope.launch {
-            repository.markMessagesAsRead(job.id.toString(), currentUserId)
-            supabaseClient.markMessagesAsRead(job.id.toString(), currentUserId)
+            repository.markMessagesAsRead(canonicalJobId, currentUserId)
+            supabaseClient.markMessagesAsRead(canonicalJobId, currentUserId)
         }
     }
 
@@ -705,9 +706,10 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         val targetName = if (isProvider) job.customerName.ifBlank { "Customer" } else (job.selectedProviderName ?: "Service Provider")
         val targetRole = if (isProvider) "Customer" else "Service Provider"
         val targetPhone = if (isProvider) job.customerPhone else (job.selectedProviderPhone ?: "")
+        val canonicalJobId = job.remoteId ?: job.id.toString()
 
         agoraVoiceManager.startCall(
-            jobId = job.id.toString(),
+            jobId = canonicalJobId,
             targetName = targetName,
             targetRole = targetRole,
             targetPhone = targetPhone,
@@ -848,9 +850,9 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
      * Subscribes to Realtime location updates for the active job.
      * Continuously emits smooth moving coordinates as the provider moves.
      */
-    fun getLiveTrackingLocationFlow(jobId: Long): Flow<ProviderLocation> = flow {
+    fun getLiveTrackingLocationFlow(jobId: String): Flow<ProviderLocation> = flow {
         // 1. Initial cached position if available
-        val initialLocal = repository.getProviderLocationForJob(jobId.toString())
+        val initialLocal = repository.getProviderLocationForJob(jobId)
         if (initialLocal != null) {
             emit(
                 ProviderLocation(

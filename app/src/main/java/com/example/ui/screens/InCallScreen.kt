@@ -24,12 +24,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
@@ -109,16 +112,43 @@ fun InCallScreen(
         label = "pulse_scale"
     )
 
+    var lastTargetName by remember { mutableStateOf("Participant") }
     val targetName = when (val state = callState) {
-        is CallState.Connected -> state.targetName
-        is CallState.Connecting -> state.targetName
-        else -> "Participant"
+        is CallState.Connected -> {
+            lastTargetName = state.targetName
+            state.targetName
+        }
+        is CallState.Connecting -> {
+            lastTargetName = state.targetName
+            state.targetName
+        }
+        else -> lastTargetName
     }
 
+    var lastTargetRole by remember { mutableStateOf("Job Member") }
     val targetRole = when (val state = callState) {
-        is CallState.Connected -> state.targetRole
-        is CallState.Connecting -> state.targetRole
-        else -> "Job Member"
+        is CallState.Connected -> {
+            lastTargetRole = state.targetRole
+            state.targetRole
+        }
+        is CallState.Connecting -> {
+            lastTargetRole = state.targetRole
+            state.targetRole
+        }
+        else -> lastTargetRole
+    }
+
+    var lastTargetPhone by remember { mutableStateOf("") }
+    val targetPhone = when (val state = callState) {
+        is CallState.Connected -> {
+            lastTargetPhone = state.targetPhone
+            state.targetPhone
+        }
+        is CallState.Connecting -> {
+            lastTargetPhone = state.targetPhone
+            state.targetPhone
+        }
+        else -> lastTargetPhone
     }
 
     val durationSeconds = when (val state = callState) {
@@ -293,6 +323,41 @@ fun InCallScreen(
                     )
                 }
             }
+
+            if (targetPhone.isNotBlank() && callState !is CallState.Ended) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Surface(
+                    onClick = {
+                        try {
+                            val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$targetPhone"))
+                            context.startActivity(dialIntent)
+                        } catch (e: Exception) {
+                            // Fallback
+                        }
+                    },
+                    color = Color(0xFF34C759).copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Phone,
+                            contentDescription = "Cellular Call",
+                            tint = Color(0xFF34C759),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = if (language == AppLanguage.URDU) "براہ راست فون کال" else "Direct Cellular Call",
+                            color = Color(0xFF34C759),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
         }
 
         // Bottom Call Action Controls
@@ -322,20 +387,49 @@ fun InCallScreen(
                             fontWeight = FontWeight.Medium
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        FilledIconButton(
-                            onClick = onCallClosed,
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = Color(0xFF007AFF),
-                                contentColor = Color.White
-                            ),
-                            modifier = Modifier
-                                .size(54.dp)
-                                .testTag("call_close_button")
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.Person,
-                                contentDescription = "Close Call View"
-                            )
+                            if (targetPhone.isNotBlank()) {
+                                FilledIconButton(
+                                    onClick = {
+                                        try {
+                                            val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$targetPhone"))
+                                            context.startActivity(dialIntent)
+                                        } catch (e: Exception) {
+                                            // Fallback
+                                        }
+                                    },
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = Color(0xFF34C759),
+                                        contentColor = Color.White
+                                    ),
+                                    modifier = Modifier
+                                        .size(54.dp)
+                                        .testTag("call_cellular_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Phone,
+                                        contentDescription = "Cellular Call"
+                                    )
+                                }
+                            }
+                            FilledIconButton(
+                                onClick = onCallClosed,
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = Color(0xFF007AFF),
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .testTag("call_close_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Person,
+                                        contentDescription = "Close Call View"
+                                    )
+                                }
                         }
                     }
                 }
