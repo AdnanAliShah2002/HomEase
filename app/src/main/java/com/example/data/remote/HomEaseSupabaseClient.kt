@@ -861,6 +861,87 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
     }
 
     /**
+     * Fetch a single job by id directly from Supabase (for instant status verification).
+     */
+    suspend fun getJobById(jobId: String): Result<JSONObject?> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/rest/v1/jobs?id=eq.$jobId&select=*"
+            val requestBuilder = Request.Builder().url(url)
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            val bodyString = response.body?.string().orEmpty()
+
+            if (response.isSuccessful) {
+                val array = JSONArray(bodyString)
+                if (array.length() > 0) {
+                    Result.success(array.getJSONObject(0))
+                } else {
+                    Result.success(null)
+                }
+            } else {
+                Result.failure(IOException("Failed to query job by id (HTTP ${response.code}): $bodyString"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Provider fetches active jobs assigned to them in Supabase.
+     */
+    suspend fun getProviderAcceptedJobs(providerPhone: String): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/rest/v1/jobs?provider_phone=eq.$providerPhone&status=in.(accepted,on_the_way,arrived,in_progress)&select=*&order=created_at.desc"
+            val requestBuilder = Request.Builder().url(url)
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            val bodyString = response.body?.string().orEmpty()
+
+            if (response.isSuccessful) {
+                val array = JSONArray(bodyString)
+                val list = mutableListOf<JSONObject>()
+                for (i in 0 until array.length()) {
+                    list.add(array.getJSONObject(i))
+                }
+                Result.success(list)
+            } else {
+                Result.failure(IOException("Failed to query provider accepted jobs (HTTP ${response.code}): $bodyString"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Provider fetches accepted offers submitted by them.
+     */
+    suspend fun getProviderAcceptedOffers(providerPhone: String): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/rest/v1/job_offers?provider_phone=eq.$providerPhone&status=eq.accepted&select=*&order=created_at.desc"
+            val requestBuilder = Request.Builder().url(url)
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            val bodyString = response.body?.string().orEmpty()
+
+            if (response.isSuccessful) {
+                val array = JSONArray(bodyString)
+                val list = mutableListOf<JSONObject>()
+                for (i in 0 until array.length()) {
+                    list.add(array.getJSONObject(i))
+                }
+                Result.success(list)
+            } else {
+                Result.failure(IOException("Failed to query provider accepted offers (HTTP ${response.code}): $bodyString"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Customer accepts a specific offer atomically using the `accept_job_offer_atomic` RPC.
      * Executes the status transition, provider assignment, chosen offer acceptance,
      * and competing offers rejection in a single PostgreSQL transaction.

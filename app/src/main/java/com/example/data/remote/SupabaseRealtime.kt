@@ -47,9 +47,9 @@ class RealtimeChannel(
     private val refCounter = AtomicInteger(1)
 
     private var activeFilter = PostgresChangeFilter()
-    private val _locationFlow = MutableSharedFlow<PostgresAction<ProviderLocation>>(replay = 1)
-    private val _messageFlow = MutableSharedFlow<PostgresAction<JobMessage>>(replay = 1)
-    private val _jsonFlow = MutableSharedFlow<PostgresAction<JSONObject>>(replay = 1)
+    private val _locationFlow = MutableSharedFlow<PostgresAction<ProviderLocation>>(replay = 1, extraBufferCapacity = 64)
+    private val _messageFlow = MutableSharedFlow<PostgresAction<JobMessage>>(replay = 1, extraBufferCapacity = 64)
+    private val _jsonFlow = MutableSharedFlow<PostgresAction<JSONObject>>(replay = 1, extraBufferCapacity = 64)
     private var lastEmittedLocation: ProviderLocation? = null
     private val emittedMessageIds = mutableSetOf<String>()
 
@@ -59,6 +59,10 @@ class RealtimeChannel(
         configure: PostgresChangeFilter.() -> Unit
     ): Flow<PostgresAction<T>> {
         activeFilter.configure()
+        val ws = webSocket
+        if (ws != null) {
+            joinChannel(ws)
+        }
         return when (activeFilter.table) {
             "job_messages" -> _messageFlow.asSharedFlow() as Flow<PostgresAction<T>>
             "provider_locations" -> _locationFlow.asSharedFlow() as Flow<PostgresAction<T>>
@@ -99,6 +103,8 @@ class RealtimeChannel(
         val filterVal = activeFilter.filter
         val jobId = if (filterVal.contains("job_id=eq.")) {
             filterVal.substringAfter("job_id=eq.").trim()
+        } else if (filterVal.contains("id=eq.")) {
+            filterVal.substringAfter("id=eq.").trim()
         } else ""
 
         // Companion polling fallback for high reliability under all network/emulator environments
@@ -109,13 +115,10 @@ class RealtimeChannel(
 
     private fun joinChannel(ws: WebSocket) {
         try {
-            val topicStr = if (activeFilter.filter.isNotBlank()) {
-                "realtime:public:${activeFilter.table}:${activeFilter.filter}"
-            } else {
-                "realtime:public:${activeFilter.table}"
-            }
+            // Join using both the named channel topic and the table config to ensure Phoenix multiplexing succeeds
+            val channelTopic = if (topic.startsWith("realtime:")) topic else "realtime:$topic"
             val joinPayload = JSONObject().apply {
-                put("topic", topicStr)
+                put("topic", channelTopic)
                 put("event", "phx_join")
                 put("payload", JSONObject().apply {
                     put("config", JSONObject().apply {
@@ -135,6 +138,36 @@ class RealtimeChannel(
                 put("ref", refCounter.getAndIncrement().toString())
             }
             ws.send(joinPayload.toString())
+
+            // Also join the direct table-scoped topic if different from channel topic
+            val tableTopic = if (activeFilter.filter.isNotBlank()) {
+                "realtime:public:${activeFilter.table}:${activeFilter.filter}"
+            } else {
+                "realtime:public:${activeFilter.table}"
+            }
+            if (tableTopic != channelTopic) {
+                val tableJoinPayload = JSONObject().apply {
+                    put("topic", tableTopic)
+                    put("event", "phx_join")
+                    put("payload", JSONObject().apply {
+                        put("config", JSONObject().apply {
+                            val changes = org.json.JSONArray().apply {
+                                put(JSONObject().apply {
+                                    put("event", "*")
+                                    put("schema", "public")
+                                    put("table", activeFilter.table)
+                                    if (activeFilter.filter.isNotBlank()) {
+                                        put("filter", activeFilter.filter)
+                                    }
+                                })
+                            }
+                            put("postgres_changes", changes)
+                        })
+                    })
+                    put("ref", refCounter.getAndIncrement().toString())
+                }
+                ws.send(tableJoinPayload.toString())
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error joining Realtime channel", e)
         }
@@ -166,9 +199,12 @@ class RealtimeChannel(
             val event = msg.optString("event", "")
             if (event == "postgres_changes") {
                 val payload = msg.optJSONObject("payload") ?: return
-                val data = payload.optJSONObject("data") ?: return
-                val recordObj = data.optJSONObject("record") ?: return
-                val type = data.optString("type", "UPDATE")
+                val data = payload.optJSONObject("data") ?: payload
+                val recordObj = data.optJSONObject("record")
+                    ?: data.optJSONObject("new")
+                    ?: payload.optJSONObject("record")
+                    ?: return
+                val type = data.optString("type", payload.optString("type", "UPDATE"))
 
                 when (activeFilter.table) {
                     "job_messages" -> {

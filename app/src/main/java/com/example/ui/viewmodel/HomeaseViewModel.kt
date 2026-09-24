@@ -18,6 +18,7 @@ import com.example.data.remote.CategoryDetectionResult
 import com.example.data.remote.HomEaseSupabaseClient
 import com.example.data.remote.OtpRemoteService
 import com.example.data.remote.ProviderRemoteService
+import com.example.data.remote.RealtimeChannel
 import com.example.data.remote.SupabaseSession
 import com.example.data.repository.HomeaseRepository
 import com.example.data.theme.LocalThemeStore
@@ -127,6 +128,14 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     // Full-screen incoming ping job for Provider
     private val _fullscreenPingJob = MutableStateFlow<ServiceRequestEntity?>(null)
     val fullscreenPingJob: StateFlow<ServiceRequestEntity?> = _fullscreenPingJob.asStateFlow()
+
+    // Provider notification when their offer or application wins/gets accepted
+    private val _providerJobWonConfirmation = MutableStateFlow<ServiceRequestEntity?>(null)
+    val providerJobWonConfirmation: StateFlow<ServiceRequestEntity?> = _providerJobWonConfirmation.asStateFlow()
+
+    fun clearProviderJobWonConfirmation() {
+        _providerJobWonConfirmation.value = null
+    }
 
     // Request Submission State (Customer)
     private val _isSubmittingRequest = MutableStateFlow(false)
@@ -375,6 +384,9 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                     _currentUser.value = user
                 }
             }
+            if (newRole == UserRole.PROVIDER) {
+                watchProviderJobsAndOffers(phone)
+            }
         }
         _currentDestination.value = if (newRole == UserRole.PROVIDER) {
             AppNavDestination.PROVIDER_HOME
@@ -408,6 +420,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 _currentDestination.value = if (savedRole == UserRole.PROVIDER) {
+                    watchProviderJobsAndOffers(savedPhone)
                     AppNavDestination.PROVIDER_HOME
                 } else {
                     AppNavDestination.CUSTOMER_HOME
@@ -557,6 +570,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                         sessionManager.saveSession(user.phone, "PROVIDER")
                         _activeRole.value = UserRole.PROVIDER
                         fetchFcmTokenAndRegister()
+                        watchProviderJobsAndOffers(user.phone)
                         _currentDestination.value = AppNavDestination.PROVIDER_HOME
                     } else {
                         // Incomplete or new provider: route to Provider Registration screen
@@ -625,6 +639,10 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun proceedToProviderDashboard() {
+        val phone = _currentPhoneNumber.value
+        if (phone.isNotBlank()) {
+            watchProviderJobsAndOffers(phone)
+        }
         _currentDestination.value = AppNavDestination.PROVIDER_HOME
     }
 
@@ -979,6 +997,9 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             _activeLiveRequest.value = activeEntity
             _trackingJob.value = activeEntity
 
+            // Instant Realtime WebSocket + fast-poll listener for job acceptance on customer device
+            watchCustomerJobAccepted(remoteJobId, localId)
+
             // Listen for incoming offers reactively from local Room
             launch {
                 repository.getOffersForRequest(localId).collect { offers ->
@@ -1197,6 +1218,10 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
 
             _isProviderActionLoading.value = false
             _fullscreenPingJob.value = null
+
+            // Ensure provider is listening for acceptance of this offer
+            watchProviderJobsAndOffers(resolvedPhone)
+
             _currentDestination.value = AppNavDestination.PROVIDER_HOME
         }
     }
@@ -1352,6 +1377,226 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    // Customer job acceptance realtime & fast-poll watchers
+    private var customerJobRealtimeChannel: RealtimeChannel? = null
+    private var customerJobRealtimeJob: kotlinx.coroutines.Job? = null
+    private var customerJobPollingJob: kotlinx.coroutines.Job? = null
+
+    // Provider assigned jobs & won offers realtime & fast-poll watchers
+    private var providerAssignedRealtimeChannel: RealtimeChannel? = null
+    private var providerAssignedRealtimeJob: kotlinx.coroutines.Job? = null
+    private var providerOffersRealtimeChannel: RealtimeChannel? = null
+    private var providerOffersRealtimeJob: kotlinx.coroutines.Job? = null
+    private var providerAcceptedPollingJob: kotlinx.coroutines.Job? = null
+
+    fun watchCustomerJobAccepted(remoteJobId: String, localJobId: Long) {
+        if (remoteJobId.isBlank()) return
+
+        customerJobRealtimeChannel?.unsubscribe()
+        customerJobRealtimeJob?.cancel()
+        customerJobPollingJob?.cancel()
+
+        // 1. Direct Realtime WebSocket listener on 'jobs' table filtered by id
+        val channel = supabaseClient.realtime.channel("customer-job-$remoteJobId")
+        customerJobRealtimeChannel = channel
+
+        val flow = channel.postgresChangeFlow<JSONObject>("public") {
+            table = "jobs"
+            filter = "id=eq.$remoteJobId"
+        }
+        channel.subscribe()
+
+        customerJobRealtimeJob = viewModelScope.launch {
+            flow.collect { action ->
+                try {
+                    val record = action.record
+                    val status = record.optString("status", "").uppercase()
+                    if (status.isNotBlank() && status != "SEARCHING") {
+                        android.util.Log.d("HomeaseViewModel", "Realtime customer job update: status=$status")
+                        handleJobAcceptedOnCustomerSide(remoteJobId, localJobId, record)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("HomeaseViewModel", "Error in customer realtime job listener", e)
+                }
+            }
+        }
+
+        // 2. High-speed dual-engine polling (every 1.5 seconds) while status == "SEARCHING"
+        customerJobPollingJob = viewModelScope.launch {
+            while (isActive && _activeLiveRequest.value?.status == "SEARCHING" && _activeLiveRequest.value?.remoteId == remoteJobId) {
+                try {
+                    val jobResult = supabaseClient.getJobById(remoteJobId)
+                    if (jobResult.isSuccess) {
+                        val jobJson = jobResult.getOrNull()
+                        if (jobJson != null) {
+                            val status = jobJson.optString("status", "").uppercase()
+                            if (status.isNotBlank() && status != "SEARCHING") {
+                                android.util.Log.d("HomeaseViewModel", "Polling customer job acceptance: status=$status")
+                                handleJobAcceptedOnCustomerSide(remoteJobId, localJobId, jobJson)
+                                break
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+                delay(1500L)
+            }
+        }
+    }
+
+    private suspend fun handleJobAcceptedOnCustomerSide(
+        remoteJobId: String,
+        localJobId: Long,
+        record: JSONObject
+    ) {
+        val statusRaw = record.optString("status", "accepted").uppercase()
+        val providerPhone = record.optString("provider_phone").ifBlank { null }
+        val providerName = record.optString("provider_name").ifBlank { "Service Provider" }
+        val budgetRs = _activeLiveRequest.value?.budgetRs ?: record.optInt("budget_rs", 1500)
+        val agreedPrice = record.optInt("agreed_price_rs", budgetRs)
+
+        // Update local Room database immediately
+        if (!providerPhone.isNullOrBlank()) {
+            repository.acceptJobByProvider(
+                requestId = localJobId,
+                providerPhone = providerPhone,
+                providerName = providerName,
+                agreedPrice = agreedPrice
+            )
+        }
+        val entity = jsonToServiceRequestEntity(record).copy(id = localJobId)
+        repository.syncRemoteJob(entity)
+
+        val current = _activeLiveRequest.value
+        val updated = (current ?: entity).copy(
+            status = statusRaw,
+            selectedProviderPhone = providerPhone ?: current?.selectedProviderPhone,
+            selectedProviderName = providerName ?: current?.selectedProviderName,
+            agreedPriceRs = agreedPrice
+        )
+        _activeLiveRequest.value = updated
+        _trackingJob.value = updated
+
+        // Job is accepted; terminate customer watcher
+        customerJobRealtimeChannel?.unsubscribe()
+        customerJobRealtimeJob?.cancel()
+        customerJobPollingJob?.cancel()
+    }
+
+    fun watchProviderJobsAndOffers(providerPhone: String) {
+        if (providerPhone.isBlank()) return
+
+        providerAssignedRealtimeChannel?.unsubscribe()
+        providerAssignedRealtimeJob?.cancel()
+        providerOffersRealtimeChannel?.unsubscribe()
+        providerOffersRealtimeJob?.cancel()
+        providerAcceptedPollingJob?.cancel()
+
+        // 1. Direct Realtime WebSocket listener on 'jobs' table for this provider
+        val channel = supabaseClient.realtime.channel("provider-jobs-$providerPhone")
+        providerAssignedRealtimeChannel = channel
+
+        val jobsFlow = channel.postgresChangeFlow<JSONObject>("public") {
+            table = "jobs"
+            filter = "provider_phone=eq.$providerPhone"
+        }
+        channel.subscribe()
+
+        providerAssignedRealtimeJob = viewModelScope.launch {
+            jobsFlow.collect { action ->
+                try {
+                    val record = action.record
+                    val status = record.optString("status", "").uppercase()
+                    if (status in listOf("ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS")) {
+                        android.util.Log.d("HomeaseViewModel", "Provider assigned job realtime event: status=$status")
+                        handleJobWonOnProviderSide(record)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("HomeaseViewModel", "Error in provider assigned jobs flow", e)
+                }
+            }
+        }
+
+        // 2. Realtime WebSocket listener on 'job_offers' table for this provider
+        val offersChannel = supabaseClient.realtime.channel("provider-offers-$providerPhone")
+        providerOffersRealtimeChannel = offersChannel
+
+        val offersFlow = offersChannel.postgresChangeFlow<JSONObject>("public") {
+            table = "job_offers"
+            filter = "provider_phone=eq.$providerPhone"
+        }
+        offersChannel.subscribe()
+
+        providerOffersRealtimeJob = viewModelScope.launch {
+            offersFlow.collect { action ->
+                try {
+                    val record = action.record
+                    val status = record.optString("status", "").lowercase()
+                    if (status == "accepted") {
+                        android.util.Log.d("HomeaseViewModel", "Provider offer accepted realtime event: $record")
+                        val jobId = record.optString("job_id")
+                        if (jobId.isNotBlank()) {
+                            val jobResult = supabaseClient.getJobById(jobId)
+                            if (jobResult.isSuccess) {
+                                jobResult.getOrNull()?.let { handleJobWonOnProviderSide(it) }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("HomeaseViewModel", "Error in provider offers flow", e)
+                }
+            }
+        }
+
+        // 3. High-reliability companion polling (every 2.5 seconds)
+        providerAcceptedPollingJob = viewModelScope.launch {
+            while (isActive) {
+                try {
+                    val jobsResult = supabaseClient.getProviderAcceptedJobs(providerPhone)
+                    if (jobsResult.isSuccess) {
+                        val jobsList = jobsResult.getOrThrow()
+                        for (jobJson in jobsList) {
+                            handleJobWonOnProviderSide(jobJson)
+                        }
+                    }
+
+                    val offersResult = supabaseClient.getProviderAcceptedOffers(providerPhone)
+                    if (offersResult.isSuccess) {
+                        val offersList = offersResult.getOrThrow()
+                        for (offerJson in offersList) {
+                            val jobId = offerJson.optString("job_id")
+                            if (jobId.isNotBlank()) {
+                                val jobResult = supabaseClient.getJobById(jobId)
+                                if (jobResult.isSuccess) {
+                                    jobResult.getOrNull()?.let { handleJobWonOnProviderSide(it) }
+                                }
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+                delay(2500L)
+            }
+        }
+    }
+
+    private suspend fun handleJobWonOnProviderSide(record: JSONObject) {
+        val entity = jsonToServiceRequestEntity(record)
+        val localId = repository.syncRemoteJob(entity)
+        val saved = entity.copy(id = localId)
+
+        // Clear ping if this job was currently showing on screen
+        if (_fullscreenPingJob.value?.remoteId == entity.remoteId || _fullscreenPingJob.value?.id == localId) {
+            _fullscreenPingJob.value = null
+        }
+
+        // Trigger confirmation modal if status is ACCEPTED
+        val statusUpper = entity.status.uppercase()
+        if (statusUpper == "ACCEPTED") {
+            if (_providerJobWonConfirmation.value?.remoteId != entity.remoteId) {
+                _providerJobWonConfirmation.value = saved
+            }
+        }
+    }
+
     private var providerJobsRealtimeChannel: com.example.data.remote.RealtimeChannel? = null
     private var providerJobRealtimeJob: kotlinx.coroutines.Job? = null
     private var providerJobPollingJob: kotlinx.coroutines.Job? = null
@@ -1383,16 +1628,21 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             providerJobPollingJob?.cancel()
 
             if (isOnline) {
+                // Watch for this provider's assigned jobs and won offers in realtime
+                watchProviderJobsAndOffers(phone)
+
                 // 1. Instant Realtime WebSocket subscription for open jobs
                 val channel = supabaseClient.realtime.channel("provider-open-jobs")
                 providerJobsRealtimeChannel = channel
+
+                val openJobsFlow = channel.postgresChangeFlow<JSONObject>("public") {
+                    table = "jobs"
+                    filter = ""
+                }
                 channel.subscribe()
 
                 providerJobRealtimeJob = launch {
-                    channel.postgresChangeFlow<JSONObject>("public") {
-                        table = "jobs"
-                        filter = ""
-                    }.collect { action ->
+                    openJobsFlow.collect { action ->
                         try {
                             val record = action.record
                             val status = record.optString("status", "")
@@ -1495,6 +1745,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             AppNavDestination.AUTH_CHOICE -> _currentDestination.value = AppNavDestination.ROLE_SELECT
             AppNavDestination.ROLE_SELECT -> _currentDestination.value = AppNavDestination.LANGUAGE_SELECT
             AppNavDestination.CUSTOMER_REQUEST_FLOW -> _currentDestination.value = AppNavDestination.CUSTOMER_HOME
+            AppNavDestination.CUSTOMER_LIVE_TRACKING -> _currentDestination.value = AppNavDestination.CUSTOMER_HOME
             AppNavDestination.PROVIDER_JOB_ACCEPT -> _currentDestination.value = AppNavDestination.PROVIDER_HOME
             AppNavDestination.JOB_CHAT -> {
                 _currentDestination.value = if (_activeRole.value == UserRole.PROVIDER) {

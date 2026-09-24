@@ -65,6 +65,7 @@ class MainActivity : ComponentActivity() {
             val isRefreshingStatus by viewModel.isRefreshingStatus.collectAsStateWithLifecycle()
             val statusCheckMessage by viewModel.statusCheckMessage.collectAsStateWithLifecycle()
             val providerActionError by viewModel.providerActionError.collectAsStateWithLifecycle()
+            val providerJobWonConfirmation by viewModel.providerJobWonConfirmation.collectAsStateWithLifecycle()
 
             // Handle notification clicks once ViewModel is ready
             LaunchedEffectOnce(notifJobId) {
@@ -212,6 +213,8 @@ class MainActivity : ComponentActivity() {
                                 onToggleOnline = { online -> viewModel.toggleProviderOnline(online) },
                                 onCheckVerificationStatus = { viewModel.refreshProviderStatus() },
                                 onClearStatusMessage = { viewModel.clearStatusCheckMessage() },
+                                jobWonConfirmation = providerJobWonConfirmation,
+                                onDismissJobWonConfirmation = { viewModel.clearProviderJobWonConfirmation() },
                                 onAcceptJob = { job -> viewModel.acceptJobAsProvider(job) },
                                 onRejectJob = { job -> viewModel.rejectJobAsProvider(job) },
                                 onCounterJob = { job, counterPrice, note -> viewModel.counterJobAsProvider(job, counterPrice, note) },

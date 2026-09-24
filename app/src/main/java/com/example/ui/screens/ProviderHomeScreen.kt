@@ -147,6 +147,8 @@ fun ProviderHomeScreen(
         payoutMethod: String,
         payoutAccountNumber: String
     ) -> Unit = { _, _, _, _, _, _, _, _, _ -> },
+    jobWonConfirmation: ServiceRequestEntity? = null,
+    onDismissJobWonConfirmation: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -360,6 +362,75 @@ fun ProviderHomeScreen(
             },
             onDismiss = {
                 showCompleteConfirmation = false
+            }
+        )
+    }
+
+    if (jobWonConfirmation != null) {
+        val wonJob = jobWonConfirmation
+        AlertDialog(
+            onDismissRequest = onDismissJobWonConfirmation,
+            icon = {
+                Text(text = "🎉", fontSize = 36.sp)
+            },
+            title = {
+                Text(
+                    text = if (language == AppLanguage.URDU) "پیشکش قبول ہو گئی!" else "Offer Accepted! Job Won",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = Color(0xFF1B5E20)
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = if (language == AppLanguage.URDU)
+                            "صارف نے آپ کی پیشکش قبول کر لی ہے:"
+                        else
+                            "Great news! The customer has accepted your offer for:",
+                        fontSize = 14.sp,
+                        color = TextSlateMuted
+                    )
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = wonJob.serviceTitle,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color(0xFF1B5E20)
+                            )
+                            Text(
+                                text = "Agreed Price: Rs. ${wonJob.agreedPriceRs}",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                                color = Color(0xFF2E7D32)
+                            )
+                            if (wonJob.cityArea.isNotBlank()) {
+                                Text(
+                                    text = "Location: ${wonJob.cityArea}",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF388E3C)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = onDismissJobWonConfirmation,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(if (language == AppLanguage.URDU) "فعال کام دیکھیں" else "View Active Job", color = Color.White)
+                }
             }
         )
     }
