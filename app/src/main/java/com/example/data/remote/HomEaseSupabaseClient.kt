@@ -892,7 +892,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
      */
     suspend fun getProviderAcceptedJobs(providerPhone: String): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
         try {
-            val url = "$SUPABASE_URL/rest/v1/jobs?provider_phone=eq.$providerPhone&status=in.(accepted,on_the_way,arrived,in_progress)&select=*&order=created_at.desc"
+            val url = "$SUPABASE_URL/rest/v1/jobs?provider_phone=eq.$providerPhone&status=in.(accepted,ACCEPTED,on_the_way,ON_THE_WAY,arrived,ARRIVED,in_progress,IN_PROGRESS)&select=*&order=created_at.desc"
             val requestBuilder = Request.Builder().url(url)
             getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
 
@@ -919,7 +919,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
      */
     suspend fun getProviderAcceptedOffers(providerPhone: String): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
         try {
-            val url = "$SUPABASE_URL/rest/v1/job_offers?provider_phone=eq.$providerPhone&status=eq.accepted&select=*&order=created_at.desc"
+            val url = "$SUPABASE_URL/rest/v1/job_offers?provider_phone=eq.$providerPhone&status=in.(accepted,ACCEPTED)&select=*&order=created_at.desc"
             val requestBuilder = Request.Builder().url(url)
             getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
 

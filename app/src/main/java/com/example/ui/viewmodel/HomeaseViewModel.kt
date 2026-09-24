@@ -132,8 +132,10 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     // Provider notification when their offer or application wins/gets accepted
     private val _providerJobWonConfirmation = MutableStateFlow<ServiceRequestEntity?>(null)
     val providerJobWonConfirmation: StateFlow<ServiceRequestEntity?> = _providerJobWonConfirmation.asStateFlow()
+    private val acknowledgedJobWonIds = mutableSetOf<String>()
 
     fun clearProviderJobWonConfirmation() {
+        _providerJobWonConfirmation.value?.remoteId?.let { acknowledgedJobWonIds.add(it) }
         _providerJobWonConfirmation.value = null
     }
 
@@ -649,6 +651,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     fun logout() {
         sessionManager.clearSession()
         supabaseClient.clearSession()
+        acknowledgedJobWonIds.clear()
         _currentUser.value = null
         _currentDestination.value = AppNavDestination.ROLE_SELECT
     }
@@ -1588,11 +1591,14 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             _fullscreenPingJob.value = null
         }
 
-        // Trigger confirmation modal if status is ACCEPTED
+        // Trigger confirmation modal if status is ACCEPTED and not previously acknowledged
         val statusUpper = entity.status.uppercase()
         if (statusUpper == "ACCEPTED") {
-            if (_providerJobWonConfirmation.value?.remoteId != entity.remoteId) {
-                _providerJobWonConfirmation.value = saved
+            val rId = entity.remoteId
+            if (!rId.isNullOrBlank() && rId !in acknowledgedJobWonIds) {
+                if (_providerJobWonConfirmation.value?.remoteId != rId) {
+                    _providerJobWonConfirmation.value = saved
+                }
             }
         }
     }
