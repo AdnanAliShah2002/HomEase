@@ -56,6 +56,8 @@ class ProviderLocationService : Service() {
     private var currentLng: Double = 74.3450
     private var currentBearing: Double = 45.0
     private var simulationJob: Job? = null
+    @Volatile
+    private var hasRealGps: Boolean = false
 
     companion object {
         const val ACTION_START = "com.example.service.START_TRACKING"
@@ -116,8 +118,25 @@ class ProviderLocationService : Service() {
             activeProviderId = intent.getStringExtra(EXTRA_PROVIDER_ID) ?: "provider_1"
             destinationLat = intent.getDoubleExtra(EXTRA_DEST_LAT, 31.5204)
             destinationLng = intent.getDoubleExtra(EXTRA_DEST_LNG, 74.3587)
+            hasRealGps = false
 
-            // Start ~1.2 km away from destination for realistic transit
+            // Try to use actual last-known GPS position instead of hardcoded offset
+            try {
+                fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
+                    if (loc != null) {
+                        currentLat = loc.latitude
+                        currentLng = loc.longitude
+                        if (loc.hasBearing()) {
+                            currentBearing = loc.bearing.toDouble()
+                        } else {
+                            currentBearing = calculateBearing(currentLat, currentLng, destinationLat, destinationLng)
+                        }
+                        uploadLocation(currentLat, currentLng, currentBearing)
+                    }
+                }
+            } catch (_: SecurityException) {}
+
+            // Fallback initial position ~1.2km from destination (used until real GPS fires)
             currentLat = destinationLat - 0.0110
             currentLng = destinationLng - 0.0090
             currentBearing = calculateBearing(currentLat, currentLng, destinationLat, destinationLng)
@@ -186,6 +205,13 @@ class ProviderLocationService : Service() {
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 val loc = result.lastLocation ?: return
+                // Cancel simulation on first real GPS update
+                if (!hasRealGps) {
+                    hasRealGps = true
+                    simulationJob?.cancel()
+                    simulationJob = null
+                    Log.d(TAG, "Real GPS acquired — simulation disabled")
+                }
                 currentLat = loc.latitude
                 currentLng = loc.longitude
                 if (loc.hasBearing()) {

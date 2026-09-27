@@ -196,7 +196,22 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
 
     fun handleNotificationClick(jobId: String, notificationType: String?) {
         viewModelScope.launch {
-            val localJob = repository.getRequestByRemoteId(jobId) ?: repository.getRequestById(jobId.toLongOrNull() ?: -1L)
+            var localJob = repository.getRequestByRemoteId(jobId) ?: repository.getRequestById(jobId.toLongOrNull() ?: -1L)
+
+            // If job isn't in local Room DB yet, fetch from Supabase and sync
+            if (localJob == null && jobId.isNotBlank()) {
+                try {
+                    val result = supabaseClient.getJobById(jobId)
+                    if (result.isSuccess) {
+                        result.getOrNull()?.let { remoteObj ->
+                            val entity = jsonToServiceRequestEntity(remoteObj)
+                            val localId = repository.syncRemoteJob(entity)
+                            localJob = entity.copy(id = localId)
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
             if (localJob != null) {
                 when (notificationType) {
                     "job_ping" -> {
@@ -204,16 +219,16 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                         _currentDestination.value = AppNavDestination.PROVIDER_JOB_ACCEPT
                     }
                     "offer_received" -> {
-                        openRequestDetails(localJob.id)
+                        openRequestDetails(localJob!!.id)
                     }
                     "offer_accepted", "status_update" -> {
-                        openLiveTracking(localJob)
+                        openLiveTracking(localJob!!)
                     }
                     "new_message" -> {
-                        openJobChat(localJob)
+                        openJobChat(localJob!!)
                     }
                     else -> {
-                        openLiveTracking(localJob)
+                        openLiveTracking(localJob!!)
                     }
                 }
             }
@@ -423,6 +438,11 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
 
                 _currentDestination.value = if (savedRole == UserRole.PROVIDER) {
                     watchProviderJobsAndOffers(savedPhone)
+                    // Resume open-jobs Realtime listener so new job pings arrive instantly
+                    val wasOnline = user?.isOnline ?: true
+                    if (wasOnline) {
+                        toggleProviderOnline(true)
+                    }
                     AppNavDestination.PROVIDER_HOME
                 } else {
                     AppNavDestination.CUSTOMER_HOME
@@ -867,13 +887,16 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         }
 
         // 2. Realtime subscription to Supabase provider_locations table
+        // IMPORTANT: Configure the filter BEFORE subscribing so the WebSocket
+        // join message includes the correct job_id filter and polling fallback starts
         val channel = supabaseClient.realtime.channel("job-tracking-$jobId")
         try {
-            channel.subscribe()
-            channel.postgresChangeFlow<ProviderLocation>(schema = "public") {
+            val locationFlow = channel.postgresChangeFlow<ProviderLocation>(schema = "public") {
                 table = "provider_locations"
                 filter = "job_id=eq.$jobId"
-            }.collect { change ->
+            }
+            channel.subscribe()
+            locationFlow.collect { change ->
                 emit(change.record)
             }
         } finally {
@@ -1246,7 +1269,9 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             ProviderLocationService.start(
                 context = getApplication(),
                 jobId = remoteId,
-                providerId = pPhone
+                providerId = pPhone,
+                destLat = job.lat ?: 33.6844,
+                destLng = job.lng ?: 73.0479
             )
         }
     }
@@ -1674,6 +1699,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                 // 2. Initial fetch & 25s low-frequency safety check (preserves battery & quota)
                 providerJobPollingJob = launch {
                     val seenJobIds = mutableSetOf<String>()
+                    var initialLoadDone = false
                     while (isActive) {
                         try {
                             val category = categories.firstOrNull()
@@ -1690,10 +1716,11 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                                     val localId = repository.syncRemoteJob(entity)
                                     val savedEntity = entity.copy(id = localId)
 
-                                    if (isNew && seenJobIds.size > 1) {
+                                    if (isNew && initialLoadDone) {
                                         _fullscreenPingJob.value = savedEntity
                                     }
                                 }
+                                initialLoadDone = true
                             }
                         } catch (_: Exception) {}
                         delay(25000L) // 25 second safety net

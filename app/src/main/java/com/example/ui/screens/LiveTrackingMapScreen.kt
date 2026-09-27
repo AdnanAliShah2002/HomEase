@@ -118,26 +118,31 @@ fun LiveTrackingMapScreen(
 
     val canonicalJobId = job.remoteId ?: job.id.toString()
 
+    // Customer Destination coordinates
+    val customerLat = job.lat ?: 33.6844
+    val customerLng = job.lng ?: 73.0479
+
+    // Initial provider position: use job coordinates as approximate starting point
+    // until real tracking data arrives
+    val initialProviderLat = customerLat - 0.008 // ~0.9km away
+    val initialProviderLng = customerLng - 0.006
+
     // Collect latest live location from Supabase Realtime channel or local simulation
     val latestLocation by viewModel.getLiveTrackingLocationFlow(canonicalJobId)
         .collectAsState(
             initial = ProviderLocation(
                 jobId = canonicalJobId,
                 providerId = job.selectedProviderPhone ?: "",
-                lat = 33.6912,
-                lng = 73.0315,
+                lat = initialProviderLat,
+                lng = initialProviderLng,
                 heading = 45.0,
                 updatedAt = ""
             )
         )
 
-    // Customer Destination coordinates
-    val customerLat = job.lat ?: 33.6844
-    val customerLng = job.lng ?: 73.0479
-
     // Smooth continuous interpolation of provider coordinates
-    val animatedLat = remember { Animatable(33.6912f) }
-    val animatedLng = remember { Animatable(73.0315f) }
+    val animatedLat = remember { Animatable(initialProviderLat.toFloat()) }
+    val animatedLng = remember { Animatable(initialProviderLng.toFloat()) }
     val animatedHeading = remember { Animatable(45f) }
 
     LaunchedEffect(latestLocation) {
