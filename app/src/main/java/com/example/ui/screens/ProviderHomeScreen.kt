@@ -82,6 +82,7 @@ import com.example.data.localization.AppLanguage
 import com.example.data.localization.Strings
 import com.example.data.model.UserRole
 import com.example.ui.components.HomEaseTopBar
+import com.example.ui.components.JobCancellationDialog
 import com.example.ui.components.PrimaryCtaButton
 import com.example.ui.components.ProviderCompleteConfirmationDialog
 import com.example.ui.components.getCategoryIcon
@@ -149,6 +150,7 @@ fun ProviderHomeScreen(
     ) -> Unit = { _, _, _, _, _, _, _, _, _ -> },
     jobWonConfirmation: ServiceRequestEntity? = null,
     onDismissJobWonConfirmation: () -> Unit = {},
+    onCancelJob: (ServiceRequestEntity, String) -> Unit = { _, _ -> },
     onLogout: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -157,6 +159,7 @@ fun ProviderHomeScreen(
     var counterPriceInput by remember { mutableStateOf("") }
     var counterNoteInput by remember { mutableStateOf("") }
     var showCompleteConfirmation by remember { mutableStateOf(false) }
+    var showCancelDialog by remember { mutableStateOf(false) }
     var currentNavTab by remember { mutableStateOf("jobs") }
     val isApproved = provider.status == "APPROVED"
 
@@ -362,6 +365,18 @@ fun ProviderHomeScreen(
             },
             onDismiss = {
                 showCompleteConfirmation = false
+            }
+        )
+    }
+
+    if (showCancelDialog && activeJob != null) {
+        JobCancellationDialog(
+            role = UserRole.PROVIDER,
+            language = language,
+            onDismiss = { showCancelDialog = false },
+            onConfirm = { reason ->
+                showCancelDialog = false
+                onCancelJob(activeJob, reason)
             }
         )
     }
@@ -725,7 +740,8 @@ fun ProviderHomeScreen(
                                 onStartWork = { onStartWork(activeJob) },
                                 onComplete = { showCompleteConfirmation = true },
                                 onOpenChat = { onOpenChat(activeJob) },
-                                onStartCall = { onStartCall(activeJob) }
+                                onStartCall = { onStartCall(activeJob) },
+                                onCancelJob = { showCancelDialog = true }
                             )
                         }
                     }
@@ -1319,7 +1335,8 @@ fun SimplifiedActiveJobCard(
     onStartWork: () -> Unit = {},
     onComplete: () -> Unit = {},
     onOpenChat: () -> Unit = {},
-    onStartCall: () -> Unit = {}
+    onStartCall: () -> Unit = {},
+    onCancelJob: () -> Unit = {}
 ) {
     val context = LocalContext.current
     Box(
@@ -1658,6 +1675,32 @@ fun SimplifiedActiveJobCard(
                         )
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // InDrive-style Cancel / Reject Assignment Button
+            TextButton(
+                onClick = onCancelJob,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(38.dp)
+                    .testTag("provider_cancel_job_btn"),
+                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF3B30))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = null,
+                    modifier = Modifier.size(15.dp),
+                    tint = Color(0xFFFF3B30)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (language == AppLanguage.URDU) "کام منسوخ کریں" else "Cancel Job",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color(0xFFFF3B30)
+                )
             }
         }
     }

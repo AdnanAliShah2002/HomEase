@@ -16,7 +16,7 @@ import androidx.room.RoomDatabase
         JobMessageEntity::class,
         CallLogEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -33,6 +33,14 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        val MIGRATION_10_11 = object : androidx.room.migration.Migration(10, 11) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE service_requests ADD COLUMN cancelledBy TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE service_requests ADD COLUMN cancellationReason TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE service_requests ADD COLUMN cancelledAt INTEGER DEFAULT NULL")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -40,6 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "homease_database"
                 )
+                .addMigrations(MIGRATION_10_11)
                 .fallbackToDestructiveMigration(true)
                 .build()
                 INSTANCE = instance

@@ -27,7 +27,7 @@ import org.robolectric.annotation.Config
 import java.util.UUID
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [34])
 class SupabaseRlsSecurityTest {
 
     private lateinit var context: Context
@@ -69,7 +69,9 @@ class SupabaseRlsSecurityTest {
 
         // 2. Log in as Customer Alice
         val aliceId = UUID.randomUUID().toString()
-        val aliceToken = "jwt_token_for_alice_${UUID.randomUUID()}"
+        val header = android.util.Base64.encodeToString("""{"alg":"HS256","typ":"JWT"}""".toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
+        val payload = android.util.Base64.encodeToString("""{"sub":"$aliceId","exp":${(System.currentTimeMillis() / 1000) + 3600},"role":"authenticated"}""".toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
+        val aliceToken = "$header.$payload.mock_signature"
         val session = SupabaseSession(
             userId = aliceId,
             phone = "+923001112233",

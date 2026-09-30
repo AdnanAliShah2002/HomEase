@@ -45,6 +45,24 @@ import org.json.JSONObject
 import java.util.UUID
 import com.google.firebase.messaging.FirebaseMessaging
 
+data class IncomingCallInfo(
+    val jobId: String,
+    val channelName: String,
+    val callerName: String,
+    val callerRole: String,
+    val callerPhone: String,
+    val callSessionId: String = ""
+)
+
+data class InAppMessageNotification(
+    val id: String = UUID.randomUUID().toString(),
+    val jobId: String,
+    val senderName: String,
+    val senderRole: String,
+    val messageText: String,
+    val timestampMs: Long = System.currentTimeMillis()
+)
+
 enum class AppNavDestination {
     SPLASH,
     LANGUAGE_SELECT,
@@ -74,6 +92,12 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     private val agoraVoiceManager = AgoraVoiceManager.getInstance(application)
 
     val callState: StateFlow<CallState> = agoraVoiceManager.callState
+
+    private val _incomingCall = MutableStateFlow<IncomingCallInfo?>(null)
+    val incomingCall: StateFlow<IncomingCallInfo?> = _incomingCall.asStateFlow()
+
+    private val _inAppMessageNotification = MutableStateFlow<InAppMessageNotification?>(null)
+    val inAppMessageNotification: StateFlow<InAppMessageNotification?> = _inAppMessageNotification.asStateFlow()
 
     private val _activeChatJob = MutableStateFlow<ServiceRequestEntity?>(null)
     val activeChatJob: StateFlow<ServiceRequestEntity?> = _activeChatJob.asStateFlow()
@@ -271,7 +295,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     @OptIn(ExperimentalCoroutinesApi::class)
     val customerRequests = _currentPhoneNumber.flatMapLatest { phone ->
         if (phone.isNotBlank()) repository.getCustomerRequests(phone) else flowOf(emptyList())
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // Provider available jobs (filtered by provider's configured service radius & location)
     val availableJobs = combine(
@@ -316,7 +340,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     @OptIn(ExperimentalCoroutinesApi::class)
     val providerActiveJob = _currentPhoneNumber.flatMapLatest { phone ->
         if (phone.isNotBlank()) repository.getActiveJobForProvider(phone) else flowOf(null)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     // Provider past / completed jobs (including awaiting rating)
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -349,6 +373,86 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
 
         viewModelScope.launch {
             refreshActiveTheme()
+        }
+
+        // Auto-subscribe to call signals for any active job (provider or customer)
+        viewModelScope.launch {
+            providerActiveJob.collect { job ->
+                val rId = job?.remoteId
+                if (!rId.isNullOrBlank()) {
+                    watchCallSignals(rId)
+                }
+            }
+        }
+        viewModelScope.launch {
+            customerRequests.collect { list ->
+                val job = list.firstOrNull { it.status in listOf("ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS") }
+                val rId = job?.remoteId
+                if (!rId.isNullOrBlank()) {
+                    watchCallSignals(rId)
+                }
+            }
+        }
+
+        // Broadcast END signal whenever call ends or errors out
+        viewModelScope.launch {
+            agoraVoiceManager.callState.collect { state ->
+                if (state is CallState.Ended) {
+                    val sessionId = activeCallSessionId
+                    if (!sessionId.isNullOrBlank()) {
+                        endedCallSessionIds.add(sessionId)
+                        val channelName = "job_${state.jobId.replace("-", "").take(16)}"
+                        val currentPhone = _currentUser.value?.phone ?: _currentPhoneNumber.value
+                        val senderType = if (_activeRole.value == UserRole.PROVIDER) "provider" else "customer"
+                        val signalPayload = "[[CALL_SIGNAL:END:$channelName:$currentPhone:$sessionId]]"
+                        if (state.jobId.isNotBlank()) {
+                            supabaseClient.sendJobMessage(state.jobId, currentPhone, senderType, signalPayload)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Continuous customer active jobs sync loop (detects provider arrival, cancellation, completion)
+        viewModelScope.launch {
+            while (isActive) {
+                try {
+                    val activeJobs = customerRequests.value.filter {
+                        it.status in listOf("SEARCHING", "ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS")
+                    }
+                    for (job in activeJobs) {
+                        val rId = job.remoteId ?: continue
+                        val jobRes = supabaseClient.getJobById(rId)
+                        if (jobRes.isSuccess) {
+                            val jobJson = jobRes.getOrNull()
+                            if (jobJson != null) {
+                                val remoteStatus = jobJson.optString("status", "").uppercase()
+                                if (remoteStatus == "CANCELLED" && job.status != "CANCELLED") {
+                                    val cancelledBy = jobJson.optString("cancelled_by").ifBlank { "provider" }
+                                    val reason = jobJson.optString("cancellation_reason").ifBlank { "Cancelled" }
+                                    repository.cancelJobByRemoteId(rId, cancelledBy, reason)
+                                    if (job.id > 0) {
+                                        repository.cancelJob(job.id, cancelledBy, reason)
+                                    }
+                                    if (_trackingJob.value?.remoteId == rId || _trackingJob.value?.id == job.id) {
+                                        _trackingJob.value = null
+                                    }
+                                    if (_activeLiveRequest.value?.remoteId == rId || _activeLiveRequest.value?.id == job.id) {
+                                        _activeLiveRequest.value = null
+                                    }
+                                    if (_currentDestination.value == AppNavDestination.CUSTOMER_LIVE_TRACKING) {
+                                        _currentDestination.value = AppNavDestination.CUSTOMER_HOME
+                                    }
+                                } else if (remoteStatus.isNotBlank() && remoteStatus != job.status) {
+                                    val entity = jsonToServiceRequestEntity(jobJson).copy(id = job.id)
+                                    repository.syncRemoteJob(entity)
+                                }
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+                delay(2500L)
+            }
         }
     }
 
@@ -420,6 +524,18 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                 val savedRole = if (session.role == "PROVIDER") UserRole.PROVIDER else UserRole.CUSTOMER
                 _activeRole.value = savedRole
                 _currentPhoneNumber.value = savedPhone
+
+                // Synchronize Supabase Auth session state
+                val supabaseSession = supabaseClient.getSession()
+                if (supabaseSession != null) {
+                    val tokenValid = supabaseClient.isTokenValid(supabaseSession.accessToken)
+                    val hasRefresh = !supabaseSession.refreshToken.isNullOrBlank()
+                    if (!tokenValid && hasRefresh) {
+                        try {
+                            supabaseClient.refreshSession()
+                        } catch (_: Exception) {}
+                    }
+                }
 
                 val user = repository.getUser(savedPhone)
                 if (user != null) {
@@ -514,13 +630,20 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             if (result.isSuccess) {
                 val verifyData = result.getOrNull()!!
                 val sessionUserId = verifyData.userId ?: UUID.randomUUID().toString()
-                val sessionToken = verifyData.accessToken ?: UUID.randomUUID().toString()
+                val sessionToken = verifyData.accessToken
+                val sessionRefreshToken = verifyData.refreshToken
+                val finalToken = if (!sessionToken.isNullOrBlank() && supabaseClient.isTokenValid(sessionToken)) {
+                    sessionToken
+                } else {
+                    HomEaseSupabaseClient.SUPABASE_ANON_KEY
+                }
                 supabaseClient.setSession(
                     SupabaseSession(
                         userId = sessionUserId,
                         phone = phone,
-                        accessToken = sessionToken,
-                        role = _activeRole.value.name.lowercase()
+                        accessToken = finalToken,
+                        role = _activeRole.value.name.lowercase(),
+                        refreshToken = sessionRefreshToken
                     )
                 )
 
@@ -528,16 +651,16 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                 val isProvider = _activeRole.value == UserRole.PROVIDER
 
                 if (isProvider) {
-                    // Check remote service_providers table or completed local provider entity
-                    var remoteProviderProfile: JSONObject? = null
-                    if (sessionUserId.isNotBlank()) {
-                        val profileRes = supabaseClient.getProviderOwnProfile(sessionUserId)
-                        remoteProviderProfile = profileRes.getOrNull()
+                    // 1. Check remote service_providers table by phone (or sessionUserId as fallback)
+                    val remoteProfileRes = supabaseClient.getProviderByPhone(phone)
+                    var remoteProviderProfile = remoteProfileRes.getOrNull()
+                    if (remoteProviderProfile == null && sessionUserId.isNotBlank()) {
+                        remoteProviderProfile = supabaseClient.getProviderOwnProfile(sessionUserId).getOrNull()
                     }
 
                     val hasValidRemoteProfile = remoteProviderProfile != null &&
-                            remoteProviderProfile.optString("cnic_number").isNotBlank() &&
-                            remoteProviderProfile.optString("cnic_number") != "PENDING"
+                            remoteProviderProfile.optString("full_name").isNotBlank() &&
+                            remoteProviderProfile.optString("full_name") != "Service Provider"
 
                     val hasValidLocalProfile = localUser != null &&
                             localUser.role == "PROVIDER" &&
@@ -551,7 +674,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                     if (isProviderRegistered) {
                         // Provider has registered profile; sync status from remote if available
                         val remoteStatus = remoteProviderProfile?.optString("status")?.uppercase()
-                        val currentStatus = remoteStatus ?: localUser?.status ?: "PENDING"
+                        val currentStatus = remoteStatus ?: localUser?.status ?: "APPROVED"
 
                         // Map remote profile fields (bio, years_of_experience, service_categories, shop_name, etc.)
                         val remoteCategories = remoteProviderProfile?.optJSONArray("service_categories")?.let { arr ->
@@ -593,6 +716,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                         _activeRole.value = UserRole.PROVIDER
                         fetchFcmTokenAndRegister()
                         watchProviderJobsAndOffers(user.phone)
+                        toggleProviderOnline(true)
                         _currentDestination.value = AppNavDestination.PROVIDER_HOME
                     } else {
                         // Incomplete or new provider: route to Provider Registration screen
@@ -600,17 +724,45 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                         _currentDestination.value = AppNavDestination.PROVIDER_REGISTRATION
                     }
                 } else {
-                    // Customer: check if complete profile exists (name is not default placeholder)
-                    val hasCompleteCustomerProfile = localUser != null &&
-                            localUser.role == "CUSTOMER" &&
-                            localUser.name.isNotBlank() &&
-                            localUser.name != "Valued Customer" &&
-                            localUser.name != "Customer" &&
-                            !verifyData.isNewUser
+                    // Customer: check remote Supabase users table and jobs table first
+                    val remoteUserResult = supabaseClient.getUserByPhone(phone)
+                    val remoteUser = remoteUserResult.getOrNull()
+                    val remoteName = remoteUser?.optString("full_name")?.ifBlank { null }
+                    val remoteCity = remoteUser?.optString("city")?.ifBlank { null }
 
-                    if (hasCompleteCustomerProfile) {
-                        _currentUser.value = localUser
-                        sessionManager.saveSession(localUser!!.phone, "CUSTOMER")
+                    // Also check jobs table if customer posted jobs before
+                    var lastJobName: String? = null
+                    var lastJobCity: String? = null
+                    if (remoteName.isNullOrBlank()) {
+                        val lastJobResult = supabaseClient.getCustomerLastJob(phone)
+                        val lastJob = lastJobResult.getOrNull()
+                        lastJobName = lastJob?.optString("customer_name")?.ifBlank { null }
+                        lastJobCity = lastJob?.optString("city_area")?.ifBlank { null }
+                    }
+
+                    val resolvedName = remoteName ?: lastJobName ?: localUser?.name?.takeIf {
+                        it.isNotBlank() && it != "Valued Customer" && it != "Customer"
+                    }
+                    val resolvedCity = remoteCity ?: lastJobCity ?: localUser?.cityArea?.takeIf { it.isNotBlank() } ?: "Islamabad"
+
+                    val hasExistingCustomerAccount = !resolvedName.isNullOrBlank()
+
+                    if (hasExistingCustomerAccount) {
+                        val customerUser = (localUser ?: UserEntity(
+                            phone = phone,
+                            role = "CUSTOMER",
+                            name = resolvedName!!,
+                            cityArea = resolvedCity,
+                            status = "ACTIVE"
+                        )).copy(
+                            name = resolvedName!!,
+                            cityArea = resolvedCity,
+                            status = "ACTIVE"
+                        )
+
+                        repository.saveUser(customerUser)
+                        _currentUser.value = customerUser
+                        sessionManager.saveSession(phone, "CUSTOMER")
                         _activeRole.value = UserRole.CUSTOMER
                         fetchFcmTokenAndRegister()
                         _currentDestination.value = AppNavDestination.CUSTOMER_HOME
@@ -632,6 +784,7 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             sessionManager.saveSession(user.phone, "CUSTOMER")
             _currentUser.value = user
             _activeRole.value = UserRole.CUSTOMER
+            supabaseClient.upsertUser(user)
             fetchFcmTokenAndRegister()
             _currentDestination.value = AppNavDestination.CUSTOMER_HOME
         }
@@ -705,6 +858,10 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         _trackingJob.value = job
         _activeLiveRequest.value = job
         _currentDestination.value = AppNavDestination.CUSTOMER_LIVE_TRACKING
+        val rId = job.remoteId ?: job.id.toString()
+        if (rId.isNotBlank()) {
+            watchCallSignals(rId)
+        }
     }
 
     fun openChat(job: ServiceRequestEntity) = openJobChat(job)
@@ -714,11 +871,40 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         _currentDestination.value = AppNavDestination.JOB_CHAT
         val currentUserId = _currentUser.value?.phone ?: _currentPhoneNumber.value
         val canonicalJobId = job.remoteId ?: job.id.toString()
+        watchCallSignals(canonicalJobId)
         viewModelScope.launch {
             repository.markMessagesAsRead(canonicalJobId, currentUserId)
             supabaseClient.markMessagesAsRead(canonicalJobId, currentUserId)
         }
     }
+
+    fun dismissInAppMessageNotification() {
+        _inAppMessageNotification.value = null
+    }
+
+    fun openChatForJobId(jobId: String) {
+        _inAppMessageNotification.value = null
+        viewModelScope.launch {
+            val activeProvider = providerActiveJob.value
+            val activeCustomer = customerRequests.value.firstOrNull { it.remoteId == jobId || it.id.toString() == jobId }
+            val targetJob: ServiceRequestEntity? = if (activeProvider?.remoteId == jobId || activeProvider?.id.toString() == jobId) {
+                activeProvider
+            } else if (activeCustomer != null) {
+                activeCustomer
+            } else {
+                repository.getRequestByRemoteId(jobId) ?: repository.getRequestById(jobId.toLongOrNull() ?: -1L)
+            }
+            if (targetJob != null) {
+                openJobChat(targetJob)
+            }
+        }
+    }
+
+    private var activeWatchedCallSignalJobId: String? = null
+    private var callSignalsJob: kotlinx.coroutines.Job? = null
+    private var activeCallSessionId: String? = null
+    private val handledSignalTexts = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+    private val endedCallSessionIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
     fun startVoiceCall(job: ServiceRequestEntity) {
         val currentPhone = _currentUser.value?.phone ?: _currentPhoneNumber.value
@@ -727,6 +913,10 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         val targetRole = if (isProvider) "Customer" else "Service Provider"
         val targetPhone = if (isProvider) job.customerPhone else (job.selectedProviderPhone ?: "")
         val canonicalJobId = job.remoteId ?: job.id.toString()
+        val cleanJobId = canonicalJobId.replace("-", "").take(16)
+        val channelName = "job_$cleanJobId"
+        val callSessionId = "call_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}"
+        activeCallSessionId = callSessionId
 
         agoraVoiceManager.startCall(
             jobId = canonicalJobId,
@@ -738,6 +928,52 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             supabaseClient = supabaseClient
         )
         _currentDestination.value = AppNavDestination.IN_CALL
+
+        // Send call signal to callee
+        viewModelScope.launch {
+            val callerName = _currentUser.value?.name ?: if (isProvider) "Service Provider" else "Customer"
+            val nowMs = System.currentTimeMillis()
+            val signalPayload = "[[CALL_SIGNAL:START:$channelName:$callerName:$currentPhone:$targetPhone:$callSessionId:$nowMs]]"
+            val senderType = if (isProvider) "provider" else "customer"
+            supabaseClient.sendJobMessage(canonicalJobId, currentPhone, senderType, signalPayload)
+        }
+    }
+
+    fun acceptIncomingCall(info: IncomingCallInfo) {
+        val currentPhone = _currentUser.value?.phone ?: _currentPhoneNumber.value
+        activeCallSessionId = info.callSessionId
+        _incomingCall.value = null
+        agoraVoiceManager.joinIncomingCall(
+            jobId = info.jobId,
+            channelName = info.channelName,
+            targetName = info.callerName,
+            targetRole = info.callerRole,
+            targetPhone = info.callerPhone,
+            currentUserId = currentPhone,
+            repository = repository,
+            supabaseClient = supabaseClient
+        )
+        agoraVoiceManager.markRemoteUserConnected()
+        _currentDestination.value = AppNavDestination.IN_CALL
+
+        viewModelScope.launch {
+            val senderType = if (_activeRole.value == UserRole.PROVIDER) "provider" else "customer"
+            val signalPayload = "[[CALL_SIGNAL:ACCEPT:${info.channelName}:$currentPhone:${info.callSessionId}]]"
+            supabaseClient.sendJobMessage(info.jobId, currentPhone, senderType, signalPayload)
+        }
+    }
+
+    fun declineIncomingCall(info: IncomingCallInfo) {
+        val currentPhone = _currentUser.value?.phone ?: _currentPhoneNumber.value
+        if (info.callSessionId.isNotBlank()) {
+            endedCallSessionIds.add(info.callSessionId)
+        }
+        _incomingCall.value = null
+        viewModelScope.launch {
+            val senderType = if (_activeRole.value == UserRole.PROVIDER) "provider" else "customer"
+            val signalPayload = "[[CALL_SIGNAL:DECLINE:${info.channelName}:$currentPhone:${info.callSessionId}]]"
+            supabaseClient.sendJobMessage(info.jobId, currentPhone, senderType, signalPayload)
+        }
     }
 
     fun toggleCallMute() {
@@ -749,12 +985,258 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun endVoiceCall() {
+        val current = agoraVoiceManager.callState.value
+        val jobId = when (current) {
+            is CallState.Connecting -> current.jobId
+            is CallState.Connected -> current.jobId
+            is CallState.Ended -> current.jobId
+            else -> null
+        }
+        val channelName = when (current) {
+            is CallState.Connecting -> current.channelName
+            is CallState.Connected -> current.channelName
+            else -> null
+        }
+        val sessionId = activeCallSessionId.orEmpty()
+        if (sessionId.isNotBlank()) {
+            endedCallSessionIds.add(sessionId)
+        }
+        _incomingCall.value = null
         agoraVoiceManager.endCall(repository, supabaseClient)
+
+        if (jobId != null && channelName != null) {
+            viewModelScope.launch {
+                val currentPhone = _currentUser.value?.phone ?: _currentPhoneNumber.value
+                val senderType = if (_activeRole.value == UserRole.PROVIDER) "provider" else "customer"
+                val signalPayload = "[[CALL_SIGNAL:END:$channelName:$currentPhone:$sessionId]]"
+                supabaseClient.sendJobMessage(jobId, currentPhone, senderType, signalPayload)
+            }
+        }
     }
 
     fun closeCallScreen() {
         agoraVoiceManager.resetToIdle()
         navigateBack()
+    }
+
+    fun watchCallSignals(jobId: String) {
+        if (jobId.isBlank()) return
+        if (activeWatchedCallSignalJobId == jobId && callSignalsJob?.isActive == true) {
+            // Already listening for this job's call signals
+            return
+        }
+        activeWatchedCallSignalJobId = jobId
+        callSignalsJob?.cancel()
+        callSignalsJob = viewModelScope.launch {
+            val channel = supabaseClient.realtime.channel("call-signals-$jobId")
+            try {
+                val flow = channel.postgresChangeFlow<JobMessage>("public") {
+                    table = "job_messages"
+                    filter = "job_id=eq.$jobId"
+                }
+                channel.subscribe()
+                flow.collect { action ->
+                    val msg = action.record
+                    if (msg.message.startsWith("[[CALL_SIGNAL:")) {
+                        handleIncomingSignalIfNeeded(jobId, msg.message, msg.senderId)
+                    } else {
+                        handleIncomingChatMessage(jobId, msg)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("HomeaseViewModel", "Error in call signals listener", e)
+            } finally {
+                channel.unsubscribe()
+                if (activeWatchedCallSignalJobId == jobId) {
+                    activeWatchedCallSignalJobId = null
+                }
+            }
+        }
+    }
+
+    private fun cleanPhoneForCompare(p: String): String {
+        return p.replace("+", "").replace("-", "").replace(" ", "").trimStart('0')
+    }
+
+    private fun handleIncomingChatMessage(jobId: String, msg: JobMessage) {
+        val myPhone = _currentUser.value?.phone ?: _currentPhoneNumber.value
+        val myUserId = supabaseClient.getSession()?.userId
+        val isSelf = (msg.senderId.isNotBlank() && cleanPhoneForCompare(msg.senderId) == cleanPhoneForCompare(myPhone)) ||
+                (myUserId != null && msg.senderId == myUserId)
+        if (isSelf) return
+
+        viewModelScope.launch {
+            val entity = JobMessageEntity(
+                id = msg.id,
+                jobId = jobId,
+                senderId = msg.senderId,
+                senderType = msg.senderType,
+                message = msg.message,
+                createdAtEpochMs = parseIsoOrNow(msg.createdAt),
+                createdAtIso = msg.createdAt,
+                readAtEpochMs = if (msg.readAt != null) parseIsoOrNow(msg.readAt) else null
+            )
+            repository.insertMessage(entity)
+
+            val isViewingThisChat = _currentDestination.value == AppNavDestination.JOB_CHAT &&
+                    (_activeChatJob.value?.remoteId == jobId || _activeChatJob.value?.id.toString() == jobId)
+            if (isViewingThisChat) return@launch
+
+            val nowMs = System.currentTimeMillis()
+            val msgAge = nowMs - parseIsoOrNow(msg.createdAt)
+            if (msgAge > 60_000L) return@launch
+
+            val isProvider = _activeRole.value == UserRole.PROVIDER
+            val senderRole = if (isProvider) "Customer" else "Service Provider"
+            val senderName = if (isProvider) {
+                providerActiveJob.value?.customerName?.ifBlank { "Customer" } ?: "Customer"
+            } else {
+                val req = customerRequests.value.firstOrNull { it.remoteId == jobId || it.id.toString() == jobId }
+                req?.selectedProviderName?.ifBlank { "Service Provider" } ?: "Service Provider"
+            }
+
+            _inAppMessageNotification.value = InAppMessageNotification(
+                id = msg.id,
+                jobId = jobId,
+                senderName = senderName,
+                senderRole = senderRole,
+                messageText = msg.message
+            )
+
+            try {
+                com.example.service.HomEaseFirebaseMessagingService.showChatNotification(
+                    context = getApplication(),
+                    jobId = jobId,
+                    senderName = senderName,
+                    messageText = msg.message
+                )
+            } catch (e: Exception) {
+                android.util.Log.w("HomeaseViewModel", "Could not trigger system notification: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleIncomingSignalIfNeeded(jobId: String, text: String, senderId: String) {
+        if (!text.startsWith("[[CALL_SIGNAL:")) return
+
+        if (!handledSignalTexts.add(text)) {
+            // Already processed this exact signal string once
+            return
+        }
+        if (handledSignalTexts.size > 200) {
+            handledSignalTexts.clear()
+            handledSignalTexts.add(text)
+        }
+
+        val myPhone = _currentUser.value?.phone ?: _currentPhoneNumber.value
+        val myUserId = supabaseClient.getSession()?.userId
+
+        // Never self-signal
+        if (senderId.isNotBlank()) {
+            if (cleanPhoneForCompare(senderId) == cleanPhoneForCompare(myPhone)) return
+            if (myUserId != null && senderId == myUserId) return
+        }
+
+        val content = text.removePrefix("[[CALL_SIGNAL:").removeSuffix("]]")
+        val parts = content.split(":")
+        val action = parts.getOrNull(0) ?: ""
+        val channelName = parts.getOrNull(1) ?: ""
+
+        when (action) {
+            "START" -> {
+                val callerName: String
+                val callerPhone: String
+                val targetPhone: String
+                val callSessionId: String
+                val timestampMs: Long
+
+                if (parts.size >= 7) {
+                    callerName = parts[2]
+                    callerPhone = parts[3]
+                    targetPhone = parts[4]
+                    callSessionId = parts[5]
+                    timestampMs = parts[6].toLongOrNull() ?: 0L
+                } else {
+                    callerName = parts.getOrNull(2) ?: "User"
+                    callerPhone = senderId
+                    targetPhone = parts.getOrNull(3) ?: ""
+                    callSessionId = parts.getOrNull(4) ?: ""
+                    timestampMs = parts.getOrNull(5)?.toLongOrNull() ?: 0L
+                }
+
+                // Never self-signal
+                if (callerPhone.isNotBlank() && cleanPhoneForCompare(callerPhone) == cleanPhoneForCompare(myPhone)) {
+                    return
+                }
+
+                // Freshness check: Require a valid recent timestamp (within last 35 seconds)
+                val now = System.currentTimeMillis()
+                if (timestampMs <= 0L || (now - timestampMs) > 35_000L) {
+                    return
+                }
+
+                // Never re-display a dismissed / ended session
+                if (callSessionId.isNotBlank() && endedCallSessionIds.contains(callSessionId)) {
+                    return
+                }
+
+                // If targetPhone is specified, ensure it's addressed to this user
+                if (targetPhone.isNotBlank() && myPhone.isNotBlank()) {
+                    if (cleanPhoneForCompare(targetPhone) != cleanPhoneForCompare(myPhone)) {
+                        return
+                    }
+                }
+
+                val currentCallState = agoraVoiceManager.callState.value
+                // Allow call if Idle OR if previously Ended (reset to Idle)
+                if (currentCallState is CallState.Idle || currentCallState is CallState.Ended) {
+                    if (currentCallState is CallState.Ended) {
+                        agoraVoiceManager.resetToIdle()
+                    }
+                    val isProvider = _activeRole.value == UserRole.PROVIDER
+                    val callerRole = if (isProvider) "Customer" else "Service Provider"
+                    _incomingCall.value = IncomingCallInfo(
+                        jobId = jobId,
+                        channelName = channelName,
+                        callerName = callerName,
+                        callerRole = callerRole,
+                        callerPhone = if (callerPhone.isNotBlank()) callerPhone else senderId,
+                        callSessionId = callSessionId
+                    )
+                }
+            }
+            "ACCEPT" -> {
+                val senderPhone = parts.getOrNull(2) ?: ""
+                if (senderPhone.isNotBlank() && cleanPhoneForCompare(senderPhone) == cleanPhoneForCompare(myPhone)) return
+                agoraVoiceManager.markRemoteUserConnected()
+            }
+            "DECLINE" -> {
+                val senderPhone = parts.getOrNull(2) ?: ""
+                val callSessionId = parts.getOrNull(3) ?: parts.getOrNull(2) ?: ""
+                if (senderPhone.isNotBlank() && cleanPhoneForCompare(senderPhone) == cleanPhoneForCompare(myPhone)) return
+                if (callSessionId.isNotBlank()) {
+                    endedCallSessionIds.add(callSessionId)
+                }
+                _incomingCall.value = null
+                val current = agoraVoiceManager.callState.value
+                if (current is CallState.Connecting || current is CallState.Connected) {
+                    agoraVoiceManager.endCall(repository, supabaseClient)
+                }
+            }
+            "END" -> {
+                val senderPhone = parts.getOrNull(2) ?: ""
+                val callSessionId = parts.getOrNull(3) ?: parts.getOrNull(2) ?: ""
+                if (senderPhone.isNotBlank() && cleanPhoneForCompare(senderPhone) == cleanPhoneForCompare(myPhone)) return
+                if (callSessionId.isNotBlank()) {
+                    endedCallSessionIds.add(callSessionId)
+                }
+                _incomingCall.value = null
+                val current = agoraVoiceManager.callState.value
+                if (current is CallState.Connecting || current is CallState.Connected) {
+                    agoraVoiceManager.endCall(repository, supabaseClient)
+                }
+            }
+        }
     }
 
     fun getJobMessagesFlow(jobId: String): Flow<List<JobMessageEntity>> {
@@ -780,15 +1262,17 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                 }
             } catch (_: Exception) {}
 
-            // Realtime subscription
+            // Realtime subscription (Configure filter BEFORE subscribe)
             val channel = supabaseClient.realtime.channel("job-chat-$jobId")
             try {
-                channel.subscribe()
-                channel.postgresChangeFlow<JobMessage>(schema = "public") {
+                val msgFlow = channel.postgresChangeFlow<JobMessage>(schema = "public") {
                     table = "job_messages"
                     filter = "job_id=eq.$jobId"
-                }.collect { action ->
+                }
+                channel.subscribe()
+                msgFlow.collect { action ->
                     val m = action.record
+                    handleIncomingSignalIfNeeded(jobId, m.message, m.senderId)
                     val entity = JobMessageEntity(
                         id = m.id,
                         jobId = m.jobId,
@@ -831,10 +1315,16 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
 
         viewModelScope.launch {
             repository.insertMessage(localEntity)
-            val result = supabaseClient.sendJobMessage(jobId, currentUserId, senderType, text.trim())
+            val result = supabaseClient.sendJobMessage(
+                jobId = jobId,
+                senderId = currentUserId,
+                senderType = senderType,
+                messageText = text.trim(),
+                messageId = tempId
+            )
             if (result.isSuccess) {
                 val sent = result.getOrNull()
-                if (sent != null && sent.id != tempId) {
+                if (sent != null) {
                     val updated = localEntity.copy(id = sent.id, createdAtIso = sent.createdAt)
                     repository.insertMessage(updated)
                 }
@@ -932,6 +1422,14 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         val agreedPriceRs = obj.optInt("agreed_price_rs", budgetRs)
         val lat = if (obj.has("lat") && !obj.isNull("lat")) obj.optDouble("lat").takeIf { !it.isNaN() } else null
         val lng = if (obj.has("lng") && !obj.isNull("lng")) obj.optDouble("lng").takeIf { !it.isNaN() } else null
+        val cancelledBy = obj.optString("cancelled_by").ifBlank { null }
+        val cancellationReason = obj.optString("cancellation_reason").ifBlank { null }
+        val cancelledAt = if (obj.has("cancelled_at") && !obj.isNull("cancelled_at")) {
+            try {
+                val iso = obj.optString("cancelled_at")
+                java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).parse(iso.take(19))?.time
+            } catch (_: Exception) { null }
+        } else null
 
         return ServiceRequestEntity(
             id = 0,
@@ -951,7 +1449,10 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             agreedPriceRs = agreedPriceRs,
             remoteId = remoteId,
             lat = lat,
-            lng = lng
+            lng = lng,
+            cancelledBy = cancelledBy,
+            cancellationReason = cancellationReason,
+            cancelledAt = cancelledAt
         )
     }
 
@@ -1288,6 +1789,22 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             repository.markJobArrived(job.id)
             supabaseClient.updateJobStatus(remoteId, "arrived")
             ProviderLocationService.stop(getApplication())
+
+            // Alert customer via chat message and notification event
+            val currentPhone = _currentUser.value?.phone ?: _currentPhoneNumber.value
+            supabaseClient.sendJobMessage(
+                remoteId,
+                currentPhone,
+                "provider",
+                "I have arrived at your doorstep! Please receive me."
+            )
+            val record = JSONObject().apply {
+                put("id", remoteId)
+                put("status", "arrived")
+                put("customer_phone", job.customerPhone)
+                put("provider_phone", job.selectedProviderPhone ?: currentPhone)
+            }
+            supabaseClient.dispatchNotificationEvent("UPDATE", "jobs", record)
         }
     }
 
@@ -1336,6 +1853,99 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
     fun autoCompleteJobWithoutRating(jobId: Long) {
         viewModelScope.launch {
             repository.autoCompleteJobWithoutRating(jobId)
+        }
+    }
+
+    fun cancelJobByCustomer(job: ServiceRequestEntity, reason: String) {
+        viewModelScope.launch {
+            val remoteId = job.remoteId
+            val localId = job.id
+
+            // End voice call if active
+            val currentCall = agoraVoiceManager.callState.value
+            if (currentCall !is CallState.Idle) {
+                endVoiceCall()
+            }
+
+            // 1. Update Room DB
+            if (localId > 0) {
+                repository.cancelJob(localId, cancelledBy = "customer", reason = reason)
+            }
+            if (!remoteId.isNullOrBlank()) {
+                repository.cancelJobByRemoteId(remoteId, cancelledBy = "customer", reason = reason)
+            }
+
+            // 2. Clear customer active/tracking states
+            if (_activeLiveRequest.value?.id == localId || _activeLiveRequest.value?.remoteId == remoteId) {
+                _activeLiveRequest.value = null
+            }
+            if (_trackingJob.value?.id == localId || _trackingJob.value?.remoteId == remoteId) {
+                _trackingJob.value = null
+            }
+
+            // 3. Update Supabase
+            if (!remoteId.isNullOrBlank()) {
+                supabaseClient.cancelJob(remoteId, cancelledBy = "customer", cancellationReason = reason)
+                val currentPhone = _currentUser.value?.phone ?: _currentPhoneNumber.value
+                supabaseClient.sendJobMessage(
+                    jobId = remoteId,
+                    senderId = currentPhone,
+                    senderType = "customer",
+                    messageText = "🚫 Booking cancelled by customer. Reason: $reason"
+                )
+            }
+
+            // Terminate customer watchers
+            customerJobRealtimeChannel?.unsubscribe()
+            customerJobRealtimeJob?.cancel()
+            customerJobPollingJob?.cancel()
+
+            // Navigate back to customer home
+            _currentDestination.value = AppNavDestination.CUSTOMER_HOME
+        }
+    }
+
+    fun cancelJobByProvider(job: ServiceRequestEntity, reason: String) {
+        viewModelScope.launch {
+            val remoteId = job.remoteId
+            val localId = job.id
+
+            // End voice call if active
+            val currentCall = agoraVoiceManager.callState.value
+            if (currentCall !is CallState.Idle) {
+                endVoiceCall()
+            }
+
+            // Stop location service if running
+            ProviderLocationService.stop(getApplication())
+
+            // 1. Update Room DB
+            if (localId > 0) {
+                repository.cancelJob(localId, cancelledBy = "provider", reason = reason)
+            }
+            if (!remoteId.isNullOrBlank()) {
+                repository.cancelJobByRemoteId(remoteId, cancelledBy = "provider", reason = reason)
+            }
+
+            // 2. Clear ping / won confirmations
+            if (_fullscreenPingJob.value?.id == localId || _fullscreenPingJob.value?.remoteId == remoteId) {
+                _fullscreenPingJob.value = null
+            }
+            if (_providerJobWonConfirmation.value?.id == localId || _providerJobWonConfirmation.value?.remoteId == remoteId) {
+                _providerJobWonConfirmation.value = null
+            }
+
+            // 3. Update Supabase
+            if (!remoteId.isNullOrBlank()) {
+                supabaseClient.cancelJob(remoteId, cancelledBy = "provider", cancellationReason = reason)
+                val currentPhone = _currentUser.value?.phone ?: _currentPhoneNumber.value
+                supabaseClient.sendJobMessage(
+                    jobId = remoteId,
+                    senderId = currentPhone,
+                    senderType = "provider",
+                    messageText = "🚫 Booking cancelled by provider. Reason: $reason"
+                )
+            }
         }
     }
 
@@ -1506,10 +2116,24 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         _activeLiveRequest.value = updated
         _trackingJob.value = updated
 
-        // Job is accepted; terminate customer watcher
-        customerJobRealtimeChannel?.unsubscribe()
-        customerJobRealtimeJob?.cancel()
-        customerJobPollingJob?.cancel()
+        // Watch incoming call signals for this active job
+        watchCallSignals(remoteJobId)
+
+        // Only terminate watcher when job is completed or cancelled
+        if (statusRaw == "CANCELLED") {
+            _trackingJob.value = null
+            _activeLiveRequest.value = null
+            customerJobRealtimeChannel?.unsubscribe()
+            customerJobRealtimeJob?.cancel()
+            customerJobPollingJob?.cancel()
+            if (_currentDestination.value == AppNavDestination.CUSTOMER_LIVE_TRACKING) {
+                _currentDestination.value = AppNavDestination.CUSTOMER_HOME
+            }
+        } else if (statusRaw == "COMPLETED") {
+            customerJobRealtimeChannel?.unsubscribe()
+            customerJobRealtimeJob?.cancel()
+            customerJobPollingJob?.cancel()
+        }
     }
 
     fun watchProviderJobsAndOffers(providerPhone: String) {
@@ -1587,6 +2211,24 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                         for (jobJson in jobsList) {
                             handleJobWonOnProviderSide(jobJson)
                         }
+
+                        // Check if provider's active job was cancelled remotely
+                        val currentActive = providerActiveJob.value
+                        if (currentActive != null && !currentActive.remoteId.isNullOrBlank()) {
+                            val activeRemoteId = currentActive.remoteId
+                            val isStillInAcceptedList = jobsList.any { it.optString("id") == activeRemoteId }
+                            if (!isStillInAcceptedList) {
+                                val checkRes = supabaseClient.getJobById(activeRemoteId)
+                                if (checkRes.isSuccess) {
+                                    val checkJson = checkRes.getOrNull()
+                                    if (checkJson != null && checkJson.optString("status").uppercase() == "CANCELLED") {
+                                        val rReason = checkJson.optString("cancellation_reason").ifBlank { "Cancelled by customer" }
+                                        val rBy = checkJson.optString("cancelled_by").ifBlank { "customer" }
+                                        repository.cancelJobByRemoteId(activeRemoteId, rBy, rReason)
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     val offersResult = supabaseClient.getProviderAcceptedOffers(providerPhone)
@@ -1613,15 +2255,32 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
         val localId = repository.syncRemoteJob(entity)
         val saved = entity.copy(id = localId)
 
+        val statusUpper = entity.status.uppercase()
+        val rId = entity.remoteId
+
+        if (statusUpper == "CANCELLED") {
+            if (!rId.isNullOrBlank()) {
+                repository.cancelJobByRemoteId(rId, entity.cancelledBy ?: "customer", entity.cancellationReason ?: "Cancelled by customer")
+            }
+            if (_fullscreenPingJob.value?.remoteId == rId || _fullscreenPingJob.value?.id == localId) {
+                _fullscreenPingJob.value = null
+            }
+            if (_providerJobWonConfirmation.value?.remoteId == rId || _providerJobWonConfirmation.value?.id == localId) {
+                _providerJobWonConfirmation.value = null
+            }
+            return
+        }
+
         // Clear ping if this job was currently showing on screen
         if (_fullscreenPingJob.value?.remoteId == entity.remoteId || _fullscreenPingJob.value?.id == localId) {
             _fullscreenPingJob.value = null
         }
 
         // Trigger confirmation modal if status is ACCEPTED and not previously acknowledged
-        val statusUpper = entity.status.uppercase()
+        if (!rId.isNullOrBlank()) {
+            watchCallSignals(rId)
+        }
         if (statusUpper == "ACCEPTED") {
-            val rId = entity.remoteId
             if (!rId.isNullOrBlank() && rId !in acknowledgedJobWonIds) {
                 if (_providerJobWonConfirmation.value?.remoteId != rId) {
                     _providerJobWonConfirmation.value = saved

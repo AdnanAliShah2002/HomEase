@@ -266,7 +266,7 @@ class RealtimeChannel(
         try {
             val messages = getLatestMessagesFallback?.invoke(jobId) ?: emptyList()
             for (msg in messages) {
-                if (!emittedMessageIds.contains(msg.id) || msg.readAt != null) {
+                if (!emittedMessageIds.contains(msg.id)) {
                     emitMessage(msg, "INSERT")
                 }
             }

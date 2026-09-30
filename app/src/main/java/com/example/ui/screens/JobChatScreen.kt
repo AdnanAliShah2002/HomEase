@@ -102,11 +102,16 @@ fun JobChatScreen(
 
     var textInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    var lastSendTimeMs by remember { mutableStateOf(0L) }
+
+    val displayMessages = remember(messages) {
+        messages.filterNot { it.message.startsWith("[[CALL_SIGNAL:") }
+    }
 
     // Scroll to bottom when messages update
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    LaunchedEffect(displayMessages.size) {
+        if (displayMessages.isNotEmpty()) {
+            listState.animateScrollToItem(displayMessages.size - 1)
         }
     }
 
@@ -339,7 +344,7 @@ fun JobChatScreen(
                     }
                 }
 
-                items(messages, key = { it.id }) { msg ->
+                items(displayMessages, key = { it.id }) { msg ->
                     val isMine = msg.senderId == currentPhone || (isProvider && msg.senderType == "provider") || (!isProvider && msg.senderType == "customer")
                     MessageBubble(
                         message = msg,
@@ -360,7 +365,11 @@ fun JobChatScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(18.dp))
                             .clickable {
-                                viewModel.sendJobMessage(canonicalJobId, reply)
+                                val now = System.currentTimeMillis()
+                                if (now - lastSendTimeMs > 800L) {
+                                    lastSendTimeMs = now
+                                    viewModel.sendJobMessage(canonicalJobId, reply)
+                                }
                             },
                         color = Color.White,
                         shape = RoundedCornerShape(18.dp),
@@ -417,9 +426,14 @@ fun JobChatScreen(
 
                     FilledIconButton(
                         onClick = {
-                            if (textInput.isNotBlank()) {
-                                viewModel.sendJobMessage(canonicalJobId, textInput.trim())
-                                textInput = ""
+                            val text = textInput.trim()
+                            if (text.isNotBlank()) {
+                                val now = System.currentTimeMillis()
+                                if (now - lastSendTimeMs > 600L) {
+                                    lastSendTimeMs = now
+                                    viewModel.sendJobMessage(canonicalJobId, text)
+                                    textInput = ""
+                                }
                             }
                         },
                         enabled = textInput.isNotBlank(),

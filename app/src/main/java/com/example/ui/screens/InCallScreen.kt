@@ -101,6 +101,16 @@ fun InCallScreen(
         }
     }
 
+    LaunchedEffect(callState) {
+        if (callState is CallState.Ended) {
+            val ended = callState as CallState.Ended
+            val isError = ended.durationSeconds == 0 && ended.reason != "Call ended"
+            val delayMs = if (isError) 10000L else 2500L
+            kotlinx.coroutines.delay(delayMs)
+            onCallClosed()
+        }
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "pulse_ripple")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
@@ -369,6 +379,7 @@ fun InCallScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (callState is CallState.Ended) {
+                val endedState = callState as CallState.Ended
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = Color.White.copy(alpha = 0.12f)
@@ -380,12 +391,30 @@ fun InCallScreen(
                         modifier = Modifier.padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = if (language == AppLanguage.URDU) "کال کی مدت: $formattedDuration" else "Call Duration: $formattedDuration",
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
+                        if (endedState.durationSeconds > 0) {
+                            Text(
+                                text = if (language == AppLanguage.URDU) "کال کی مدت: $formattedDuration" else "Call Duration: $formattedDuration",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        } else {
+                            Text(
+                                text = endedState.reason,
+                                color = Color(0xFFFFB340),
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+                            if (targetPhone.isNotBlank()) {
+                                Text(
+                                    text = if (language == AppLanguage.URDU) "براہ راست سیلولر کال ملائیں" else "You can call directly via phone dialer below",
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.height(16.dp))
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),

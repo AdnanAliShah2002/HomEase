@@ -58,6 +58,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.TextButton
+import com.example.data.model.UserRole
+import com.example.ui.components.JobCancellationDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -132,6 +136,7 @@ fun CustomerRequestFlowScreen(
     onSelectOffer: (JobOfferEntity) -> Unit,
     onDoneViewingConfirmed: () -> Unit,
     onOpenLiveTracking: (ServiceRequestEntity) -> Unit = {},
+    onCancelRequest: ((ServiceRequestEntity, String) -> Unit)? = null,
     onDetectCategory: (suspend (String) -> CategoryDetectionResult)? = null
 ) {
     // If there is already an active live request being viewed (either searching or accepted)
@@ -153,7 +158,8 @@ fun CustomerRequestFlowScreen(
                 submissionError = submissionError,
                 onDismissError = onDismissError,
                 onBack = onBack,
-                onSelectOffer = onSelectOffer
+                onSelectOffer = onSelectOffer,
+                onCancelRequest = { reason -> onCancelRequest?.invoke(activeLiveRequest, reason) }
             )
         }
         return
@@ -1193,8 +1199,23 @@ fun FindingProvidersView(
     submissionError: String? = null,
     onDismissError: () -> Unit = {},
     onBack: () -> Unit,
-    onSelectOffer: (JobOfferEntity) -> Unit
+    onSelectOffer: (JobOfferEntity) -> Unit,
+    onCancelRequest: ((reason: String) -> Unit)? = null
 ) {
+    var showCancelDialog by remember { mutableStateOf(false) }
+
+    if (showCancelDialog) {
+        JobCancellationDialog(
+            role = UserRole.CUSTOMER,
+            language = language,
+            onDismiss = { showCancelDialog = false },
+            onConfirm = { reason ->
+                showCancelDialog = false
+                onCancelRequest?.invoke(reason)
+            }
+        )
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.95f,
@@ -1349,6 +1370,29 @@ fun FindingProvidersView(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = AppleWarmChampagneDark
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // InDrive-style Cancel Request Button
+                        TextButton(
+                            onClick = { showCancelDialog = true },
+                            modifier = Modifier.testTag("customer_cancel_searching_request_btn"),
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF3B30))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                                tint = Color(0xFFFF3B30)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (language == AppLanguage.URDU) "درخواست منسوخ کریں" else "Cancel Request",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color(0xFFFF3B30)
                             )
                         }
                     }

@@ -66,7 +66,10 @@ data class ServiceRequestEntity(
     val issueDescription: String? = null,
     val lat: Double? = null,
     val lng: Double? = null,
-    val remoteId: String? = null
+    val remoteId: String? = null,
+    val cancelledBy: String? = null,
+    val cancellationReason: String? = null,
+    val cancelledAt: Long? = null
 ) {
     val latitude: Double? get() = lat
     val longitude: Double? get() = lng

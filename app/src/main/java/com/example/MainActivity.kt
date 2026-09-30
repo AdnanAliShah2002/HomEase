@@ -8,17 +8,38 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.data.localization.AppLanguage
 import com.example.data.model.UserRole
 import com.example.ui.screens.*
 import com.example.ui.theme.HomEaseTheme
 import com.example.ui.viewmodel.AppNavDestination
 import com.example.ui.viewmodel.HomeaseViewModel
+import com.example.ui.viewmodel.IncomingCallInfo
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,6 +87,8 @@ class MainActivity : ComponentActivity() {
             val statusCheckMessage by viewModel.statusCheckMessage.collectAsStateWithLifecycle()
             val providerActionError by viewModel.providerActionError.collectAsStateWithLifecycle()
             val providerJobWonConfirmation by viewModel.providerJobWonConfirmation.collectAsStateWithLifecycle()
+            val incomingCall by viewModel.incomingCall.collectAsStateWithLifecycle()
+            val inAppMessageNotification by viewModel.inAppMessageNotification.collectAsStateWithLifecycle()
 
             // Handle notification clicks once ViewModel is ready
             LaunchedEffectOnce(notifJobId) {
@@ -227,6 +250,7 @@ class MainActivity : ComponentActivity() {
                                 onUpdateProfile = { name, cityArea, categoriesCsv, exp, radiusKm, bio, shopName, payoutMethod, payoutAccountNumber ->
                                     viewModel.updateProviderProfile(name, cityArea, categoriesCsv, exp, radiusKm, bio, shopName, payoutMethod, payoutAccountNumber)
                                 },
+                                onCancelJob = { job, reason -> viewModel.cancelJobByProvider(job, reason) },
                                 onLogout = { viewModel.logout() }
                             )
                         }
@@ -251,7 +275,8 @@ class MainActivity : ComponentActivity() {
                                 onSubmitRequest = { req -> viewModel.submitServiceRequest(req) },
                                 onSelectOffer = { offer -> viewModel.selectOfferForRequest(offer) },
                                 onDoneViewingConfirmed = { viewModel.navigateToHome() },
-                                onOpenLiveTracking = { job -> viewModel.openLiveTracking(job) }
+                                onOpenLiveTracking = { job -> viewModel.openLiveTracking(job) },
+                                onCancelRequest = { job, reason -> viewModel.cancelJobByCustomer(job, reason) }
                             )
                         }
 
@@ -310,6 +335,191 @@ class MainActivity : ComponentActivity() {
                                 onCallClosed = { viewModel.closeCallScreen() }
                             )
                         }
+                    }
+
+                    incomingCall?.let { callInfo ->
+                        val context = LocalContext.current
+                        DisposableEffect(callInfo.callSessionId) {
+                            var ringtone: android.media.Ringtone? = null
+                            try {
+                                val uri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE)
+                                    ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+                                ringtone = android.media.RingtoneManager.getRingtone(context, uri)
+                                ringtone?.play()
+                            } catch (_: Exception) {}
+                            onDispose {
+                                try {
+                                    ringtone?.stop()
+                                } catch (_: Exception) {}
+                            }
+                        }
+
+                        IncomingCallDialog(
+                            callInfo = callInfo,
+                            language = language,
+                            onAccept = { viewModel.acceptIncomingCall(callInfo) },
+                            onDecline = { viewModel.declineIncomingCall(callInfo) }
+                        )
+                    }
+
+                    inAppMessageNotification?.let { notif ->
+                        com.example.ui.components.InAppMessageBanner(
+                            notification = notif,
+                            language = language,
+                            onOpenChat = {
+                                viewModel.openChatForJobId(notif.jobId)
+                            },
+                            onDismiss = {
+                                viewModel.dismissInAppMessageNotification()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun IncomingCallDialog(
+    callInfo: IncomingCallInfo,
+    language: AppLanguage,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
+    Dialog(
+        onDismissRequest = onDecline,
+        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = false)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = Color(0xFF1E293B),
+            shadowElevation = 16.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Top caller avatar with pulsating ring
+                Box(contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .size((80 * pulseScale).dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF34C759).copy(alpha = 0.25f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0F172A)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                }
+
+                // Caller name & role
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = callInfo.callerName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = callInfo.callerRole,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF94A3B8)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (language == AppLanguage.URDU) "آنے والی وائس کال..." else "Incoming Voice Call...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF34C759),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Actions: Decline (Red) and Accept (Green)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Decline
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        FilledIconButton(
+                            onClick = onDecline,
+                            modifier = Modifier.size(60.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = Color(0xFFEF4444),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CallEnd,
+                                contentDescription = "Decline",
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (language == AppLanguage.URDU) "مسترد کریں" else "Decline",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    // Accept
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        FilledIconButton(
+                            onClick = onAccept,
+                            modifier = Modifier.size(60.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = Color(0xFF34C759),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = "Accept",
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (language == AppLanguage.URDU) "قبول کریں" else "Accept",
+                            color = Color(0xFF34C759),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }

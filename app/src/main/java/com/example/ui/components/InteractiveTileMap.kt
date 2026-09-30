@@ -117,7 +117,8 @@ fun InteractiveTileMap(
     isDragging: Boolean,
     onDragStateChanged: (Boolean) -> Unit,
     onLocationChanged: (lat: Double, lng: Double) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    overlayContent: (@Composable (projectToScreen: (Double, Double) -> androidx.compose.ui.geometry.Offset) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -261,6 +262,16 @@ fun InteractiveTileMap(
                     }
                 }
             }
+        }
+
+        if (overlayContent != null) {
+            val projectToScreen: (Double, Double) -> androidx.compose.ui.geometry.Offset = { lat, lng ->
+                val (px, py) = latLngToPixel(lat, lng)
+                val screenX = px - currentPixelX + halfW
+                val screenY = py - currentPixelY + halfH
+                androidx.compose.ui.geometry.Offset(screenX.toFloat(), screenY.toFloat())
+            }
+            overlayContent(projectToScreen)
         }
     }
 }

@@ -32,13 +32,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.runtime.mutableIntStateOf
+import com.example.ui.components.InteractiveTileMap
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -46,10 +52,14 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import com.example.data.model.UserRole
+import com.example.ui.components.JobCancellationDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -117,6 +127,20 @@ fun LiveTrackingMapScreen(
     val accentColor = Color(theme.accentColorInt)
 
     val canonicalJobId = job.remoteId ?: job.id.toString()
+
+    var showCancelDialog by remember { mutableStateOf(false) }
+
+    if (showCancelDialog) {
+        JobCancellationDialog(
+            role = UserRole.CUSTOMER,
+            language = language,
+            onDismiss = { showCancelDialog = false },
+            onConfirm = { reason ->
+                showCancelDialog = false
+                viewModel.cancelJobByCustomer(job, reason)
+            }
+        )
+    }
 
     // Customer Destination coordinates
     val customerLat = job.lat ?: 33.6844
@@ -221,21 +245,25 @@ fun LiveTrackingMapScreen(
         label = "alpha"
     )
 
-    // Build Geoapify Live Tracking Map URL framing both points
-    val geoapifyMapUrl = remember(
-        latestLocation.lat,
-        latestLocation.lng,
-        customerLat,
-        customerLng
-    ) {
-        GeoapifyService.buildLiveTrackingMapUrl(
-            providerLat = latestLocation.lat,
-            providerLng = latestLocation.lng,
-            customerLat = customerLat,
-            customerLng = customerLng,
-            width = 800,
-            height = 1000
-        )
+    var zoomLevel by remember { mutableIntStateOf(16) }
+    var isDragging by remember { mutableStateOf(false) }
+
+    var centerLat by remember { mutableDoubleStateOf((customerLat + initialProviderLat) / 2.0) }
+    var centerLng by remember { mutableDoubleStateOf((customerLng + initialProviderLng) / 2.0) }
+
+    // When provider coordinates update and user is not manually dragging, keep map centered
+    LaunchedEffect(latestLocation.lat, latestLocation.lng) {
+        if (!isDragging) {
+            centerLat = (customerLat + latestLocation.lat) / 2.0
+            centerLng = (customerLng + latestLocation.lng) / 2.0
+        }
+    }
+
+    // Auto-toggle to ARRIVED if provider reaches within 50m
+    LaunchedEffect(displayDistanceKm) {
+        if (displayDistanceKm <= 0.05 && job.status.uppercase() == "ON_THE_WAY") {
+            viewModel.markProviderJobArrived(job)
+        }
     }
 
     Box(
@@ -245,125 +273,195 @@ fun LiveTrackingMapScreen(
             .testTag("live_tracking_screen")
     ) {
         // ====================================================================
-        // 1. Geoapify Real Map Layer (Crisp OpenStreetMap Bright Rendering)
+        // 1. Interactive Slippy Tile Map (Continuous Web Mercator Raster Tiles)
         // ====================================================================
-        AsyncImage(
-            model = geoapifyMapUrl,
-            contentDescription = "Geoapify Live Tracking Map",
-            contentScale = ContentScale.Crop,
+        InteractiveTileMap(
+            centerLat = centerLat,
+            centerLng = centerLng,
+            zoomLevel = zoomLevel,
+            isDragging = isDragging,
+            onDragStateChanged = { dragging -> isDragging = dragging },
+            onLocationChanged = { lat, lng ->
+                centerLat = lat
+                centerLng = lng
+            },
             modifier = Modifier
                 .fillMaxSize()
-                .testTag("live_tracking_geoapify_map")
+                .testTag("live_tracking_geoapify_map"),
+            overlayContent = { projectToScreen ->
+                val pLat = animatedLat.value.toDouble()
+                val pLng = animatedLng.value.toDouble()
+
+                val customerPos = projectToScreen(customerLat, customerLng)
+                val providerPos = projectToScreen(pLat, pLng)
+
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("live_tracking_map_canvas")
+                ) {
+                    // Dotted route line from provider to customer
+                    val waypoints = geoapifyRoute?.waypoints
+                    val routePath = Path()
+                    if (!waypoints.isNullOrEmpty() && waypoints.size > 1) {
+                        val firstPos = projectToScreen(waypoints[0].first, waypoints[0].second)
+                        routePath.moveTo(firstPos.x, firstPos.y)
+                        for (i in 1 until waypoints.size) {
+                            val wpPos = projectToScreen(waypoints[i].first, waypoints[i].second)
+                            routePath.lineTo(wpPos.x, wpPos.y)
+                        }
+                    } else {
+                        routePath.moveTo(providerPos.x, providerPos.y)
+                        val midX = (providerPos.x + customerPos.x) / 2f + 25f
+                        val midY = (providerPos.y + customerPos.y) / 2f - 20f
+                        routePath.quadraticTo(midX, midY, customerPos.x, customerPos.y)
+                    }
+
+                    // Route glow
+                    drawPath(
+                        path = routePath,
+                        color = DeepIndigo.copy(alpha = 0.25f),
+                        style = Stroke(width = 12f)
+                    )
+
+                    // Route line with dash effect
+                    drawPath(
+                        path = routePath,
+                        color = DeepIndigo.copy(alpha = 0.90f),
+                        style = Stroke(
+                            width = 6f,
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 15f), 0f)
+                        )
+                    )
+
+                    // Customer Destination Pin (Glowing radar pulse + House pin)
+                    drawCircle(
+                        color = DeepIndigo.copy(alpha = pulseAlpha),
+                        radius = pulseRadius * 2.2f,
+                        center = customerPos
+                    )
+                    drawCircle(
+                        color = DeepIndigo.copy(alpha = 0.25f),
+                        radius = 28f,
+                        center = customerPos
+                    )
+                    drawCircle(
+                        color = DeepIndigo,
+                        radius = 16f,
+                        center = customerPos
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        radius = 6f,
+                        center = customerPos
+                    )
+
+                    // Moving Provider Vehicle Marker (Rotates smoothly to heading)
+                    // Drop shadow
+                    drawCircle(
+                        color = Color(0x44000000),
+                        radius = 28f,
+                        center = Offset(providerPos.x, providerPos.y + 4f)
+                    )
+                    // Outer white ring
+                    drawCircle(
+                        color = Color.White,
+                        radius = 24f,
+                        center = providerPos
+                    )
+                    // Vibrant Emerald green body
+                    drawCircle(
+                        color = EmeraldGreen,
+                        radius = 19f,
+                        center = providerPos
+                    )
+
+                    // Directional pointer arrowhead rotated by animated heading
+                    rotate(degrees = animatedHeading.value, pivot = providerPos) {
+                        val arrowPath = Path().apply {
+                            moveTo(providerPos.x, providerPos.y - 12f)
+                            lineTo(providerPos.x + 8f, providerPos.y + 8f)
+                            lineTo(providerPos.x, providerPos.y + 4f)
+                            lineTo(providerPos.x - 8f, providerPos.y + 8f)
+                            close()
+                        }
+                        drawPath(path = arrowPath, color = Color.White)
+                    }
+                }
+            }
         )
 
         // ====================================================================
-        // 2. Animated Overlay: Moving Provider Vehicle, Radar Rings & Route
+        // Floating Map Controls: Zoom In (+), Zoom Out (-), Recenter GPS
         // ====================================================================
-        Canvas(
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .testTag("live_tracking_map_canvas")
+                .align(Alignment.CenterEnd)
+                .padding(end = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            val width = size.width
-            val height = size.height
-
-            // Coordinate mapping relative to bounding box
-            val pLat = animatedLat.value.toDouble()
-            val pLng = animatedLng.value.toDouble()
-
-            val minLat = Math.min(pLat, customerLat) - 0.008
-            val maxLat = Math.max(pLat, customerLat) + 0.008
-            val minLng = Math.min(pLng, customerLng) - 0.008
-            val maxLng = Math.max(pLng, customerLng) + 0.008
-
-            fun projectToScreen(lat: Double, lng: Double): Offset {
-                val spanLng = Math.max(0.002, maxLng - minLng)
-                val spanLat = Math.max(0.002, maxLat - minLat)
-                val nx = ((lng - minLng) / spanLng).coerceIn(0.12, 0.88)
-                val ny = (1.0 - ((lat - minLat) / spanLat)).coerceIn(0.22, 0.76)
-                return Offset((nx * width).toFloat(), (ny * height).toFloat())
-            }
-
-            val customerPos = projectToScreen(customerLat, customerLng)
-            val providerPos = projectToScreen(pLat, pLng)
-
-            // Dotted route line from provider to customer
-            val routePath = Path().apply {
-                moveTo(providerPos.x, providerPos.y)
-                val midX = (providerPos.x + customerPos.x) / 2f + 25f
-                val midY = (providerPos.y + customerPos.y) / 2f - 20f
-                quadraticTo(midX, midY, customerPos.x, customerPos.y)
-            }
-
-            // Route glow
-            drawPath(
-                path = routePath,
-                color = DeepIndigo.copy(alpha = 0.25f),
-                style = Stroke(width = 12f)
-            )
-
-            // Route line with dash effect
-            drawPath(
-                path = routePath,
-                color = DeepIndigo.copy(alpha = 0.90f),
-                style = Stroke(
-                    width = 6f,
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 15f), 0f)
-                )
-            )
-
-            // Customer Destination Pin (Glowing radar pulse + House pin)
-            drawCircle(
-                color = DeepIndigo.copy(alpha = pulseAlpha),
-                radius = pulseRadius * 2.2f,
-                center = customerPos
-            )
-            drawCircle(
-                color = DeepIndigo.copy(alpha = 0.25f),
-                radius = 28f,
-                center = customerPos
-            )
-            drawCircle(
-                color = DeepIndigo,
-                radius = 16f,
-                center = customerPos
-            )
-            drawCircle(
+            // Zoom In (+)
+            Surface(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .clickable { if (zoomLevel < 19) zoomLevel++ },
+                shape = CircleShape,
                 color = Color.White,
-                radius = 6f,
-                center = customerPos
-            )
-
-            // Moving Provider Vehicle Marker (Rotates smoothly to heading)
-            // Drop shadow
-            drawCircle(
-                color = Color(0x44000000),
-                radius = 28f,
-                center = Offset(providerPos.x, providerPos.y + 4f)
-            )
-            // Outer white ring
-            drawCircle(
-                color = Color.White,
-                radius = 24f,
-                center = providerPos
-            )
-            // Vibrant Emerald green body
-            drawCircle(
-                color = EmeraldGreen,
-                radius = 19f,
-                center = providerPos
-            )
-
-            // Directional pointer arrowhead rotated by animated heading
-            rotate(degrees = animatedHeading.value, pivot = providerPos) {
-                val arrowPath = Path().apply {
-                    moveTo(providerPos.x, providerPos.y - 12f)
-                    lineTo(providerPos.x + 8f, providerPos.y + 8f)
-                    lineTo(providerPos.x, providerPos.y + 4f)
-                    lineTo(providerPos.x - 8f, providerPos.y + 8f)
-                    close()
+                shadowElevation = 6.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Zoom In",
+                        tint = DeepIndigo,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
-                drawPath(path = arrowPath, color = Color.White)
+            }
+
+            // Zoom Out (-)
+            Surface(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .clickable { if (zoomLevel > 12) zoomLevel-- },
+                shape = CircleShape,
+                color = Color.White,
+                shadowElevation = 6.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Remove,
+                        contentDescription = "Zoom Out",
+                        tint = DeepIndigo,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            // Recenter GPS
+            Surface(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .clickable {
+                        centerLat = (customerLat + latestLocation.lat) / 2.0
+                        centerLng = (customerLng + latestLocation.lng) / 2.0
+                        zoomLevel = 16
+                    },
+                shape = CircleShape,
+                color = Color.White,
+                shadowElevation = 6.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.MyLocation,
+                        contentDescription = "Recenter",
+                        tint = DeepIndigo,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
 
@@ -398,9 +496,10 @@ fun LiveTrackingMapScreen(
                 }
 
                 // Live Tracking Status Pill with Geoapify indication
+                val isArrived = job.status.uppercase() == "ARRIVED"
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = Color.White,
+                    color = if (isArrived) EmeraldGreen else Color.White,
                     shadowElevation = 4.dp
                 ) {
                     Row(
@@ -411,14 +510,20 @@ fun LiveTrackingMapScreen(
                             modifier = Modifier
                                 .size(10.dp)
                                 .clip(CircleShape)
-                                .background(StatusGreen)
+                                .background(if (isArrived) Color.White else StatusGreen)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (language == AppLanguage.URDU) "لائیو ٹریکنگ • جیو ایپفائی" else "LIVE TRACKING • GEOAPIFY",
+                            text = if (isArrived) {
+                                if (language == AppLanguage.URDU) "کاریگر پہنچ گیا ہے • براہ کرم موصول کریں"
+                                else "PROVIDER ARRIVED • PLEASE RECEIVE"
+                            } else {
+                                if (language == AppLanguage.URDU) "لائیو ٹریکنگ • جیو ایپفائی"
+                                else "LIVE TRACKING • GEOAPIFY"
+                            },
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextSlate,
+                            color = if (isArrived) Color.White else TextSlate,
                             letterSpacing = 0.5.sp
                         )
                     }
@@ -840,6 +945,32 @@ fun LiveTrackingMapScreen(
                             fontSize = 12.sp
                         )
                     }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // InDrive-style Cancel Booking Button
+                TextButton(
+                    onClick = { showCancelDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(38.dp)
+                        .testTag("customer_cancel_booking_btn"),
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF3B30))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp),
+                        tint = Color(0xFFFF3B30)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (language == AppLanguage.URDU) "بکنگ منسوخ کریں" else "Cancel Booking",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Color(0xFFFF3B30)
+                    )
                 }
             }
         }

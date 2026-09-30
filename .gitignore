@@ -20,3 +20,4 @@ debug.keystore
 brag-output/
 brag-output-reel/
 node_modules/
+*.db*

@@ -113,6 +113,40 @@ class HomeaseRepository(private val database: AppDatabase) {
         return requestDao.insertRequest(job)
     }
 
+    suspend fun cancelJob(
+        requestId: Long,
+        cancelledBy: String,
+        reason: String
+    ) {
+        val req = requestDao.getRequestById(requestId) ?: return
+        val now = System.currentTimeMillis()
+        val updated = req.copy(
+            status = "CANCELLED",
+            cancelledBy = cancelledBy,
+            cancellationReason = reason,
+            cancelledAt = now,
+            statusUpdatedAt = now
+        )
+        requestDao.updateRequest(updated)
+    }
+
+    suspend fun cancelJobByRemoteId(
+        remoteId: String,
+        cancelledBy: String,
+        reason: String
+    ) {
+        val req = requestDao.getRequestByRemoteId(remoteId) ?: return
+        val now = System.currentTimeMillis()
+        val updated = req.copy(
+            status = "CANCELLED",
+            cancelledBy = cancelledBy,
+            cancellationReason = reason,
+            cancelledAt = now,
+            statusUpdatedAt = now
+        )
+        requestDao.updateRequest(updated)
+    }
+
     suspend fun syncRemoteOffer(offer: JobOfferEntity): Long {
         val remoteOfferId = offer.remoteOfferId
         if (!remoteOfferId.isNullOrBlank()) {

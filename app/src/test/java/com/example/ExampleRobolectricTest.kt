@@ -24,7 +24,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [34])
 class ExampleRobolectricTest {
 
   private lateinit var db: AppDatabase
@@ -302,9 +302,9 @@ class ExampleRobolectricTest {
     val updatedOffer1 = db.jobOfferDao().getOfferById(601L)
     assertEquals("accepted", updatedOffer1?.status)
 
-    // Verify offer 2 is automatically expired
+    // Verify offer 2 is automatically rejected
     val updatedOffer2 = db.jobOfferDao().getOfferById(602L)
-    assertEquals("expired", updatedOffer2?.status)
+    assertEquals("rejected", updatedOffer2?.status)
 
     // Verify request is updated to ACCEPTED with agreed price
     val updatedReq = db.serviceRequestDao().getRequestById(501L)

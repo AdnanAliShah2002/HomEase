@@ -66,6 +66,40 @@ class HomEaseFirebaseMessagingService : FirebaseMessagingService() {
                 )
             }
         }
+
+        fun showChatNotification(
+            context: Context,
+            jobId: String,
+            senderName: String,
+            messageText: String
+        ) {
+            createNotificationChannels(context)
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("job_id", jobId)
+                putExtra("notification_type", "new_message")
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                jobId.hashCode(),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val defaultSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val builder = NotificationCompat.Builder(context, CHANNEL_CHAT)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle(senderName)
+                .setContentText(messageText)
+                .setAutoCancel(true)
+                .setSound(defaultSound)
+                .setVibrate(longArrayOf(0, 250, 150, 250))
+                .setContentIntent(pendingIntent)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notifId = if (jobId.isNotEmpty()) jobId.hashCode() else System.currentTimeMillis().toInt()
+            notificationManager.notify(notifId, builder.build())
+        }
     }
 
     override fun onNewToken(token: String) {

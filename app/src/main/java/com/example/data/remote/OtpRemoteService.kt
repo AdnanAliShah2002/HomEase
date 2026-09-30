@@ -15,6 +15,7 @@ data class OtpVerifyResult(
     val isNewUser: Boolean,
     val userId: String? = null,
     val accessToken: String? = null,
+    val refreshToken: String? = null,
     val phone: String? = null
 )
 
@@ -135,8 +136,19 @@ class OtpRemoteService(
                     val isNewUser = json.optBoolean("isNewUser", true)
                     val userId = if (json.has("userId") && !json.isNull("userId")) json.optString("userId") else null
                     val accessToken = if (json.has("accessToken") && !json.isNull("accessToken")) json.optString("accessToken") else null
+                    val refreshToken = when {
+                        json.has("refreshToken") && !json.isNull("refreshToken") -> json.optString("refreshToken")
+                        json.has("refresh_token") && !json.isNull("refresh_token") -> json.optString("refresh_token")
+                        else -> null
+                    }
                     pendingOtps.remove(formattedPhone)
-                    return@withContext Result.success(OtpVerifyResult(isNewUser = isNewUser, userId = userId, accessToken = accessToken, phone = formattedPhone))
+                    return@withContext Result.success(OtpVerifyResult(
+                        isNewUser = isNewUser,
+                        userId = userId,
+                        accessToken = accessToken,
+                        refreshToken = refreshToken,
+                        phone = formattedPhone
+                    ))
                 } else {
                     val errorMsg = json.optString("error", "Invalid verification code")
                     return@withContext Result.failure(IOException(errorMsg))

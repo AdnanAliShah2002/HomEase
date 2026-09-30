@@ -84,9 +84,31 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         }
     }
 
+    @Volatile
+    private var serverTimeOffsetSecs: Long = 0L
+
+    private fun updateServerTimeOffset(dateHeader: String?) {
+        if (dateHeader.isNullOrBlank()) return
+        try {
+            // Parses RFC 1123 HTTP Date header e.g. "Sun, 27 Sep 2026 15:35:21 GMT"
+            val format = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", java.util.Locale.US)
+            val parsedDate = format.parse(dateHeader.trim())
+            if (parsedDate != null) {
+                val serverSecs = parsedDate.time / 1000
+                val localSecs = System.currentTimeMillis() / 1000
+                serverTimeOffsetSecs = serverSecs - localSecs
+            }
+        } catch (_: Exception) {}
+    }
+
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
+        .addNetworkInterceptor { chain ->
+            val response = chain.proceed(chain.request())
+            updateServerTimeOffset(response.header("Date"))
+            response
+        }
         .build()
 
     val realtime: RealtimeClient by lazy {
@@ -157,11 +179,11 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         val refreshToken = prefs.getString(KEY_REFRESH_TOKEN, null)
         val role = prefs.getString(KEY_ROLE, "customer") ?: "customer"
 
-        if (!userId.isNullOrBlank() && !phone.isNullOrBlank() && !token.isNullOrBlank()) {
+        if (!userId.isNullOrBlank() && !phone.isNullOrBlank() && (!token.isNullOrBlank() || !refreshToken.isNullOrBlank())) {
             inMemorySession = SupabaseSession(
                 userId = userId,
                 phone = phone,
-                accessToken = token,
+                accessToken = token.orEmpty(),
                 role = role,
                 refreshToken = refreshToken
             )
@@ -206,17 +228,54 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         }
     }
 
+    fun isTokenValid(token: String?): Boolean {
+        if (token.isNullOrBlank()) return false
+        if (token == SUPABASE_ANON_KEY) return true
+        val parts = token.split(".")
+        if (parts.size != 3) return false
+        return try {
+            val payloadBytes = android.util.Base64.decode(
+                parts[1],
+                android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.DEFAULT
+            )
+            val payloadJson = JSONObject(String(payloadBytes, Charsets.UTF_8))
+            val exp = payloadJson.optLong("exp", 0L)
+            if (exp == 0L) return true
+            val nowSecs = (System.currentTimeMillis() / 1000) + serverTimeOffsetSecs
+            nowSecs < (exp - 30) // Buffer 30 seconds
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    @Synchronized
+    fun clearInvalidToken(purgeRefresh: Boolean = false) {
+        val prefs = getPreferences() ?: return
+        val editor = prefs.edit().remove(KEY_ACCESS_TOKEN)
+        if (purgeRefresh) {
+            editor.remove(KEY_REFRESH_TOKEN)
+        }
+        editor.apply()
+        inMemorySession = if (purgeRefresh) null else inMemorySession?.copy(accessToken = "")
+    }
+
     /**
      * Builds HTTP headers using:
      * - apikey: Anon key (public client identifier)
-     * - Authorization: Bearer <user_access_token> when authenticated, or Bearer <anonKey> for unauthenticated/guest calls.
+     * - Authorization: Bearer <user_access_token> when authenticated and valid, or Bearer <anonKey> for unauthenticated/guest calls.
      * 
      * SERVICE ROLE KEY IS NEVER USED HERE.
      */
     fun getAuthHeaders(forceAnon: Boolean = false): Map<String, String> {
-        val token = if (!forceAnon) {
-            getSession()?.accessToken ?: SUPABASE_ANON_KEY
+        val sessionToken = getSession()?.accessToken
+        val token = if (!forceAnon && isTokenValid(sessionToken)) {
+            sessionToken!!
         } else {
+            val hasRefresh = !getSession()?.refreshToken.isNullOrBlank()
+            if (!sessionToken.isNullOrBlank() && !isTokenValid(sessionToken)) {
+                android.util.Log.w("HomEaseSupabaseClient", "Session token expired; hasRefreshToken=$hasRefresh")
+                clearInvalidToken(purgeRefresh = !hasRefresh)
+            }
             SUPABASE_ANON_KEY
         }
 
@@ -225,6 +284,30 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             "Authorization" to "Bearer $token",
             "Content-Type" to "application/json"
         )
+    }
+
+    /**
+     * Suspend version of getAuthHeaders that proactively refreshes an expired access token
+     * using the saved refresh token if available before issuing the request.
+     */
+    suspend fun getValidAuthHeaders(forceAnon: Boolean = false): Map<String, String> {
+        if (forceAnon) return getAuthHeaders(forceAnon = true)
+        val currentToken = getSession()?.accessToken
+        if (!currentToken.isNullOrBlank() && isTokenValid(currentToken)) {
+            return getAuthHeaders(forceAnon = false)
+        }
+        val refreshToken = getSession()?.refreshToken
+        if (!refreshToken.isNullOrBlank()) {
+            val refreshed = refreshSession().getOrNull()
+            if (refreshed != null && refreshed.accessToken.isNotBlank()) {
+                return mapOf(
+                    "apikey" to SUPABASE_ANON_KEY,
+                    "Authorization" to "Bearer ${refreshed.accessToken}",
+                    "Content-Type" to "application/json"
+                )
+            }
+        }
+        return getAuthHeaders(forceAnon = false)
     }
 
     // ========================================================================
@@ -366,6 +449,154 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         }
     }
 
+    private fun getPhoneFilterVariants(phone: String): String {
+        val rawDigits = phone.filter { it.isDigit() }
+        val nationalDigits = when {
+            rawDigits.startsWith("920") -> rawDigits.removePrefix("920")
+            rawDigits.startsWith("92") -> rawDigits.removePrefix("92")
+            rawDigits.startsWith("0") -> rawDigits.removePrefix("0")
+            else -> rawDigits
+        }
+        val formattedPlus = "+92$nationalDigits"
+        val nationalZero = "0$nationalDigits"
+        val intlNoPlus = "92$nationalDigits"
+        return "phone.eq.$formattedPlus,phone.eq.$nationalZero,phone.eq.$intlNoPlus,phone.eq.$rawDigits"
+    }
+
+    /**
+     * Looks up an existing service provider by phone number (supports local 03xx, international +923xx, etc.).
+     */
+    suspend fun getProviderByPhone(phone: String): Result<JSONObject?> = withContext(Dispatchers.IO) {
+        if (phone.isBlank()) return@withContext Result.success(null)
+        try {
+            val phoneFilter = getPhoneFilterVariants(phone)
+            val url = "$SUPABASE_URL/rest/v1/service_providers?or=($phoneFilter)&select=*&limit=1"
+            val requestBuilder = Request.Builder().url(url)
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            val bodyString = response.body?.string().orEmpty()
+
+            if (response.isSuccessful) {
+                val array = JSONArray(bodyString)
+                if (array.length() > 0) {
+                    Result.success(array.getJSONObject(0))
+                } else {
+                    Result.success(null)
+                }
+            } else {
+                Result.failure(IOException("Failed to query provider by phone (HTTP ${response.code}): $bodyString"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Looks up an existing user / customer by phone number.
+     */
+    suspend fun getUserByPhone(phone: String): Result<JSONObject?> = withContext(Dispatchers.IO) {
+        if (phone.isBlank()) return@withContext Result.success(null)
+        try {
+            val phoneFilter = getPhoneFilterVariants(phone)
+            val url = "$SUPABASE_URL/rest/v1/users?or=($phoneFilter)&select=*&limit=1"
+            val requestBuilder = Request.Builder().url(url)
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            val bodyString = response.body?.string().orEmpty()
+
+            if (response.isSuccessful) {
+                val array = JSONArray(bodyString)
+                if (array.length() > 0) {
+                    Result.success(array.getJSONObject(0))
+                } else {
+                    Result.success(null)
+                }
+            } else {
+                Result.failure(IOException("Failed to query user by phone (HTTP ${response.code}): $bodyString"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Recovers customer details (name and city) from their most recent job request if they previously posted a job.
+     */
+    suspend fun getCustomerLastJob(phone: String): Result<JSONObject?> = withContext(Dispatchers.IO) {
+        if (phone.isBlank()) return@withContext Result.success(null)
+        try {
+            val rawDigits = phone.filter { it.isDigit() }
+            val nationalDigits = when {
+                rawDigits.startsWith("920") -> rawDigits.removePrefix("920")
+                rawDigits.startsWith("92") -> rawDigits.removePrefix("92")
+                rawDigits.startsWith("0") -> rawDigits.removePrefix("0")
+                else -> rawDigits
+            }
+            val formattedPlus = "+92$nationalDigits"
+            val nationalZero = "0$nationalDigits"
+            val intlNoPlus = "92$nationalDigits"
+            val filter = "customer_phone.eq.$formattedPlus,customer_phone.eq.$nationalZero,customer_phone.eq.$intlNoPlus,customer_phone.eq.$rawDigits"
+
+            val url = "$SUPABASE_URL/rest/v1/jobs?or=($filter)&select=customer_name,city_area&order=created_at.desc&limit=1"
+            val requestBuilder = Request.Builder().url(url)
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            val bodyString = response.body?.string().orEmpty()
+
+            if (response.isSuccessful) {
+                val array = JSONArray(bodyString)
+                if (array.length() > 0) {
+                    Result.success(array.getJSONObject(0))
+                } else {
+                    Result.success(null)
+                }
+            } else {
+                Result.failure(IOException("Failed to query jobs for customer (HTTP ${response.code})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Persists customer or user profile to Supabase `users` table so subsequent logins find them.
+     */
+    suspend fun upsertUser(user: UserEntity): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val formattedPhone = if (user.phone.startsWith("+")) user.phone else "+${user.phone}"
+            val currentUserId = getSession()?.userId ?: UUID.randomUUID().toString()
+
+            val payload = JSONObject().apply {
+                put("id", currentUserId)
+                put("phone", formattedPhone)
+                put("full_name", user.name)
+                put("city", user.cityArea)
+                put("role", user.role.lowercase())
+                put("is_verified", true)
+            }
+
+            val url = "$SUPABASE_URL/rest/v1/users"
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .addHeader("Prefer", "resolution=merge-duplicates")
+                .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful || response.code in 200..204) {
+                Result.success(Unit)
+            } else {
+                Result.failure(IOException("Failed to upsert user profile (HTTP ${response.code})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     /**
      * Submits a provider registration.
      * Uses the authenticated user's session token and the anon key.
@@ -429,19 +660,35 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
 
             getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
 
-            val response = try {
+            var response = try {
                 client.newCall(requestBuilder.build()).execute()
             } catch (e: Exception) {
                 return@withContext Result.failure(IOException("Failed to connect to Supabase: ${e.message}", e))
             }
 
-            val responseBody = response.body?.string().orEmpty()
+            var responseBody = response.body?.string().orEmpty()
+
+            // If 401 Unauthorized or JWT expired, purge invalid token and retry once with anon key
+            if (!response.isSuccessful && (response.code == 401 || responseBody.contains("JWT", ignoreCase = true))) {
+                android.util.Log.w("HomEaseSupabaseClient", "Got 401 JWT error on provider registration; retrying with anon key")
+                clearInvalidToken()
+                val retryReq = Request.Builder()
+                    .url("$SUPABASE_URL/rest/v1/service_providers")
+                    .addHeader("Prefer", "resolution=merge-duplicates")
+                    .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+                getAuthHeaders(forceAnon = true).forEach { (k, v) -> retryReq.addHeader(k, v) }
+                try {
+                    response = client.newCall(retryReq.build()).execute()
+                    responseBody = response.body?.string().orEmpty()
+                } catch (_: Exception) {}
+            }
+
             if (!response.isSuccessful) {
                 val errorMsg = try {
                     val errJson = JSONObject(responseBody)
-                    val message = errJson.optString("message", "")
-                    val details = errJson.optString("details", "")
-                    val hint = errJson.optString("hint", "")
+                    val message = errJson.optString("message", "").takeIf { it != "null" } ?: ""
+                    val details = errJson.optString("details", "").takeIf { it != "null" } ?: ""
+                    val hint = errJson.optString("hint", "").takeIf { it != "null" } ?: ""
                     listOf(message, details, hint).filter { it.isNotBlank() }.joinToString(" - ").ifBlank { "HTTP ${response.code}: $responseBody" }
                 } catch (_: Exception) {
                     "HTTP ${response.code}: $responseBody"
@@ -708,14 +955,30 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             }
 
             val url = "$SUPABASE_URL/rest/v1/jobs"
+            val authHeaders = getValidAuthHeaders()
             val requestBuilder = Request.Builder()
                 .url(url)
                 .addHeader("Prefer", "return=representation")
                 .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
 
-            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            authHeaders.forEach { (k, v) -> requestBuilder.addHeader(k, v) }
 
-            val response = client.newCall(requestBuilder.build()).execute()
+            var response = client.newCall(requestBuilder.build()).execute()
+
+            // Automatic 401 recovery: if token expired, refresh and retry once
+            if (response.code == 401 && !getSession()?.refreshToken.isNullOrBlank()) {
+                android.util.Log.i("HomEaseSupabaseClient", "createJob received 401; refreshing session and retrying")
+                val refreshed = refreshSession().getOrNull()
+                if (refreshed != null) {
+                    val retryBuilder = Request.Builder()
+                        .url(url)
+                        .addHeader("Prefer", "return=representation")
+                        .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+                    getAuthHeaders().forEach { (k, v) -> retryBuilder.addHeader(k, v) }
+                    response = client.newCall(retryBuilder.build()).execute()
+                }
+            }
+
             val body = response.body?.string().orEmpty()
             if (response.isSuccessful || response.code in 200..204) {
                 val arr = JSONArray(body)
@@ -1085,6 +1348,45 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         }
     }
 
+    /**
+     * Cancels a job in Supabase, recording the cancelling party, reason, and cancellation timestamp.
+     */
+    suspend fun cancelJob(
+        jobId: String,
+        cancelledBy: String,
+        cancellationReason: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val isoNow = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+
+            val payload = JSONObject().apply {
+                put("status", "cancelled")
+                put("status_updated_at", isoNow)
+                put("cancelled_by", cancelledBy)
+                put("cancellation_reason", cancellationReason)
+                put("cancelled_at", isoNow)
+            }
+            val url = "$SUPABASE_URL/rest/v1/jobs?id=eq.$jobId"
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful || response.code in 200..204) {
+                Result.success(Unit)
+            } else {
+                val body = response.body?.string().orEmpty()
+                Result.failure(IOException("Failed to cancel job in Supabase (HTTP ${response.code}): $body"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // ========================================================================
     // 4. Job Ratings Table
     // ========================================================================
@@ -1306,9 +1608,11 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
             }.format(java.util.Date())
 
+            val resolvedProviderId = if (isValidUuid(providerId)) providerId else (getSession()?.userId ?: providerId)
+
             val bodyObj = JSONObject().apply {
                 put("job_id", jobId)
-                put("provider_id", providerId)
+                put("provider_id", resolvedProviderId)
                 put("lat", lat)
                 put("lng", lng)
                 if (heading != null) put("heading", heading)
@@ -1320,7 +1624,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
                 .addHeader("Prefer", "resolution=merge-duplicates")
                 .post(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
 
-            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            getValidAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
 
             val response = client.newCall(requestBuilder.build()).execute()
             if (response.isSuccessful || response.code in 200..204) {
@@ -1340,7 +1644,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         try {
             val url = "$SUPABASE_URL/rest/v1/provider_locations?job_id=eq.$jobId&select=*&limit=1"
             val requestBuilder = Request.Builder().url(url).get()
-            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            getValidAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
 
             val response = client.newCall(requestBuilder.build()).execute()
             val bodyString = response.body?.string().orEmpty()
@@ -1364,7 +1668,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         try {
             val url = "$SUPABASE_URL/rest/v1/job_messages?job_id=eq.$jobId&order=created_at.asc"
             val requestBuilder = Request.Builder().url(url).get()
-            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            getValidAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
             val response = client.newCall(requestBuilder.build()).execute()
             val bodyString = response.body?.string().orEmpty()
             if (response.isSuccessful && bodyString.isNotBlank()) {
@@ -1386,19 +1690,21 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
         jobId: String,
         senderId: String,
         senderType: String,
-        messageText: String
+        messageText: String,
+        messageId: String = UUID.randomUUID().toString()
     ): Result<JobMessage> = withContext(Dispatchers.IO) {
         try {
             val url = "$SUPABASE_URL/rest/v1/job_messages"
             val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
             }.format(java.util.Date())
-            val id = UUID.randomUUID().toString()
+            val id = messageId
+            val resolvedSenderId = if (isValidUuid(senderId)) senderId else (getSession()?.userId ?: senderId)
 
             val bodyObj = JSONObject().apply {
                 put("id", id)
                 put("job_id", jobId)
-                put("sender_id", senderId)
+                put("sender_id", resolvedSenderId)
                 put("sender_type", senderType)
                 put("message", messageText)
                 put("created_at", isoTime)
@@ -1409,21 +1715,21 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
                 .addHeader("Prefer", "return=representation")
                 .post(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
 
-            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            getValidAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
             val response = client.newCall(requestBuilder.build()).execute()
             val bodyString = response.body?.string().orEmpty()
             if (response.isSuccessful || response.code in 200..204) {
                 val message = if (bodyString.isNotBlank() && bodyString.startsWith("[")) {
                     val arr = JSONArray(bodyString)
                     if (arr.length() > 0) JobMessage.fromJson(arr.getJSONObject(0))
-                    else JobMessage(id, jobId, senderId, senderType, messageText, isoTime)
+                    else JobMessage(id, jobId, resolvedSenderId, senderType, messageText, isoTime)
                 } else {
-                    JobMessage(id, jobId, senderId, senderType, messageText, isoTime)
+                    JobMessage(id, jobId, resolvedSenderId, senderType, messageText, isoTime)
                 }
                 Result.success(message)
             } else {
                 // Return gracefully generated message to avoid breaking client offline
-                Result.success(JobMessage(id, jobId, senderId, senderType, messageText, isoTime))
+                Result.success(JobMessage(id, jobId, resolvedSenderId, senderType, messageText, isoTime))
             }
         } catch (e: Exception) {
             val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
@@ -1438,8 +1744,9 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
             }.format(java.util.Date())
+            val resolvedReaderId = if (isValidUuid(readerId)) readerId else (getSession()?.userId ?: readerId)
 
-            val url = "$SUPABASE_URL/rest/v1/job_messages?job_id=eq.$jobId&sender_id=neq.$readerId&read_at=is.null"
+            val url = "$SUPABASE_URL/rest/v1/job_messages?job_id=eq.$jobId&sender_id=neq.$resolvedReaderId&read_at=is.null"
             val bodyObj = JSONObject().apply {
                 put("read_at", isoTime)
             }
@@ -1448,7 +1755,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
                 .url(url)
                 .patch(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
 
-            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            getValidAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
             val response = client.newCall(requestBuilder.build()).execute()
             if (response.isSuccessful || response.code in 200..204) {
                 Result.success(Unit)
@@ -1471,11 +1778,12 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
             }.format(java.util.Date())
+            val resolvedCallerId = if (isValidUuid(callerId)) callerId else (getSession()?.userId ?: callerId)
 
             val bodyObj = JSONObject().apply {
                 put("id", id)
                 put("job_id", jobId)
-                put("caller_id", callerId)
+                put("caller_id", resolvedCallerId)
                 put("started_at", isoTime)
             }
 
@@ -1483,7 +1791,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
                 .url(url)
                 .post(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
 
-            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            getValidAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
             client.newCall(requestBuilder.build()).execute()
             Result.success(id)
         } catch (e: Exception) {
@@ -1507,7 +1815,7 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
                 .url(url)
                 .patch(bodyObj.toString().toRequestBody(JSON_MEDIA_TYPE))
 
-            getAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            getValidAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
             client.newCall(requestBuilder.build()).execute()
             Result.success(Unit)
         } catch (e: Exception) {
