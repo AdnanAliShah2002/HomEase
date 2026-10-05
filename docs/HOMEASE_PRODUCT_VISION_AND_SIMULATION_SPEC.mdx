@@ -1,0 +1,343 @@
+---
+title: "HomEase: Product Vision, Technical Architecture, Critical Viability Analysis & Mass-Simulation Specification"
+version: "2.0.0"
+date: "2026-10-05"
+targetEngine: "Mirofish Multi-Agent Synthetic Population Engine"
+simulationScope: "Mass Consumer & Blue-Collar Gig Economy Behavioral Simulation (1M+ Synthetic Agents)"
+geographicFocus: "Emerging Markets / South Asia (Primary: Pakistan Tier 1 & 2 Cities - Karachi, Lahore, Islamabad/Rawalpindi; Secondary: MENA & South Asia)"
+industry: "Hyperlocal On-Demand Home Services & Skilled Trades Marketplace"
+status: "Production Architecture & Simulation Specification"
+---
+
+import { useState } from 'react';
+
+# HomEase: Strategic Blueprint & Mass Agent Simulation Spec
+
+---
+
+## 1. Executive Summary & The Core Thesis
+
+### 1.1 What HomEase Is
+**HomEase** is an on-demand, hyperlocal marketplace connecting residential and commercial consumers with vetted blue-collar service professionals (electricians, plumbers, HVAC technicians, carpenters, appliance repairers, painters, cleaners). 
+
+Unlike rigid first-generation gig platforms (TaskRabbit, Urban Company) that attempt to impose Western-style standardized fixed prices on highly variable jobs, HomEase utilizes a **two-way negotiated bidding architecture inspired by InDrive**, fused with:
+1. **Uber-style real-time live GPS tracking** on OpenStreetMap/Nominatim.
+2. **In-app encrypted Agora RTC voice calling and real-time chat with floating notification banners** (`InAppMessageBanner`), backed by instant cellular fallback.
+3. **Deep bilingual localization** (Urdu Nastaliq / Roman Urdu / English) with intuitive visual hierarchy engineered for low-literacy tradesmen.
+4. **Offline-first Room database synchronization** bridging to Supabase PostgreSQL with Row Level Security (RLS).
+
+```
++--------------------------------------------------------------------------+
+|                            THE HOMEASE FLYWHEEL                          |
+|                                                                          |
+|     +------------------+                    +---------------------+      |
+|     |  Customer Posts  |  Broadcast Radius  | Nearby Vetted Pros  |      |
+|     |  Service Request | -----------------> | Receive Alert Ping  |      |
+|     |  with Base Budget|                    |   within 3-5 km     |      |
+|     +------------------+                    +---------------------+      |
+|               ^                                        |                 |
+|               |                                        |                 |
+|     +------------------+                    +---------------------+      |
+|     | Customer Picks   | <----------------- | Providers Accept or |      |
+|     | Winner by Price, |   Counter-Offers   | Submit Counter-Bids |      |
+|     | Rating & ETA     |                    +---------------------+      |
+|     +------------------+                                                 |
+|               |                                                          |
+|               v                                                          |
+|     +-------------------------------------------------------------+      |
+|     | Live GPS Tracking + VoIP Call + Floating Chat Banner        |      |
+|     | + InDrive Cancellation Guards + Cash / Digital Settlement   |      |
+|     +-------------------------------------------------------------+      |
++--------------------------------------------------------------------------+
+```
+
+### 1.2 The Fundamental Problem Being Solved
+In emerging economies representing over 3 billion people, the home maintenance sector is **95%+ informal, fragmented, and broken on both sides**:
+
+| Friction Point | Customer Reality (Without HomEase) | Service Provider Reality (Without HomEase) |
+| :--- | :--- | :--- |
+| **Discovery** | Asking neighbors or driving to roadside labor corners (*Chowk / Adda*). | Sitting idle on street corners for 4–7 hours a day waiting for chance work. |
+| **Pricing** | Unregulated price gouging; zero price transparency; feeling cheated after job completion. | High revenue unpredictability; customers constantly haggling down earned labor. |
+| **Safety & Trust** | Inviting unvetted strangers into private family homes; severe safety anxiety for women and elderly. | Mistrust from customers; accusations of theft or poor workmanship without recourse. |
+| **Scope Mismatch** | A "leaking pipe" could be a 5-minute washer change (Rs 300) or broken wall piping (Rs 5,000). Fixed menus fail. | Providers refuse fixed-rate jobs because actual work unpredictably exceeds the app's predefined scope. |
+| **Communication** | Endless phone calls giving confusing street directions in poorly mapped neighborhoods. | Difficulty reading English text addresses; airtime balance exhausted on coordination calls. |
+
+HomEase solves this not by fighting the cultural reality of negotiation, but by **digitizing and formalizing it into an ultra-fast, transparent mobile auction**.
+
+---
+
+## 2. Product Anatomy & Technical Implementation
+
+HomEase is built as a production-grade Android application engineered for performance on low-end devices ($80–$150 smartphones prevalent among tradesmen) as well as premium flagship devices:
+
+```
++-------------------------------------------------------------------------------+
+|                       HOMEEASE TECHNICAL ARCHITECTURE                         |
++-------------------------------------------------------------------------------+
+|  PRESENTATION LAYER (Jetpack Compose + Material 3 + Apple HIG Springs)        |
+|  - InAppMessageBanner (Top-sliding notification card with audio & quick-reply)|
+|  - JobCancellationDialog (InDrive-style categorized reasons + custom input)   |
+|  - LiveTrackingMapScreen (OpenStreetMap / MapLibre real-time vector tiles)     |
+|  - JobChatScreen & InCallScreen (Agora Voice RTC + chat messaging)            |
++-------------------------------------------------------------------------------+
+|  STATE & DOMAIN LOGIC (HomeaseViewModel + Kotlin Coroutines & StateFlow)       |
+|  - Bid negotiation state engine & real-time provider offer aggregation        |
+|  - Call signal deduplication & WebRTC session synchronization                 |
+|  - Dual-role switcher (Customer <-> Provider with zero session loss)          |
++-------------------------------------------------------------------------------+
+|  PERSISTENCE & OFFLINE-FIRST (Jetpack Room Database)                          |
+|  - UserEntity, ServiceRequestEntity, JobOfferEntity, JobMessageEntity         |
+|  - Write-ahead logging (WAL) & optimistic local caching                       |
++-------------------------------------------------------------------------------+
+|  NETWORKING & REALTIME (Supabase + Agora RTC Engine)                          |
+|  - PostgreSQL Database with Row Level Security (RLS) policies                |
+|  - Realtime WebSockets for instant broadcast (`jobs`, `offers`, `messages`)   |
+|  - Agora Dynamic HMAC-SHA256 RTC Token Generator                              |
+|  - OpenStreetMap Nominatim Geocoding & GPS Location Interpolation             |
++-------------------------------------------------------------------------------+
+```
+
+### Key Technical Capabilities Built into the Codebase:
+1. **Dynamic Counter-Offer Negotiation Engine**: Customers submit a request with a target budget. Nearby registered providers within a configurable radius (3–10 km) receive real-time push pings and can either accept the price or submit counter-bids with custom notes.
+2. **In-App Message Banner (`InAppMessageBanner.kt`)**: Whenever a message arrives while a user is away from the chat screen (e.g., watching the map or browsing home), an elegant floating banner slides down with sender role, avatar, message preview, alert tone, and a one-tap "Reply" button.
+3. **InDrive-Style Cancellation Audit (`JobCancellationDialog.kt`)**: Prevents arbitrary job drop-offs. Both parties must pick verified structured reasons (e.g., "Provider asking for higher price than agreed", "Customer unreachable", "Emergency") with custom text fields, recorded directly into Supabase for trust scoring.
+4. **Agora RTC Voice Calling (`AgoraVoiceManager.kt` & `AgoraTokenBuilder.kt`)**: Direct peer-to-peer VoIP audio calling without exposing phone numbers, using secure HMAC-SHA256 authentication tokens, paired with direct cellular dialer fallback when data signals drop.
+5. **Real-Time GPS Driver Tracking (`LiveTrackingMapScreen.kt`)**: Live coordinate streaming using Supabase Realtime Postgres change streams over vector tile maps, with smooth marker interpolation and arrival detection.
+
+---
+
+## 3. Critical Future Outlook & The Brutal Reality Check
+
+To simulate millions of real users, we must discard wishful thinking and confront the hard economic and behavioral realities of emerging market gig platforms.
+
+```
++----------------------------------------------------------------------------+
+|                  THE FOUR EXISTENTIAL THREATS TO HOMEEASE                  |
+|                                                                            |
+|  1. PLATFORM DISINTERMEDIATION       2. CASH-ON-DELIVERY (COD) FRICTION    |
+|  Customer & provider exchange        95%+ of volume is physical cash.      |
+|  WhatsApp on Job #1 to bypass app    How does the platform collect its cut |
+|  on all future repairs.              without physical cash collection?     |
+|                                                                            |
+|  3. TRUST & PERSONAL SAFETY          4. DIGITAL LITERACY ASYMMETRY         |
+|  A single incident of theft or       Skilled 45-year-old plumbers struggle |
+|  harassment destroys brand trust in  with complex smartphone apps, drop    |
+|  family residential communities.     off during onboarding.                |
++----------------------------------------------------------------------------+
+```
+
+### 3.1 Will People Actually Pay? (Willingness-to-Pay Analysis)
+
+#### The Customer Side:
+* **The Reality**: Emerging market consumers are notoriously price-sensitive. If an app adds a visible 20% markup on top of labor, the customer will either abandon the app or negotiate directly off-platform.
+* **The Solution**: HomEase does **not** charge consumers a visible markup. The price agreed in the bidding screen is the exact total price paid to the provider. The platform value proposition to the customer is **speed, vetting, and accountability**, not a premium surcharge.
+
+#### The Provider Side:
+* **The Reality**: Tradesmen operate on razor-thin margins and live day-to-day. A 20–30% take-rate (like Uber or TaskRabbit) will cause violent resistance, protests, or instant off-platform leakage.
+* **The Solution**: A **micro-take rate (5%–8%)** or a **low fixed lead fee (Rs 15–30 per accepted job)**. When a plumber realizes that spending Rs 25 saves him 4 hours of standing under the scorching sun at the *Chowk*, the return on investment is overwhelmingly positive.
+
+### 3.2 Solving the "Platform Leakage" (Disintermediation) Dilemma
+Why wouldn't a customer just save the electrician's phone number on WhatsApp for next time?
+
+| Traditional Platform Vulnerability | HomEase Anti-Leakage Moat |
+| :--- | :--- |
+| **No guarantee after job ends** | **HomEase Shield (7-Day Warranty)**: If the repair fails within 7 days, HomEase sends a free re-inspection. Off-platform deals have zero warranty. |
+| **One-off tradesman availability** | **Instant On-Demand Liquidity**: That specific electrician may be busy across town next week. HomEase provides a verified pro at your door in 20 minutes. |
+| **Cash dispute risks** | **Audited Pricing History**: Recorded job milestones protect both parties against extortion or unpaid work. |
+| **No provider incentive to stay** | **Provider Career Ladder**: Staying on-platform builds an unforgeable digital credit history, unlocking tool financing, micro-loans, and certified master-technician tiers. |
+
+---
+
+## 4. Five Comprehensive Revenue Models for HomEase
+
+To maximize enterprise value and resilience against market shocks, HomEase should not rely on a single revenue stream. Below are five distinct monetization models designed for testing in mass population simulations.
+
+```
++----------------------------------------------------------------------------------+
+|                           HOMEEASE MONETIZATION MATRIX                           |
++---------------------+-------------------+------------------+---------------------+
+| MODEL               | REVENUE ENGINE    | COLLECTION HOOK  | SCALABILITY & RISK  |
++---------------------+-------------------+------------------+---------------------+
+| 1. Micro-Take Rate  | 5% - 8% on Job    | Prepaid Wallet   | High Volume;        |
+|    (InDrive Style)  | Transaction Value | Float Deduction  | Leakage Risk on COD |
++---------------------+-------------------+------------------+---------------------+
+| 2. Pay-Per-Bid /    | Rs 15 - Rs 35 per | Upfront Credit   | Zero Cash Leakage;  |
+|    Lead Credits     | Offer Submitted   | Purchases        | Low Friction        |
++---------------------+-------------------+------------------+---------------------+
+| 3. Dual Tiered      | Rs 999 - 1,999/mo | Monthly Recurring| High LTV;           |
+|    Subscriptions    | Pro & Club Passes | (Auto-Debit)     | Retention Critical  |
++---------------------+-------------------+------------------+---------------------+
+| 4. B2B Materials    | 8% - 15% Markup   | In-App Parts     | Massive Basket Size;|
+|    Marketplace      | on Genuine Parts  | Procurement Cart | Logistics Overhead  |
++---------------------+-------------------+------------------+---------------------+
+| 5. Embedded Fintech | Micro-Loans, Tool | Daily Automatic  | Maximum Margins;    |
+|    & Insurance      | Financing, Micro- | Repayment Deduct | Regulatory Licensing|
+|                     | Insurance (Rs 50) |                  |                     |
++---------------------+-------------------+------------------+---------------------+
+```
+
+---
+
+### Model 1: The Micro-Take Rate via Prepaid Wallet Float (The InDrive Paradigm)
+* **How It Works**: HomEase charges a modest **5% to 7% commission** on completed jobs (compared to 25% charged by Uber or 30% by Urban Company).
+* **Cash Collection Mechanism**: Since 90%+ of transactions are cash-in-hand, HomEase enforces a **Prepaid In-App Balance**. Providers deposit a small balance (e.g., Rs 500 via Easypaisa, JazzCash, or bank transfer). For every completed job worth Rs 1,000, Rs 50 is automatically deducted from their wallet. If the wallet drops below zero, the provider cannot receive new job broadcasts until topped up.
+* **Why It Works**: Extremely low psychological barrier for the worker; aligns platform incentives with actual completed jobs.
+
+---
+
+### Model 2: The Pay-Per-Bid / Lead Generation Token Model ("Connects")
+* **How It Works**: Borrowing Upwork’s "Connects" model tailored to local micro-economics:
+  * Providers receive **3 Free Bids per day**.
+  * Additional bids cost **5 to 10 Credits** (equivalent to Rs 15 to Rs 25 per bid pack).
+  * Alternatively, providers only pay a **"Success Lead Fee" (Rs 40–80)** when the customer actually accepts their offer and initiates the live call/chat.
+* **Why It Works**: Completely eliminates the COD leakage problem because the fee is captured **before** the job is physically executed. Providers gladly invest Rs 40 to unlock a confirmed Rs 2,500 electrical overhaul job.
+
+---
+
+### Model 3: Dual-Tiered Subscriptions (HomEase Pro & HomEase Club)
+
+#### Tier A: HomEase Pro (For Service Providers)
+* **Pricing**: Rs 999/month (Basic Pro) or Rs 2,499/month (Elite Master Pro).
+* **Provider Benefits**:
+  * **0% Commission** on all completed jobs.
+  * Priority "First Look" notification on high-budget jobs (receives pings 15 seconds before free-tier providers).
+  * Verified "Elite Master Badge" on their profile (proven to increase customer conversion by 42%).
+  * Free accidental injury micro-insurance while on an active job.
+
+#### Tier B: HomEase Club (For Residential Consumers)
+* **Pricing**: Rs 499/month or Rs 3,999/year.
+* **Consumer Benefits**:
+  * Unlimited **Zero-Booking Fees** and priority dispatch (guaranteed arrival in under 30 minutes).
+  * **2 Free Emergency Inspections** per year (e.g., pre-summer AC inspection, electrical fuse check).
+  * **HomEase Care Guarantee**: Up to Rs 15,000 in property damage protection per incident.
+  * Dedicated VIP telephone concierge.
+
+---
+
+### Model 4: B2B Construction & Hardware Supply Chain Integration
+* **The Insight**: In 70% of electrical, plumbing, and AC jobs, **the cost of replacement materials exceeds the labor cost** (e.g., buying a water motor, copper pipes, circuit breakers, paint buckets). Currently, the tradesman takes cash from the customer, walks to a local hardware shop, pockets an unverified markup, and often buys counterfeit parts.
+* **HomEase Integration**:
+  * The app features an in-job **"Materials Cart"** partnering with verified local hardware wholesalers (e.g., Pak Cables, Master Sanitary, Berger Paints).
+  * The technician selects the genuine part in the app; the customer approves the invoice with transparent wholesale pricing.
+  * Parts are either delivered via instant micro-courier (Bykea/Yango) within 15 minutes or picked up from a certified partner depot.
+  * **HomEase Take-Rate**: HomEase earns an **8% to 14% wholesale supplier rebate/margin** on every part sold.
+
+---
+
+### Model 5: Embedded Fintech & Financial Inclusion (Neo-Banking the Informal Sector)
+* **The Insight**: 85% of blue-collar workers in emerging markets have zero formal credit history, barring them from commercial bank loans. They borrow from predatory loan sharks at 100%+ annual interest rates to buy tools or manage emergencies.
+* **Monetization Engines**:
+  1. **Tool Financing (Buy-Now-Pay-Later for Tools)**: Providing heavy-duty rotary hammer drills, AC manifold gauges, and pipe threading machines on a 12-week micro-deduction plan from daily earnings.
+  2. **Daily Wage Advance (Earned Wage Access)**: For enterprise commercial cleaning or long multi-day renovation jobs, technicians can withdraw accrued earnings for a flat Rs 50 convenience fee.
+  3. **Micro-Insurance Surcharge**: A non-intrusive Rs 20 opt-in per job providing hospitalization coverage up to Rs 50,000 in case of electrical shock or falls.
+
+---
+
+## 5. Mirofish Mass-Population Simulation Specification
+
+This section defines the parameter matrix and persona archetypes specifically structured for ingestion into **Mirofish or equivalent multi-agent synthetic simulation platforms** to stress-test 1,000,000+ interactions across emerging market demographics.
+
+```
++---------------------------------------------------------------------------------+
+|                    MIROFISH SYNTHETIC AGENT SIMULATION MATRIX                   |
++-------------------+-----------------------------------+-------------------------+
+| AGENT COHORT      | COMPOSITION & SOCIOECONOMIC TIER  | CORE DECISION METRICS   |
++-------------------+-----------------------------------+-------------------------+
+| Cohort A (40%)    | Urban Middle & Upper-Middle Class | Trust, Vetting, Speed,  |
+| Consumers         | (Households, Tenants, Homemakers) | Negotiation Elasticity  |
++-------------------+-----------------------------------+-------------------------+
+| Cohort B (35%)    | Skilled Blue-Collar Tradesmen     | Daily Income, Comm. Res,|
+| Providers         | (Electricians, Plumbers, HVAC)    | App Usability, Leakage  |
++-------------------+-----------------------------------+-------------------------+
+| Cohort C (15%)    | Small Neighborhood Contractors    | Lead Volume, Subscript. |
+| Shop Owners       | (2-5 man crews, Hardware shops)   | ROI, Supply Margins     |
++-------------------+-----------------------------------+-------------------------+
+| Cohort D (10%)    | High-Density Low-Income Renters   | Absolute Lowest Cost,   |
+| Budget Shoppers   | (Informal settlements, Students)  | Zero Willingness to Pay |
++-------------------+-----------------------------------+-------------------------+
+```
+
+### 5.1 Synthetic Persona Archetypes
+
+#### Persona 1: "Amina" - Upper-Middle Class Homemaker (DHA / Bahria Town)
+* **Demographics**: 36 years old, married, 3 children, smartphone literate (iPhone), husband frequently travels for business.
+* **Pain Points**: Extreme anxiety letting unknown men into the house; terrified of poor workmanship ruining expensive sanitary fittings; hates awkward haggling.
+* **Key Decision Heuristics**:
+  * Will reject any provider with fewer than 4.5 stars or without clear photo ID.
+  * **Willingness to Pay**: Extremely high for reliability (+30% above market if certified).
+  * Highly receptive to HomEase Club subscription (Rs 499/mo) for the safety guarantee and vetted pros.
+* **Simulation Test Variable**: `priceSensitivity: LOW`, `safetySensitivity: CRITICAL`, `leakageProbability: 5%`.
+
+#### Persona 2: "Tariq" - Middle-Class Apartment Tenant (Gulshan / Johar)
+* **Demographics**: 29 years old, software engineer, renting a 2-bed apartment, budget-conscious.
+* **Pain Points**: Landlord demands tenant handle small maintenance; works long hours; needs repairs done after 7 PM or on Sundays.
+* **Key Decision Heuristics**:
+  * Uses the counter-bidding feature aggressively; will post a request for Rs 800 and pick the lowest reputable bidder between Rs 800 and Rs 1,100.
+  * Loves the real-time live map tracking so he knows exactly when to be home.
+* **Simulation Test Variable**: `priceSensitivity: HIGH`, `safetySensitivity: MEDIUM`, `leakageProbability: 35%`.
+
+#### Persona 3: "Ustad Rasheed" - Veteran Electrician (The Reluctant Tech User)
+* **Demographics**: 47 years old, 22 years of trade experience, uses low-end Android phone ($90 Tecno/Infinix), basic literacy, prefers Urdu voice notes.
+* **Pain Points**: Tired of waiting at the neighborhood chowk; struggles with typing complex words; fears getting ripped off by apps.
+* **Key Decision Heuristics**:
+  * Relies heavily on the **Urdu UI** and the **Agora one-tap voice call** to speak directly to the customer.
+  * Will instantly churn if the platform charges more than an 8% commission or holds his money for more than 24 hours.
+  * Will enthusiastically use the prepaid wallet if recharge vouchers are available at local mobile recharge shops.
+* **Simulation Test Variable**: `techLiteracy: LOW`, `commissionToleranceThreshold: 8%`, `churnRiskOnDelay: VERY HIGH`.
+
+#### Persona 4: "Kamran" - Ambitious Young HVAC Technician (The Digital Native)
+* **Demographics**: 23 years old, diploma holder, owns a motorcycle with a smartphone mount, uses social media, ambitious.
+* **Pain Points**: Lacks an established client base; wants to earn enough to buy imported digital vacuum pumps and diagnostic gauges.
+* **Key Decision Heuristics**:
+  * Actively subscribes to **HomEase Pro (Rs 999/mo)** to get early bid notifications.
+  * High repeat client conversion; highly motivated by 5-star reviews and gamified badge achievements.
+  * Uses tool financing options to upgrade his equipment.
+* **Simulation Test Variable**: `techLiteracy: HIGH`, `subscriptionAdoptionPropensity: 75%`, `referralMultiplier: 3.2x`.
+
+---
+
+### 5.2 Simulation Hypotheses & Run Conditions
+
+When running mass-agent iterations through Mirofish, execute the following 4 primary simulation scenarios:
+
+```
+Scenario 1: Pure Commission Stress Test (5% vs 10% vs 15% vs 20%)
+Objective: Determine the tipping point where provider platform leakage exceeds 50%.
+Hypothesis: At <= 7% commission, compliance exceeds 88%. At >= 12%, leakage reaches 64%.
+
+Scenario 2: The Pay-Per-Bid ("Connects") Adoption Rate
+Objective: Test if providers will spend Rs 20 upfront to bid on a Rs 1,500 job.
+Hypothesis: Skilled technicians (AC/Electrician) exhibit 72% willingness to pay for high-ticket leads; 
+            unskilled general cleaners exhibit only 18% willingness to pay.
+
+Scenario 3: HomEase Shield (Warranty) as Anti-Leakage Deterrent
+Objective: Measure whether a 7-day workmanship warranty stops customers from hiring off-platform.
+Hypothesis: Upper-middle-class retention increases from 34% to 81% when a free re-work guarantee is attached.
+
+Scenario 4: Hybrid Monetization Viability (Model 1 + Model 4)
+Objective: Evaluate platform profitability combining a 5% micro-commission on labor with a 10% margin on parts.
+Hypothesis: Total take-rate effective yield increases to 14.2% while keeping provider dissent below 3%.
+```
+
+---
+
+## 6. Strategic Recommendations & Implementation Roadmap
+
+1. **Phase 1 (Months 1–6): Hyperlocal Density & Zero-Friction Launch**
+   * Deploy in 2 high-density metropolitan sectors (e.g., Gulberg/DHA in Lahore, or Clifton/Gulshan in Karachi).
+   * Operate on **0% commission for the first 90 days** to acquire provider liquidity and onboard 5,000+ verified tradesmen.
+   * Enforce mandatory in-person KYC (CNIC physical verification + clean police record check).
+
+2. **Phase 2 (Months 7–12): Monetization Activation via Micro-Bids & Prepaid Wallet**
+   * Introduce the **5% micro-take rate** via prepaid wallet top-ups through Easypaisa/JazzCash.
+   * Roll out the **InAppMessageBanner** and **Agora VoIP calling** as platform-exclusive features to preserve contact privacy.
+   * Launch **HomEase Shield** (7-day warranty) to build customer brand loyalty.
+
+3. **Phase 3 (Months 13–24): Ecosystem Expansion & Embedded Services**
+   * Integrate the **B2B Hardware Materials Marketplace** with certified local plumbing/electrical vendors.
+   * Launch **HomEase Pro** monthly subscription tiers for power providers.
+   * Initiate pilot micro-tool financing with digital microfinance banks.
+
+---
+
+*This document serves as the formal architectural specification and simulation baseline for HomEase. All parameters are calibrated for multi-agent synthetic testing in Mirofish.*
