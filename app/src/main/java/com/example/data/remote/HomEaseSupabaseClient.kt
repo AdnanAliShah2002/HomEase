@@ -1822,5 +1822,38 @@ class HomEaseSupabaseClient(private val context: Context? = null) {
             Result.failure(e)
         }
     }
+
+    /**
+     * Fetches a short-lived Agora RTC voice token from the secure Supabase Edge Function
+     * (/functions/v1/generate-agora-token) to keep the Agora master certificate off the client binary.
+     */
+    suspend fun fetchAgoraToken(channelName: String, uid: Int = 0): Result<String?> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$SUPABASE_URL/functions/v1/generate-agora-token"
+            val payload = JSONObject().apply {
+                put("channelName", channelName)
+                put("uid", uid)
+            }.toString()
+
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .post(payload.toRequestBody(JSON_MEDIA_TYPE))
+
+            getValidAuthHeaders().forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful) {
+                val bodyStr = response.body?.string().orEmpty()
+                val json = JSONObject(bodyStr)
+                val token = json.optString("token").ifBlank { null }
+                Result.success(token)
+            } else {
+                Result.success(null)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("HomEaseSupabaseClient", "Could not fetch remote Agora token: ${e.message}")
+            Result.success(null)
+        }
+    }
 }
 

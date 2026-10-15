@@ -8,7 +8,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 data class OtpVerifyResult(
@@ -31,9 +30,6 @@ class OtpRemoteService(
 
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
-        // Stores server-generated OTP from send-otp as fallback when verify-otp function is not deployed on Supabase
-        private val pendingOtps = ConcurrentHashMap<String, String>()
-
         fun normalizePhone(phone: String): String {
             val digits = phone.filter { it.isDigit() }
             val nationalNumber = when {
@@ -48,7 +44,8 @@ class OtpRemoteService(
 
     /**
      * Sends a WhatsApp OTP request to the Supabase Edge Function.
-     * The Edge Function generates the OTP, delivers it via WhatsApp, and returns success with the code.
+     * The Edge Function generates the OTP, delivers it via WhatsApp, and returns success.
+     * The OTP code is NEVER leaked to the client.
      */
     suspend fun sendOtp(phone: String): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
@@ -71,15 +68,6 @@ class OtpRemoteService(
             if (response.isSuccessful) {
                 val json = try { JSONObject(bodyString) } catch (_: Exception) { JSONObject() }
                 if (json.optBoolean("success", true)) {
-                    // Extract code returned by the WhatsApp send-otp function
-                    val dispatchedCode = when {
-                        json.has("code") && !json.isNull("code") -> json.optString("code")
-                        json.has("data") -> json.optJSONObject("data")?.optString("code")
-                        else -> null
-                    }
-                    if (!dispatchedCode.isNullOrBlank()) {
-                        pendingOtps[formattedPhone] = dispatchedCode.trim()
-                    }
                     Result.success(true)
                 } else {
                     val errorMsg = json.optString("error", "Failed to send verification code")
@@ -100,10 +88,7 @@ class OtpRemoteService(
     }
 
     /**
-     * Validates the entered OTP code:
-     * 1. Attempts remote validation against /functions/v1/verify-otp if deployed.
-     * 2. If verify-otp is not deployed on the Supabase project (404 Not Found),
-     *    gracefully validates against the code returned and delivered by send-otp.
+     * Validates the entered OTP code strictly against the secure Supabase Edge Function /verify-otp.
      */
     suspend fun verifyOtp(phone: String, code: String): Result<OtpVerifyResult> = withContext(Dispatchers.IO) {
         try {
@@ -141,7 +126,6 @@ class OtpRemoteService(
                         json.has("refresh_token") && !json.isNull("refresh_token") -> json.optString("refresh_token")
                         else -> null
                     }
-                    pendingOtps.remove(formattedPhone)
                     return@withContext Result.success(OtpVerifyResult(
                         isNewUser = isNewUser,
                         userId = userId,
@@ -155,30 +139,18 @@ class OtpRemoteService(
                 }
             }
 
-            val is404NotFound = response != null && response.code == 404
-
-            // Fallback to validating against the dispatched OTP code from send-otp
-            val expectedCode = pendingOtps[formattedPhone]
-            if (expectedCode != null) {
-                if (cleanCode == expectedCode) {
-                    pendingOtps.remove(formattedPhone)
-                    return@withContext Result.success(OtpVerifyResult(isNewUser = true))
-                } else {
-                    return@withContext Result.failure(IOException("Invalid verification code. Please check your WhatsApp message."))
-                }
-            }
-
-            // If response was 404 and no code was in memory (e.g. app was restarted)
-            if (is404NotFound) {
-                return@withContext Result.failure(IOException("Session expired. Please tap 'Resend code' to receive a new OTP on WhatsApp."))
-            }
-
             val bodyString = response?.body?.string().orEmpty()
             val errorMsg = try {
                 val json = JSONObject(bodyString)
-                json.optString("error", json.optString("message", "Verification failed"))
+                json.optString("error", json.optString("message", "Invalid verification code. Please check your message or request a new code."))
             } catch (_: Exception) {
-                "Verification failed (${response?.code ?: "Network error"})"
+                if (response?.code == 400 || response?.code == 401) {
+                    "Incorrect verification code"
+                } else if (response?.code == 429) {
+                    "Too many incorrect attempts. Please request a new code."
+                } else {
+                    "Verification failed (${response?.code ?: "Network error"}). Please try again."
+                }
             }
             Result.failure(IOException(errorMsg))
         } catch (e: Exception) {

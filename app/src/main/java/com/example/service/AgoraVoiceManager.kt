@@ -241,6 +241,36 @@ class AgoraVoiceManager private constructor(private val appContext: Context) {
         }
     }
 
+    private suspend fun resolveRtcToken(
+        supabaseClient: HomEaseSupabaseClient?,
+        channelName: String,
+        uid: Int = 0
+    ): String? {
+        // 1. Primary secure path: Fetch short-lived token from Supabase Edge Function
+        val remoteToken = try {
+            supabaseClient?.fetchAgoraToken(channelName, uid)?.getOrNull()
+        } catch (e: Exception) {
+            Log.w(TAG, "Edge function token fetch failed: ${e.message}")
+            null
+        }
+
+        if (!remoteToken.isNullOrBlank()) {
+            Log.d(TAG, "Acquired secure server-minted Agora RTC token from Supabase")
+            return remoteToken
+        }
+
+        // 2. Local fallback token generator (Development / Offline test fallback)
+        if (AGORA_APP_CERTIFICATE.isNotBlank()) {
+            return AgoraTokenBuilder.buildToken(
+                appId = AGORA_APP_ID,
+                appCertificate = AGORA_APP_CERTIFICATE,
+                channelName = channelName,
+                uid = uid
+            )
+        }
+        return null
+    }
+
     fun startCall(
         jobId: String,
         targetName: String,
@@ -285,37 +315,30 @@ class AgoraVoiceManager private constructor(private val appContext: Context) {
             }
         }
 
-        try {
-            ensureEngineInitialized()
-            val options = ChannelMediaOptions().apply {
-                channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
-                clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
-                autoSubscribeAudio = true
-                publishMicrophoneTrack = true
-            }
+        scope.launch {
+            try {
+                ensureEngineInitialized()
+                val options = ChannelMediaOptions().apply {
+                    channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
+                    clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
+                    autoSubscribeAudio = true
+                    publishMicrophoneTrack = true
+                }
 
-            val token = if (AGORA_APP_CERTIFICATE.isNotBlank()) {
-                AgoraTokenBuilder.buildToken(
-                    appId = AGORA_APP_ID,
-                    appCertificate = AGORA_APP_CERTIFICATE,
-                    channelName = channelName,
-                    uid = 0
-                )
-            } else {
-                null
+                val token = resolveRtcToken(supabaseClient, channelName, 0)
+                Log.d(TAG, "Joining Agora channel $channelName with token: ${if (token != null) "TOKEN_ACQUIRED" else "NULL"}")
+                val joinResult = rtcEngine?.joinChannel(token, channelName, 0, options) ?: -1
+                if (joinResult < 0) {
+                    Log.e(TAG, "joinChannel failed with code: $joinResult")
+                    handleConnectionFailed("Failed to start voice call (Agora code $joinResult)")
+                    return@launch
+                }
+                rtcEngine?.setEnableSpeakerphone(true)
+                startConnectionTimeout()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to join Agora channel", e)
+                handleConnectionFailed("Failed to connect audio: ${e.message}")
             }
-            Log.d(TAG, "Joining Agora channel $channelName with token: ${if (token != null) "TOKEN_GENERATED" else "NULL"}")
-            val joinResult = rtcEngine?.joinChannel(token, channelName, 0, options) ?: -1
-            if (joinResult < 0) {
-                Log.e(TAG, "joinChannel failed with code: $joinResult")
-                handleConnectionFailed("Failed to start voice call (Agora code $joinResult)")
-                return
-            }
-            rtcEngine?.setEnableSpeakerphone(true)
-            startConnectionTimeout()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to join Agora channel", e)
-            handleConnectionFailed("Failed to connect audio: ${e.message}")
         }
     }
 
@@ -341,37 +364,30 @@ class AgoraVoiceManager private constructor(private val appContext: Context) {
 
         callStartEpochMs = System.currentTimeMillis()
 
-        try {
-            ensureEngineInitialized()
-            val options = ChannelMediaOptions().apply {
-                channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
-                clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
-                autoSubscribeAudio = true
-                publishMicrophoneTrack = true
-            }
+        scope.launch {
+            try {
+                ensureEngineInitialized()
+                val options = ChannelMediaOptions().apply {
+                    channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
+                    clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
+                    autoSubscribeAudio = true
+                    publishMicrophoneTrack = true
+                }
 
-            val token = if (AGORA_APP_CERTIFICATE.isNotBlank()) {
-                AgoraTokenBuilder.buildToken(
-                    appId = AGORA_APP_ID,
-                    appCertificate = AGORA_APP_CERTIFICATE,
-                    channelName = channelName,
-                    uid = 0
-                )
-            } else {
-                null
+                val token = resolveRtcToken(supabaseClient, channelName, 0)
+                Log.d(TAG, "Joining Agora incoming channel $channelName with token: ${if (token != null) "TOKEN_ACQUIRED" else "NULL"}")
+                val joinResult = rtcEngine?.joinChannel(token, channelName, 0, options) ?: -1
+                if (joinResult < 0) {
+                    Log.e(TAG, "joinChannel for incoming call failed with code: $joinResult")
+                    handleConnectionFailed("Failed to answer voice call (Agora code $joinResult)")
+                    return@launch
+                }
+                rtcEngine?.setEnableSpeakerphone(true)
+                startConnectionTimeout()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to join Agora channel for incoming call", e)
+                handleConnectionFailed("Failed to connect audio: ${e.message}")
             }
-            Log.d(TAG, "Joining Agora incoming channel $channelName with token: ${if (token != null) "TOKEN_GENERATED" else "NULL"}")
-            val joinResult = rtcEngine?.joinChannel(token, channelName, 0, options) ?: -1
-            if (joinResult < 0) {
-                Log.e(TAG, "joinChannel for incoming call failed with code: $joinResult")
-                handleConnectionFailed("Failed to answer voice call (Agora code $joinResult)")
-                return
-            }
-            rtcEngine?.setEnableSpeakerphone(true)
-            startConnectionTimeout()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to join Agora channel for incoming call", e)
-            handleConnectionFailed("Failed to connect audio: ${e.message}")
         }
     }
 

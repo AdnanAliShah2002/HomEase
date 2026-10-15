@@ -1,6 +1,7 @@
 package com.example.data.db
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "users")
@@ -39,7 +40,15 @@ data class UserEntity(
     val longitude: Double? get() = lng
 }
 
-@Entity(tableName = "service_requests")
+@Entity(
+    tableName = "service_requests",
+    indices = [
+        Index(value = ["status"]),
+        Index(value = ["customerPhone"]),
+        Index(value = ["selectedProviderPhone"]),
+        Index(value = ["remoteId"])
+    ]
+)
 data class ServiceRequestEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -86,7 +95,14 @@ data class ProviderLocationEntity(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "job_offers")
+@Entity(
+    tableName = "job_offers",
+    indices = [
+        Index(value = ["requestId"]),
+        Index(value = ["providerPhone"]),
+        Index(value = ["status"])
+    ]
+)
 data class JobOfferEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -129,7 +145,13 @@ data class JobRatingEntity(
     val createdAt: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "job_messages")
+@Entity(
+    tableName = "job_messages",
+    indices = [
+        Index(value = ["jobId"]),
+        Index(value = ["createdAtEpochMs"])
+    ]
+)
 data class JobMessageEntity(
     @PrimaryKey
     val id: String,
@@ -142,7 +164,12 @@ data class JobMessageEntity(
     val readAtEpochMs: Long? = null
 )
 
-@Entity(tableName = "call_logs")
+@Entity(
+    tableName = "call_logs",
+    indices = [
+        Index(value = ["jobId"])
+    ]
+)
 data class CallLogEntity(
     @PrimaryKey
     val id: String,

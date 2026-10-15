@@ -16,7 +16,7 @@ import androidx.room.RoomDatabase
         JobMessageEntity::class,
         CallLogEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -41,6 +41,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_11_12 = object : androidx.room.migration.Migration(11, 12) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_service_requests_status ON service_requests(status)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_service_requests_customerPhone ON service_requests(customerPhone)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_service_requests_selectedProviderPhone ON service_requests(selectedProviderPhone)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_service_requests_remoteId ON service_requests(remoteId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_job_offers_requestId ON job_offers(requestId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_job_offers_providerPhone ON job_offers(providerPhone)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_job_offers_status ON job_offers(status)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_job_messages_jobId ON job_messages(jobId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_job_messages_createdAtEpochMs ON job_messages(createdAtEpochMs)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_call_logs_jobId ON call_logs(jobId)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -48,7 +63,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "homease_database"
                 )
-                .addMigrations(MIGRATION_10_11)
+                .addMigrations(MIGRATION_10_11, MIGRATION_11_12)
                 .fallbackToDestructiveMigration(true)
                 .build()
                 INSTANCE = instance

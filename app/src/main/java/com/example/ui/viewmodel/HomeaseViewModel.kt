@@ -1083,8 +1083,10 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
             if (isViewingThisChat) return@launch
 
             val nowMs = System.currentTimeMillis()
-            val msgAge = nowMs - parseIsoOrNow(msg.createdAt)
-            if (msgAge > 60_000L) return@launch
+            val msgTime = parseIsoOrNow(msg.createdAt)
+            // Use absolute difference and generous 3-minute window to tolerate device clock drift
+            val msgAge = kotlin.math.abs(nowMs - msgTime)
+            if (msgAge > 180_000L) return@launch
 
             val isProvider = _activeRole.value == UserRole.PROVIDER
             val senderRole = if (isProvider) "Customer" else "Service Provider"
