@@ -45,14 +45,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.localization.AppLanguage
+import com.example.ui.theme.AppleGlassSpecularBorder
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.appleSpringPress
+import com.example.ui.theme.liquidGlassCard
 import com.example.ui.viewmodel.InAppMessageNotification
 import kotlinx.coroutines.delay
 
 /**
  * Floating in-app notification banner for incoming chat messages / SMS.
- * Displayed at the top of the screen when the user receives a message while not on the chat screen.
+ * Displayed at the top of the screen as an Apple Liquid Glass floating island card.
  */
 @Composable
 fun InAppMessageBanner(
@@ -87,15 +90,17 @@ fun InAppMessageBanner(
             .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.TopCenter
     ) {
-        Card(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .clickable { onOpenChat() }
-                .testTag("in_app_message_banner"),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+                .liquidGlassCard(
+                    shape = RoundedCornerShape(20.dp),
+                    backgroundColor = Color.White.copy(alpha = 0.88f),
+                    elevation = 8.dp,
+                    borderBrush = AppleGlassSpecularBorder
+                )
+                .appleSpringPress(onClick = onOpenChat)
+                .testTag("in_app_message_banner")
         ) {
             Row(
                 modifier = Modifier

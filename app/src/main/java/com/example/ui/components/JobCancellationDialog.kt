@@ -51,8 +51,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.localization.AppLanguage
 import com.example.data.model.UserRole
+import com.example.ui.theme.AppleGlassSpecularBorder
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.appleSpringPress
+import com.example.ui.theme.liquidGlassCard
+import com.example.ui.theme.liquidGlassPill
 
 private data class CancellationReasonItem(
     val id: String,
@@ -131,15 +135,18 @@ fun JobCancellationDialog(
             usePlatformDefaultWidth = false
         )
     ) {
-        Card(
+        Box(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .imePadding()
                 .padding(vertical = 16.dp)
-                .testTag("job_cancellation_dialog"),
-            shape = RoundedCornerShape(26.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                .liquidGlassCard(
+                    shape = RoundedCornerShape(26.dp),
+                    backgroundColor = Color.White.copy(alpha = 0.94f),
+                    elevation = 12.dp,
+                    borderBrush = AppleGlassSpecularBorder
+                )
+                .testTag("job_cancellation_dialog")
         ) {
             Column(
                 modifier = Modifier
@@ -223,9 +230,9 @@ fun JobCancellationDialog(
                                     color = if (isSelected) Color(0xFFFF3B30) else Color(0x1F000000),
                                     shape = RoundedCornerShape(12.dp)
                                 )
-                                .clickable { selectedReasonId = item.id },
+                                .appleSpringPress { selectedReasonId = item.id },
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) Color(0xFFFF3B30).copy(alpha = 0.05f) else Color(0xFFF9FAFB)
+                            color = if (isSelected) Color(0xFFFF3B30).copy(alpha = 0.05f) else Color.White.copy(alpha = 0.70f)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -320,7 +327,8 @@ fun JobCancellationDialog(
                         onClick = onDismiss,
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
+                            .height(48.dp)
+                            .appleSpringPress(),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSlate)
                     ) {
@@ -341,6 +349,7 @@ fun JobCancellationDialog(
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
+                            .appleSpringPress()
                             .testTag("confirm_cancel_button"),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(

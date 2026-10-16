@@ -90,11 +90,15 @@ import com.example.data.db.ServiceRequestEntity
 import com.example.data.localization.AppLanguage
 import com.example.data.model.MobileAppTheme
 import com.example.data.model.ProviderLocation
+import com.example.ui.theme.AppleGlassSpecularBorder
 import com.example.ui.theme.DeepIndigo
 import com.example.ui.theme.EmeraldGreen
 import com.example.ui.theme.StatusGreen
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.appleSpringPress
+import com.example.ui.theme.liquidGlassCard
+import com.example.ui.theme.liquidGlassPill
 import com.example.ui.viewmodel.HomeaseViewModel
 import com.example.util.GeoapifyRoute
 import com.example.util.GeoapifyService
@@ -401,67 +405,67 @@ fun LiveTrackingMapScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Zoom In (+)
-            Surface(
+            Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .clip(CircleShape)
-                    .clickable { if (zoomLevel < 19) zoomLevel++ },
-                shape = CircleShape,
-                color = Color.White,
-                shadowElevation = 6.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Zoom In",
-                        tint = DeepIndigo,
-                        modifier = Modifier.size(24.dp)
+                    .liquidGlassPill(
+                        shape = CircleShape,
+                        backgroundColor = Color.White.copy(alpha = 0.88f),
+                        borderBrush = AppleGlassSpecularBorder
                     )
-                }
+                    .appleSpringPress { if (zoomLevel < 19) zoomLevel++ },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Zoom In",
+                    tint = DeepIndigo,
+                    modifier = Modifier.size(24.dp)
+                )
             }
 
             // Zoom Out (-)
-            Surface(
+            Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .clip(CircleShape)
-                    .clickable { if (zoomLevel > 12) zoomLevel-- },
-                shape = CircleShape,
-                color = Color.White,
-                shadowElevation = 6.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Remove,
-                        contentDescription = "Zoom Out",
-                        tint = DeepIndigo,
-                        modifier = Modifier.size(24.dp)
+                    .liquidGlassPill(
+                        shape = CircleShape,
+                        backgroundColor = Color.White.copy(alpha = 0.88f),
+                        borderBrush = AppleGlassSpecularBorder
                     )
-                }
+                    .appleSpringPress { if (zoomLevel > 12) zoomLevel-- },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Remove,
+                    contentDescription = "Zoom Out",
+                    tint = DeepIndigo,
+                    modifier = Modifier.size(24.dp)
+                )
             }
 
             // Recenter GPS
-            Surface(
+            Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .clip(CircleShape)
-                    .clickable {
+                    .liquidGlassPill(
+                        shape = CircleShape,
+                        backgroundColor = Color.White.copy(alpha = 0.88f),
+                        borderBrush = AppleGlassSpecularBorder
+                    )
+                    .appleSpringPress {
                         centerLat = (customerLat + latestLocation.lat) / 2.0
                         centerLng = (customerLng + latestLocation.lng) / 2.0
                         zoomLevel = 16
                     },
-                shape = CircleShape,
-                color = Color.White,
-                shadowElevation = 6.dp
+                contentAlignment = Alignment.Center
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.MyLocation,
-                        contentDescription = "Recenter",
-                        tint = DeepIndigo,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.MyLocation,
+                    contentDescription = "Recenter",
+                    tint = DeepIndigo,
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
 
@@ -479,14 +483,17 @@ fun LiveTrackingMapScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = onBack,
+                Box(
                     modifier = Modifier
                         .size(46.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .shadow(6.dp, CircleShape)
-                        .testTag("tracking_back_button")
+                        .liquidGlassPill(
+                            shape = CircleShape,
+                            backgroundColor = Color.White.copy(alpha = 0.88f),
+                            borderBrush = AppleGlassSpecularBorder
+                        )
+                        .appleSpringPress(onClick = onBack)
+                        .testTag("tracking_back_button"),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -497,10 +504,13 @@ fun LiveTrackingMapScreen(
 
                 // Live Tracking Status Pill with Geoapify indication
                 val isArrived = job.status.uppercase() == "ARRIVED"
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = if (isArrived) EmeraldGreen else Color.White,
-                    shadowElevation = 4.dp
+                Box(
+                    modifier = Modifier
+                        .liquidGlassPill(
+                            shape = RoundedCornerShape(24.dp),
+                            backgroundColor = if (isArrived) EmeraldGreen.copy(alpha = 0.90f) else Color.White.copy(alpha = 0.88f),
+                            borderBrush = AppleGlassSpecularBorder
+                        )
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -530,16 +540,19 @@ fun LiveTrackingMapScreen(
                 }
 
                 // Call Emergency/Support Shortcut
-                IconButton(
-                    onClick = {
-                        val phoneIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:042111466327"))
-                        context.startActivity(phoneIntent)
-                    },
+                Box(
                     modifier = Modifier
                         .size(46.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .shadow(6.dp, CircleShape)
+                        .liquidGlassPill(
+                            shape = CircleShape,
+                            backgroundColor = Color.White.copy(alpha = 0.88f),
+                            borderBrush = AppleGlassSpecularBorder
+                        )
+                        .appleSpringPress(onClick = {
+                            val phoneIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:042111466327"))
+                            context.startActivity(phoneIntent)
+                        }),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Call,
@@ -552,13 +565,16 @@ fun LiveTrackingMapScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             // InDrive-style Distance & ETA Floating Badge (Geoapify Routing API)
-            Card(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("eta_status_card"),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                    .liquidGlassCard(
+                        shape = RoundedCornerShape(18.dp),
+                        backgroundColor = Color.White.copy(alpha = 0.88f),
+                        elevation = 6.dp,
+                        borderBrush = AppleGlassSpecularBorder
+                    )
+                    .testTag("eta_status_card")
             ) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                     Row(
@@ -658,22 +674,19 @@ fun LiveTrackingMapScreen(
         // ====================================================================
         // 4. Bottom Sheet Card (Provider Profile, Address & Direct Contact)
         // ====================================================================
-        Card(
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
-                .shadow(
-                    elevation = 6.dp,
+                .liquidGlassCard(
                     shape = RoundedCornerShape(26.dp),
-                    spotColor = Color(0x1A000000),
-                    ambientColor = Color(0x0F000000)
+                    backgroundColor = Color.White.copy(alpha = 0.88f),
+                    elevation = 8.dp,
+                    borderBrush = AppleGlassSpecularBorder
                 )
-                .testTag("provider_details_bottom_card"),
-            shape = RoundedCornerShape(26.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
+                .testTag("provider_details_bottom_card")
         ) {
             Column(
                 modifier = Modifier.padding(18.dp),

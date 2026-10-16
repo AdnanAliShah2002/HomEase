@@ -2,7 +2,13 @@ package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import com.example.ui.theme.AppleGlassSpecularBorder
+import com.example.ui.theme.LiquidAmbientCanvas
+import com.example.ui.theme.appleSpringPress
+import com.example.ui.theme.liquidGlassCard
+import com.example.ui.theme.liquidGlassPill
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -140,112 +146,112 @@ fun JobChatScreen(
         }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFE5E5EA)),
-                            contentAlignment = Alignment.Center
+    LiquidAmbientCanvas {
+        Scaffold(
+            modifier = modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text(
-                                text = targetName.take(1).uppercase(Locale.getDefault()),
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF007AFF),
-                                fontSize = 16.sp
-                            )
-                        }
-
-                        Column {
-                            Text(
-                                text = targetName,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFE5E5EA)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(7.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF34C759))
-                                )
                                 Text(
-                                    text = "$targetRole • Online",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = targetName.take(1).uppercase(Locale.getDefault()),
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF007AFF),
+                                    fontSize = 16.sp
                                 )
                             }
+
+                            Column {
+                                Text(
+                                    text = targetName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF34C759))
+                                    )
+                                    Text(
+                                        text = "$targetRole • Online",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.testTag("chat_back_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color(0xFF007AFF)
-                        )
-                    }
-                },
-                actions = {
-                    FilledIconButton(
-                        onClick = onStartCall,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = Color(0xFF34C759),
-                            contentColor = Color.White
-                        ),
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .size(38.dp)
-                            .testTag("chat_call_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Call,
-                            contentDescription = "Start Voice Call",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier.testTag("chat_back_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color(0xFF007AFF)
+                            )
+                        }
+                    },
+                    actions = {
+                        FilledIconButton(
+                            onClick = onStartCall,
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = Color(0xFF34C759),
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .size(38.dp)
+                                .testTag("chat_call_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Call,
+                                contentDescription = "Start Voice Call",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.White.copy(alpha = 0.88f)
+                    )
                 )
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(Color(0xFFF2F2F7))
-        ) {
-            // Context Job Card (Apple Inset Grouped style)
-            Card(
+            }
+        ) { innerPadding ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                ),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x1F000000))
+                    .fillMaxSize()
+                    .padding(innerPadding)
             ) {
+                // Context Job Card (Apple Liquid Glass style)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .liquidGlassCard(
+                            shape = RoundedCornerShape(18.dp),
+                            backgroundColor = Color.White.copy(alpha = 0.85f),
+                            borderBrush = AppleGlassSpecularBorder
+                        )
+                ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -361,19 +367,20 @@ fun JobChatScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(quickReplies) { reply ->
-                    Surface(
+                    Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(18.dp))
-                            .clickable {
+                            .liquidGlassPill(
+                                shape = RoundedCornerShape(18.dp),
+                                backgroundColor = Color.White.copy(alpha = 0.88f),
+                                borderBrush = AppleGlassSpecularBorder
+                            )
+                            .appleSpringPress {
                                 val now = System.currentTimeMillis()
                                 if (now - lastSendTimeMs > 800L) {
                                     lastSendTimeMs = now
                                     viewModel.sendJobMessage(canonicalJobId, reply)
                                 }
-                            },
-                        color = Color.White,
-                        shape = RoundedCornerShape(18.dp),
-                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x26000000))
+                            }
                     ) {
                         Text(
                             text = reply,
@@ -386,11 +393,12 @@ fun JobChatScreen(
                 }
             }
 
-            // Bottom Input Bar (iOS iMessage capsule)
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White.copy(alpha = 0.96f),
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x1F000000))
+            // Bottom Input Bar (iOS iMessage liquid glass surface)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White.copy(alpha = 0.88f))
+                    .border(androidx.compose.foundation.BorderStroke(0.5.dp, AppleGlassSpecularBorder))
             ) {
                 Row(
                     modifier = Modifier
@@ -445,6 +453,7 @@ fun JobChatScreen(
                         ),
                         modifier = Modifier
                             .size(38.dp)
+                            .appleSpringPress()
                             .testTag("chat_send_button")
                     ) {
                         Icon(
@@ -457,6 +466,7 @@ fun JobChatScreen(
             }
         }
     }
+}
 }
 
 @Composable

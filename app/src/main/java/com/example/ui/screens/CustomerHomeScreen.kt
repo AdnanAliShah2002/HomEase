@@ -122,8 +122,11 @@ import com.example.ui.theme.StatusGreenContainer
 import com.example.ui.theme.SurfaceVariantLight
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSlateMuted
+import com.example.ui.theme.AppleGlassSpecularBorder
 import com.example.ui.theme.LiquidAmbientCanvas
+import com.example.ui.theme.appleSpringPress
 import com.example.ui.theme.liquidGlassCard
+import com.example.ui.theme.liquidGlassPill
 import com.example.util.LocationHelper
 
 @Composable
@@ -293,9 +296,9 @@ fun CustomerHomeScreen(
             bottomBar = {
                 // Apple-style Frosted Glass Bottom Navigation Bar
                 Surface(
-                    color = Color.White.copy(alpha = 0.82f),
+                    color = Color.White.copy(alpha = 0.88f),
                     shadowElevation = 0.dp,
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000)),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, AppleGlassSpecularBorder),
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
@@ -505,11 +508,12 @@ fun CustomerHomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(46.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color.White)
-                        .border(0.5.dp, Color(0x14000000), RoundedCornerShape(14.dp))
-                        .shadow(1.dp, RoundedCornerShape(14.dp), spotColor = Color(0x0A000000))
+                        .height(48.dp)
+                        .liquidGlassPill(
+                            shape = RoundedCornerShape(14.dp),
+                            backgroundColor = Color.White.copy(alpha = 0.88f),
+                            borderBrush = AppleGlassSpecularBorder
+                        )
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
