@@ -144,6 +144,7 @@ fun CustomerHomeScreen(
     onReportIssue: (jobId: Long, category: String, description: String) -> Unit = { _, _, _ -> },
     onAutoCompleteJob: (jobId: Long) -> Unit = {},
     onUpdateProfile: (name: String, cityArea: String, savedAddresses: String) -> Unit = { _, _, _ -> },
+    onOpenLiquidGlassShowcase: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -290,7 +291,8 @@ fun CustomerHomeScreen(
                     onToggleLanguage = onToggleLanguage,
                     userAvatar = user.profilePhotoUri ?: "👤",
                     onLogout = onLogout,
-                    onOpenProfile = { currentNavTab = "profile" }
+                    onOpenProfile = { currentNavTab = "profile" },
+                    onOpenGlassLab = onOpenLiquidGlassShowcase
                 )
             },
             bottomBar = {
@@ -559,6 +561,89 @@ fun CustomerHomeScreen(
                                 modifier = Modifier
                                     .size(18.dp)
                                     .clickable { searchQuery = "" }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Section 1.5: Liquid Glass Studio Interactive Showcase Card
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    Color(0xFF4F46E5),
+                                    Color(0xFF7C3AED),
+                                    Color(0xFFC026D3)
+                                )
+                            )
+                        )
+                        .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                        .clickable { onOpenLiquidGlassShowcase() }
+                        .padding(16.dp)
+                        .testTag("launch_liquid_glass_lab_card")
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color.White.copy(alpha = 0.25f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "AGSL SHADER LAB",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "🔮 Liquid Glass Studio",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Realtime Frosted Blurs, Chromatic Prism & Dynamic Light Orbs",
+                                fontSize = 11.5.sp,
+                                color = Color.White.copy(alpha = 0.9f),
+                                lineHeight = 15.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White)
+                                .clickable { onOpenLiquidGlassShowcase() }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Open →",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF6D28D9)
                             )
                         }
                     }

@@ -208,6 +208,7 @@ class MainActivity : ComponentActivity() {
                                 onReportIssue = { jobId, category, description -> viewModel.reportCustomerIssue(jobId, category, description) },
                                 onAutoCompleteJob = { jobId -> viewModel.autoCompleteJobWithoutRating(jobId) },
                                 onUpdateProfile = { name, cityArea, savedAddresses -> viewModel.updateCustomerProfile(name, cityArea, savedAddresses) },
+                                onOpenLiquidGlassShowcase = { viewModel.openLiquidGlassShowcase() },
                                 onLogout = { viewModel.logout() }
                             )
                         }
@@ -251,6 +252,7 @@ class MainActivity : ComponentActivity() {
                                     viewModel.updateProviderProfile(name, cityArea, categoriesCsv, exp, radiusKm, bio, shopName, payoutMethod, payoutAccountNumber)
                                 },
                                 onCancelJob = { job, reason -> viewModel.cancelJobByProvider(job, reason) },
+                                onOpenLiquidGlassShowcase = { viewModel.openLiquidGlassShowcase() },
                                 onLogout = { viewModel.logout() }
                             )
                         }
@@ -333,6 +335,12 @@ class MainActivity : ComponentActivity() {
                                 viewModel = viewModel,
                                 onMinimize = { viewModel.closeCallScreen() },
                                 onCallClosed = { viewModel.closeCallScreen() }
+                            )
+                        }
+
+                        AppNavDestination.LIQUID_GLASS_SHOWCASE -> {
+                            LiquidGlassShowcaseScreen(
+                                onBack = { viewModel.navigateBack() }
                             )
                         }
                     }

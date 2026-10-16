@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -155,7 +156,8 @@ fun HomEaseTopBar(
     showRoleSwitcher: Boolean = true,
     userAvatar: String? = null,
     onLogout: (() -> Unit)? = null,
-    onOpenProfile: (() -> Unit)? = null
+    onOpenProfile: (() -> Unit)? = null,
+    onOpenGlassLab: (() -> Unit)? = null
 ) {
     Surface(
         color = Color.White.copy(alpha = 0.82f),
@@ -174,6 +176,47 @@ fun HomEaseTopBar(
             HomeaseHeaderLogo(markSize = 34.dp)
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onOpenGlassLab != null) {
+                    Box(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        Color(0xFF6366F1).copy(alpha = 0.20f),
+                                        Color(0xFFA855F7).copy(alpha = 0.28f),
+                                        Color(0xFFEC4899).copy(alpha = 0.20f)
+                                    )
+                                )
+                            )
+                            .border(0.8.dp, Color(0xFFC084FC).copy(alpha = 0.65f), RoundedCornerShape(16.dp))
+                            .clickable { onOpenGlassLab() }
+                            .padding(horizontal = 10.dp)
+                            .testTag("top_bar_glass_lab"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "🔮",
+                                fontSize = 11.sp
+                            )
+                            Text(
+                                text = "Glass Lab",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF6B21A8),
+                                letterSpacing = (-0.2).sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+
                 // Apple-style Language Toggle Pill
                 Box(
                     modifier = Modifier

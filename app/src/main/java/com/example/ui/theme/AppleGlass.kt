@@ -172,6 +172,39 @@ object LiquidGlassShaderEngine {
             null
         }
     }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    fun createLiquidGlassEffect(
+        width: Float,
+        height: Float,
+        radius: Float,
+        blurRadius: Float = 25f,
+        refractionHeight: Float = 16f,
+        refractionAmount: Float = -12f,
+        chromaticAberration: Float = 0.65f
+    ): RenderEffect? {
+        return try {
+            val shader = android.graphics.RuntimeShader(LensRefractionShaderString)
+            shader.setFloatUniform("size", width, height)
+            shader.setFloatUniform("cornerRadii", radius, radius, radius, radius)
+            shader.setFloatUniform("refractionHeight", refractionHeight)
+            shader.setFloatUniform("refractionAmount", refractionAmount)
+            shader.setFloatUniform("chromaticAberration", chromaticAberration)
+            val lensEffect = android.graphics.RenderEffect.createRuntimeShaderEffect(shader, "content")
+            if (blurRadius > 0f) {
+                val blurEffect = android.graphics.RenderEffect.createBlurEffect(
+                    blurRadius,
+                    blurRadius,
+                    android.graphics.Shader.TileMode.CLAMP
+                )
+                android.graphics.RenderEffect.createChainEffect(lensEffect, blurEffect).asComposeRenderEffect()
+            } else {
+                lensEffect.asComposeRenderEffect()
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
 }
 
 // Directional Specular Borders (Simulates 45° overhead studio lighting)
@@ -245,6 +278,39 @@ fun Modifier.liquidGlassCard(
             colors = listOf(
                 Color.White.copy(alpha = 0.45f), // Specular sheen top-left
                 Color.White.copy(alpha = 0.08f),
+                Color.Transparent
+            ),
+            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+            end = androidx.compose.ui.geometry.Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+        )
+    )
+    .border(borderWidth, borderBrush, shape)
+
+/**
+ * Ultra-translucent liquid glass surface designed for maximum optical contrast
+ * over dynamic glowing wallpaper or colorful backdrop content.
+ */
+fun Modifier.liquidGlassSurface(
+    shape: Shape = RoundedCornerShape(24.dp),
+    tintColor: Color = Color.White.copy(alpha = 0.22f),
+    specularSheenAlpha: Float = 0.40f,
+    borderBrush: Brush = AppleGlassSpecularBorder,
+    borderWidth: Dp = 1.dp,
+    elevation: Dp = 8.dp
+): Modifier = this
+    .shadow(
+        elevation = elevation,
+        shape = shape,
+        spotColor = Color(0x33000000),
+        ambientColor = Color(0x1F000000)
+    )
+    .clip(shape)
+    .background(tintColor)
+    .background(
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = specularSheenAlpha),
+                Color.White.copy(alpha = specularSheenAlpha * 0.25f),
                 Color.Transparent
             ),
             start = androidx.compose.ui.geometry.Offset(0f, 0f),

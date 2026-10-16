@@ -78,7 +78,8 @@ enum class AppNavDestination {
     PROVIDER_JOB_ACCEPT,
     CUSTOMER_LIVE_TRACKING,
     JOB_CHAT,
-    IN_CALL
+    IN_CALL,
+    LIQUID_GLASS_SHOWCASE
 }
 
 class HomeaseViewModel(application: Application) : AndroidViewModel(application) {
@@ -2459,8 +2460,13 @@ class HomeaseViewModel(application: Application) : AndroidViewModel(application)
                     AppNavDestination.CUSTOMER_LIVE_TRACKING
                 }
             }
+            AppNavDestination.LIQUID_GLASS_SHOWCASE -> navigateToHome()
             else -> {}
         }
+    }
+
+    fun openLiquidGlassShowcase() {
+        _currentDestination.value = AppNavDestination.LIQUID_GLASS_SHOWCASE
     }
 
     fun navigateToHome() {

@@ -151,6 +151,7 @@ fun ProviderHomeScreen(
     jobWonConfirmation: ServiceRequestEntity? = null,
     onDismissJobWonConfirmation: () -> Unit = {},
     onCancelJob: (ServiceRequestEntity, String) -> Unit = { _, _ -> },
+    onOpenLiquidGlassShowcase: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -527,7 +528,8 @@ fun ProviderHomeScreen(
                     onToggleLanguage = onToggleLanguage,
                     userAvatar = provider.profilePhotoUri ?: "👤",
                     onLogout = onLogout,
-                    onOpenProfile = { currentNavTab = "profile" }
+                    onOpenProfile = { currentNavTab = "profile" },
+                    onOpenGlassLab = onOpenLiquidGlassShowcase
                 )
             },
             bottomBar = {
