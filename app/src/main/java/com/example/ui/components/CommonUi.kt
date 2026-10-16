@@ -160,10 +160,16 @@ fun HomEaseTopBar(
     onOpenGlassLab: (() -> Unit)? = null
 ) {
     Surface(
-        color = Color.White.copy(alpha = 0.82f),
-        modifier = modifier.fillMaxWidth(),
-        shadowElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x14000000))
+        color = Color.White.copy(alpha = 0.55f),
+        modifier = modifier
+            .fillMaxWidth()
+            .border(
+                0.75.dp,
+                com.example.ui.theme.AppleGlassSpecularBorder,
+                RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
+            ),
+        shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
+        shadowElevation = 3.dp
     ) {
         Row(
             modifier = Modifier
@@ -217,13 +223,13 @@ fun HomEaseTopBar(
                     Spacer(modifier = Modifier.width(6.dp))
                 }
 
-                // Apple-style Language Toggle Pill
+                // Apple-style Language Toggle Frosted Pill
                 Box(
                     modifier = Modifier
                         .height(32.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFF2F2F7))
-                        .border(0.5.dp, Color(0x1A000000), RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.62f))
+                        .border(0.75.dp, com.example.ui.theme.AppleGlassSpecularBorder, RoundedCornerShape(16.dp))
                         .clickable { onToggleLanguage() }
                         .padding(horizontal = 11.dp)
                         .testTag("language_toggle"),
@@ -233,20 +239,20 @@ fun HomEaseTopBar(
                         text = if (language == AppLanguage.ENGLISH) "EN" else "اردو",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1C1C1E),
+                        color = Color(0xFF0F172A),
                         letterSpacing = (-0.2).sp
                     )
                 }
 
                 Spacer(modifier = Modifier.width(6.dp))
 
-                // Apple-style Profile Avatar
+                // Apple-style Frosted Profile Avatar
                 Box(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF2F2F7))
-                        .border(0.5.dp, Color(0x1A000000), CircleShape)
+                        .background(Color.White.copy(alpha = 0.62f))
+                        .border(0.75.dp, com.example.ui.theme.AppleGlassSpecularBorder, CircleShape)
                         .clickable(enabled = onOpenProfile != null) { onOpenProfile?.invoke() }
                         .testTag("top_bar_profile_icon"),
                     contentAlignment = Alignment.Center
@@ -259,17 +265,20 @@ fun HomEaseTopBar(
 
                 if (showRoleSwitcher) {
                     Spacer(modifier = Modifier.width(6.dp))
-                    // Apple-style Role Switcher Pill
+                    // Apple-style Role Switcher Frosted Pill
                     Box(
                         modifier = Modifier
                             .height(32.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(
-                                if (currentRole == UserRole.PROVIDER) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
+                                if (currentRole == UserRole.PROVIDER) Color(0xFF0F172A).copy(alpha = 0.88f) else Color.White.copy(alpha = 0.62f)
                             )
                             .border(
-                                width = 0.5.dp,
-                                color = Color(0x1A000000),
+                                width = 0.75.dp,
+                                brush = if (currentRole == UserRole.PROVIDER)
+                                    Brush.linearGradient(listOf(Color.White.copy(alpha = 0.35f), Color.White.copy(alpha = 0.05f)))
+                                else
+                                    com.example.ui.theme.AppleGlassSpecularBorder,
                                 shape = RoundedCornerShape(16.dp)
                             )
                             .clickable { onToggleRole() }

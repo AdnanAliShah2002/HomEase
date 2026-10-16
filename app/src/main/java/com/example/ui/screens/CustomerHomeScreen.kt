@@ -88,6 +88,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -296,48 +297,54 @@ fun CustomerHomeScreen(
                 )
             },
             bottomBar = {
-                // Apple-style Frosted Glass Bottom Navigation Bar
-                Surface(
-                    color = Color.White.copy(alpha = 0.88f),
-                    shadowElevation = 0.dp,
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, AppleGlassSpecularBorder),
+                // Floating Apple-style Frosted Glass Dock
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        color = Color.White.copy(alpha = 0.58f),
+                        shape = RoundedCornerShape(26.dp),
+                        shadowElevation = 8.dp,
+                        border = androidx.compose.foundation.BorderStroke(0.85.dp, AppleGlassSpecularBorder),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        ProfessionalBottomNavItem(
-                            icon = Icons.Default.Home,
-                            label = if (language == AppLanguage.URDU) "ہوم" else "Home",
-                            isActive = currentNavTab == "home",
-                            onClick = { currentNavTab = "home" }
-                        )
-                        ProfessionalBottomNavItem(
-                            icon = Icons.Default.Assignment,
-                            label = if (language == AppLanguage.URDU) "بکنگز" else "Bookings",
-                            isActive = currentNavTab == "bookings",
-                            onClick = { currentNavTab = "bookings" }
-                        )
-                        ProfessionalBottomNavItem(
-                            icon = Icons.AutoMirrored.Filled.HelpOutline,
-                            label = if (language == AppLanguage.URDU) "مدد" else "Help",
-                            isActive = currentNavTab == "help",
-                            onClick = {
-                                currentNavTab = "help"
-                            }
-                        )
-                        ProfessionalBottomNavItem(
-                            icon = Icons.Default.Person,
-                            label = if (language == AppLanguage.URDU) "پروفائل" else "Profile",
-                            isActive = currentNavTab == "profile",
-                            onClick = { currentNavTab = "profile" }
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ProfessionalBottomNavItem(
+                                icon = Icons.Default.Home,
+                                label = if (language == AppLanguage.URDU) "ہوم" else "Home",
+                                isActive = currentNavTab == "home",
+                                onClick = { currentNavTab = "home" }
+                            )
+                            ProfessionalBottomNavItem(
+                                icon = Icons.Default.Assignment,
+                                label = if (language == AppLanguage.URDU) "بکنگز" else "Bookings",
+                                isActive = currentNavTab == "bookings",
+                                onClick = { currentNavTab = "bookings" }
+                            )
+                            ProfessionalBottomNavItem(
+                                icon = Icons.AutoMirrored.Filled.HelpOutline,
+                                label = if (language == AppLanguage.URDU) "مدد" else "Help",
+                                isActive = currentNavTab == "help",
+                                onClick = {
+                                    currentNavTab = "help"
+                                }
+                            )
+                            ProfessionalBottomNavItem(
+                                icon = Icons.Default.Person,
+                                label = if (language == AppLanguage.URDU) "پروفائل" else "Profile",
+                                isActive = currentNavTab == "profile",
+                                onClick = { currentNavTab = "profile" }
+                            )
+                        }
                     }
                 }
             },
@@ -406,15 +413,26 @@ fun CustomerHomeScreen(
                         item {
                             val unconfirmedJob = awaitingRatingJob ?: activeRequests.firstOrNull { it.status == "AWAITING_CUSTOMER_CONFIRMATION" }
                             if (unconfirmedJob != null) {
-                                Card(
-                                    modifier = Modifier.fillMaxWidth().testTag("customer_unconfirmed_job_banner"),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB)),
-                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFF59E0B))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .liquidGlassCard(
+                                            shape = RoundedCornerShape(20.dp),
+                                            backgroundColor = Color(0xFFFFFBEB).copy(alpha = 0.68f),
+                                            elevation = 6.dp,
+                                            borderBrush = Brush.linearGradient(
+                                                listOf(
+                                                    Color(0xFFF59E0B).copy(alpha = 0.70f),
+                                                    Color(0xFFF59E0B).copy(alpha = 0.25f)
+                                                )
+                                            )
+                                        )
+                                        .testTag("customer_unconfirmed_job_banner")
+                                        .padding(18.dp)
                                 ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
+                                    Column {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(22.dp))
+                                            Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(22.dp))
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
                                                 text = Strings.get("how_did_it_go_title", language),
@@ -427,16 +445,32 @@ fun CustomerHomeScreen(
                                         Text(
                                             text = if (language == AppLanguage.URDU) "${unconfirmedJob.selectedProviderName ?: "کاریگر"} نے '${unconfirmedJob.serviceTitle}' کو مکمل نشان زد کر دیا ہے۔" else "${unconfirmedJob.selectedProviderName ?: "Provider"} marked '${unconfirmedJob.serviceTitle}' as complete.",
                                             fontSize = 13.sp,
-                                            color = TextSlate
+                                            color = Color(0xFF0F172A)
                                         )
-                                        Spacer(modifier = Modifier.height(10.dp))
-                                        Button(
-                                            onClick = { activeJobForRatingDialog = unconfirmedJob },
-                                            modifier = Modifier.fillMaxWidth().height(44.dp),
-                                            shape = RoundedCornerShape(10.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = DeepIndigo)
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(44.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(
+                                                    Brush.linearGradient(
+                                                        listOf(
+                                                            Color(0xFF4F46E5),
+                                                            Color(0xFF4338CA)
+                                                        )
+                                                    )
+                                                )
+                                                .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                                                .appleSpringPress(onClick = { activeJobForRatingDialog = unconfirmedJob }),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            Text(Strings.get("review_and_complete", language), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            Text(
+                                                Strings.get("review_and_complete", language),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.5.sp,
+                                                color = Color.White
+                                            )
                                         }
                                     }
                                 }
@@ -448,15 +482,21 @@ fun CustomerHomeScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .liquidGlassCard(
+                            shape = RoundedCornerShape(20.dp),
+                            backgroundColor = Color.White.copy(alpha = 0.50f),
+                            elevation = 4.dp,
+                            borderBrush = AppleGlassSpecularBorder
+                        )
                         .clickable { showLocationDialog = true }
-                        .padding(vertical = 4.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
                         Text(
                             text = Strings.get("city_area", language),
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF64748B)
                         )
@@ -473,9 +513,9 @@ fun CustomerHomeScreen(
                             }
                             Text(
                                 text = selectedLocation.ifBlank { if (language == AppLanguage.URDU) "مقام منتخب کریں" else "Select location" },
-                                fontSize = 16.sp,
+                                fontSize = 15.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextSlate
+                                color = Color(0xFF0F172A)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
@@ -487,36 +527,37 @@ fun CustomerHomeScreen(
                         }
                     }
 
-                    // Search Pill button
+                    // Frosted Search Pill
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
-                            .background(SurfaceVariantLight),
+                            .background(Color.White.copy(alpha = 0.60f))
+                            .border(0.5.dp, AppleGlassSpecularBorder, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = TextSlateMuted,
+                            tint = DeepIndigo,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
 
-            // Apple-style Search Bar
+            // Apple-style Liquid Glass Search Bar
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .height(50.dp)
                         .liquidGlassPill(
-                            shape = RoundedCornerShape(14.dp),
-                            backgroundColor = Color.White.copy(alpha = 0.88f),
+                            shape = RoundedCornerShape(18.dp),
+                            backgroundColor = Color.White.copy(alpha = 0.55f),
                             borderBrush = AppleGlassSpecularBorder
                         )
-                        .padding(horizontal = 14.dp),
+                        .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Row(
@@ -526,8 +567,8 @@ fun CustomerHomeScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = Color(0xFF8E8E93),
-                            modifier = Modifier.size(19.dp)
+                            tint = DeepIndigo,
+                            modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         androidx.compose.foundation.text.BasicTextField(
@@ -536,8 +577,8 @@ fun CustomerHomeScreen(
                             singleLine = true,
                             textStyle = androidx.compose.ui.text.TextStyle(
                                 fontSize = 15.sp,
-                                color = Color(0xFF1C1C1E),
-                                fontWeight = FontWeight.Normal
+                                color = Color(0xFF0F172A),
+                                fontWeight = FontWeight.Medium
                             ),
                             modifier = Modifier
                                 .weight(1f)
@@ -546,7 +587,7 @@ fun CustomerHomeScreen(
                                 if (searchQuery.isBlank()) {
                                     Text(
                                         text = Strings.get("search_hint", language),
-                                        color = Color(0xFF8E8E93),
+                                        color = Color(0xFF64748B),
                                         fontSize = 15.sp
                                     )
                                 }
@@ -557,7 +598,7 @@ fun CustomerHomeScreen(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Clear search",
-                                tint = Color(0xFF8E8E93),
+                                tint = Color(0xFF64748B),
                                 modifier = Modifier
                                     .size(18.dp)
                                     .clickable { searchQuery = "" }
@@ -655,14 +696,19 @@ fun CustomerHomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .liquidGlassCard(shape = RoundedCornerShape(24.dp))
+                        .liquidGlassCard(
+                            shape = RoundedCornerShape(26.dp),
+                            backgroundColor = Color.White.copy(alpha = 0.50f),
+                            elevation = 8.dp,
+                            borderBrush = AppleGlassSpecularBorder
+                        )
                         .clickable { onStartNewRequest(null) }
                         .padding(22.dp)
                         .testTag("request_service_hero_card")
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -670,48 +716,69 @@ fun CustomerHomeScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(7.dp)
-                                    .clip(CircleShape)
-                                    .background(AppleSystemBlue)
-                            )
-                            Text(
-                                text = if (language == AppLanguage.URDU) "250+ تصدیق شدہ ماہر کاریگر" else "250+ Vetted Professionals",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppleSystemBlue,
-                                letterSpacing = 0.3.sp
-                            )
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF0EA5E9).copy(alpha = 0.16f))
+                                    .border(0.5.dp, Color(0xFF0EA5E9).copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF0EA5E9))
+                                    )
+                                    Text(
+                                        text = if (language == AppLanguage.URDU) "250+ تصدیق شدہ ماہر کاریگر" else "250+ Vetted Professionals",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0284C7),
+                                        letterSpacing = 0.3.sp
+                                    )
+                                }
+                            }
                         }
 
                         Text(
                             text = if (language == AppLanguage.URDU) "کیا آج گھریلو مدد درکار ہے؟" else "Need help today?",
-                            fontSize = 23.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = com.example.ui.theme.AppleLabelPrimary,
-                            letterSpacing = (-0.5).sp
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF0F172A),
+                            letterSpacing = (-0.6).sp
                         )
                         Text(
                             text = if (language == AppLanguage.URDU) "پلمبنگ، الیکٹریشن، صفائی اور دیگر خدمات فوری حاصل کریں" else "Book trusted plumbers, electricians, cleaners & more in minutes.",
                             fontSize = 13.5.sp,
-                            color = com.example.ui.theme.AppleLabelSecondary,
+                            color = Color(0xFF334155),
                             fontWeight = FontWeight.Normal,
-                            lineHeight = 18.sp
+                            lineHeight = 19.sp
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                        // Apple-style vibrant CTA pill button with spring press
-                        Surface(
-                            onClick = { onStartNewRequest(null) },
-                            shape = RoundedCornerShape(14.dp),
-                            color = AppleSystemBlue,
-                            shadowElevation = 2.dp,
-                            modifier = Modifier.testTag("hero_request_service_btn")
+                        // Apple-style vibrant CTA pill button with spring press & glass border
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(
+                                            Color(0xFF4F46E5),
+                                            Color(0xFF4338CA)
+                                        )
+                                    )
+                                )
+                                .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
+                                .appleSpringPress(onClick = { onStartNewRequest(null) })
+                                .padding(horizontal = 20.dp, vertical = 12.dp)
+                                .testTag("hero_request_service_btn")
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 11.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
                                     text = Strings.get("request_service_cta", language),
@@ -720,6 +787,7 @@ fun CustomerHomeScreen(
                                     color = Color.White,
                                     letterSpacing = (-0.1).sp
                                 )
+                                Text(text = "→", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -781,27 +849,25 @@ fun CustomerHomeScreen(
                 }
             }
 
-            // Section 4: Active Request Banner (border-l-4 border-[#FB923C] shadow-md)
+            // Section 4: Active Request Banner
             if (pendingRequests.isNotEmpty()) {
                 val req = pendingRequests.first()
                 item {
-                    Card(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .liquidGlassCard(
+                                shape = RoundedCornerShape(20.dp),
+                                backgroundColor = Color.White.copy(alpha = 0.52f),
+                                elevation = 6.dp,
+                                borderBrush = AppleGlassSpecularBorder
+                            )
                             .clickable { onOpenRequestDetails(req.id) }
-                            .testTag("active_request_banner"),
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            .testTag("active_request_banner")
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(
-                                    width = 1.dp,
-                                    color = BorderStroke,
-                                    shape = RoundedCornerShape(18.dp)
-                                )
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -817,7 +883,7 @@ fun CustomerHomeScreen(
                                         .height(38.dp)
                                         .clip(RoundedCornerShape(2.dp))
                                         .background(SoftOrange)
-                                 )
+                                )
                                 Spacer(modifier = Modifier.width(12.dp))
 
                                 // Pulsing dot
@@ -832,9 +898,9 @@ fun CustomerHomeScreen(
                                 Column {
                                     Text(
                                         text = Strings.get("active_requests_header", language),
-                                        fontSize = 13.sp,
+                                        fontSize = 13.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = TextSlate
+                                        color = Color(0xFF0F172A)
                                     )
                                     Text(
                                         text = when (req.status) {
@@ -842,48 +908,64 @@ fun CustomerHomeScreen(
                                             "ACCEPTED" -> if (language == AppLanguage.URDU) "${req.selectedProviderName ?: "کاریگر"} نے قبول کر لیا" else "Accepted by ${req.selectedProviderName ?: "Pro"}"
                                             else -> req.serviceTitle
                                         },
-                                        fontSize = 11.sp,
-                                        color = TextSlateMuted,
+                                        fontSize = 11.5.sp,
+                                        color = Color(0xFF475569),
                                         maxLines = 1
                                     )
                                 }
                             }
 
                             val isTrackable = req.status in listOf("ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS")
-                            Button(
-                                onClick = {
-                                    if (isTrackable) {
-                                        onOpenLiveTracking(req)
-                                    } else {
-                                        onOpenRequestDetails(req.id)
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isTrackable) Color(0xFFDC5F45) else SurfaceVariantLight,
-                                    contentColor = if (isTrackable) Color.White else TextSlate
-                                ),
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                                modifier = Modifier.testTag("track_active_request_btn")
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isTrackable)
+                                            Brush.linearGradient(listOf(Color(0xFFEA580C), Color(0xFFC2410C)))
+                                        else
+                                            Brush.linearGradient(listOf(Color.White.copy(alpha = 0.70f), Color.White.copy(alpha = 0.40f)))
+                                    )
+                                    .border(
+                                        0.75.dp,
+                                        if (isTrackable) SolidColor(Color.White.copy(alpha = 0.35f)) else AppleGlassSpecularBorder,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .appleSpringPress(
+                                        onClick = {
+                                            if (isTrackable) {
+                                                onOpenLiveTracking(req)
+                                            } else {
+                                                onOpenRequestDetails(req.id)
+                                            }
+                                        }
+                                    )
+                                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                                    .testTag("track_active_request_btn"),
+                                contentAlignment = Alignment.Center
                             ) {
-                                if (isTrackable) {
-                                    Icon(
-                                        imageVector = Icons.Default.LocationOn,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = if (language == AppLanguage.URDU) "لائیو ٹریکنگ" else "Track Live",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                } else {
-                                    Text(
-                                        text = Strings.get("view_progress", language),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (isTrackable) {
+                                        Icon(
+                                            imageVector = Icons.Default.LocationOn,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = if (language == AppLanguage.URDU) "لائیو ٹریکنگ" else "Track Live",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    } else {
+                                        Text(
+                                            text = Strings.get("view_progress", language),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -897,19 +979,23 @@ fun CustomerHomeScreen(
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
                             text = Strings.get("past_bookings_header", language),
-                            fontSize = 17.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextSlate
+                            color = Color(0xFF0F172A),
+                            letterSpacing = (-0.2).sp
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         pastBookings.forEach { booking ->
-                            Card(
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderStroke)
+                                    .padding(vertical = 4.dp)
+                                    .liquidGlassCard(
+                                        shape = RoundedCornerShape(18.dp),
+                                        backgroundColor = Color.White.copy(alpha = 0.48f),
+                                        elevation = 4.dp,
+                                        borderBrush = AppleGlassSpecularBorder
+                                    )
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -922,13 +1008,14 @@ fun CustomerHomeScreen(
                                         Text(
                                             text = booking.serviceTitle,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
-                                            color = TextSlate
+                                            fontSize = 14.5.sp,
+                                            color = Color(0xFF0F172A)
                                         )
+                                        Spacer(modifier = Modifier.height(2.dp))
                                         Text(
                                             text = "Provider: ${booking.selectedProviderName ?: "Verified Pro"}",
                                             fontSize = 12.sp,
-                                            color = TextSlateMuted
+                                            color = Color(0xFF64748B)
                                         )
                                     }
                                     Text(
@@ -941,11 +1028,11 @@ fun CustomerHomeScreen(
                             }
                         }
                     }
-                    }
                 }
             }
         }
     }
+}
 }
 }
 }
@@ -987,9 +1074,9 @@ fun ProfessionalCategoryCard(
     val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
+        targetValue = if (isPressed) 0.94f else 1f,
         animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
             stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
         ),
         label = "category_card_press"
@@ -998,50 +1085,62 @@ fun ProfessionalCategoryCard(
     val tint = getCategoryTint(item.id)
     val icon = getCategoryVectorIcon(item.id)
 
-    Surface(
+    Box(
         modifier = modifier
             .scale(scale)
+            .shadow(
+                elevation = if (isPressed) 2.dp else 5.dp,
+                shape = RoundedCornerShape(22.dp),
+                spotColor = Color(0x1A1E293B),
+                ambientColor = Color(0x0E1E293B)
+            )
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color.White.copy(alpha = 0.46f))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.40f),
+                        Color.White.copy(alpha = 0.05f)
+                    ),
+                    start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                    end = androidx.compose.ui.geometry.Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                )
+            )
+            .border(0.85.dp, AppleGlassSpecularBorder, RoundedCornerShape(22.dp))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
             ) { onClick() }
-            .testTag("cat_card_${item.id}"),
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White.copy(alpha = 0.76f),
-        border = androidx.compose.foundation.BorderStroke(
-            0.75.dp,
-            androidx.compose.ui.graphics.Brush.verticalGradient(
-                listOf(
-                    Color.White,
-                    Color(0x18000000)
-                )
-            )
-        ),
-        shadowElevation = if (isPressed) 1.dp else 2.5.dp
+            .testTag("cat_card_${item.id}")
+            .padding(vertical = 15.dp, horizontal = 4.dp),
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 14.dp, horizontal = 4.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Apple-style Gradient Squircle Emblem with sharp icon
+            // Jewel-Toned Apple Squircle Emblem with Specular Rim
             Box(
                 modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(15.dp))
                     .background(
-                        androidx.compose.ui.graphics.Brush.linearGradient(
+                        Brush.linearGradient(
                             listOf(
-                                tint.copy(alpha = 0.16f),
+                                tint.copy(alpha = 0.20f),
                                 tint.copy(alpha = 0.06f)
                             )
                         )
                     )
                     .border(
-                        0.5.dp,
-                        tint.copy(alpha = 0.22f),
-                        RoundedCornerShape(14.dp)
+                        0.75.dp,
+                        Brush.linearGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.70f),
+                                tint.copy(alpha = 0.25f)
+                            )
+                        ),
+                        RoundedCornerShape(15.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -1053,14 +1152,14 @@ fun ProfessionalCategoryCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(9.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Apple SF Pro bold label
+            // Deep Slate SF Pro bold label
             Text(
                 text = Strings.get(item.nameKey, language),
                 fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1C1C1E),
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0F172A),
                 textAlign = TextAlign.Center,
                 lineHeight = 15.sp,
                 maxLines = 2,
@@ -1087,31 +1186,43 @@ fun ProfessionalBottomNavItem(
         label = "tab_bounce"
     )
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Box(
         modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .then(
+                if (isActive) {
+                    Modifier
+                        .background(com.example.ui.theme.AppleIrisPrimary.copy(alpha = 0.12f))
+                        .border(0.75.dp, com.example.ui.theme.AppleIrisPrimary.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                } else Modifier
+            )
             .clickable(
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                 indication = null
             ) { onClick() }
-            .padding(horizontal = 12.dp, vertical = 2.dp)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = if (isActive) com.example.ui.theme.AppleIrisPrimary else Color(0xFF8E8E93),
-            modifier = Modifier
-                .size(24.dp)
-                .scale(scale)
-        )
-        Spacer(modifier = Modifier.height(3.dp))
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-            color = if (isActive) com.example.ui.theme.AppleIrisPrimary else Color(0xFF8E8E93),
-            letterSpacing = (-0.1).sp
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (isActive) com.example.ui.theme.AppleIrisPrimary else Color(0xFF64748B),
+                modifier = Modifier
+                    .size(22.dp)
+                    .scale(scale)
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                color = if (isActive) com.example.ui.theme.AppleIrisPrimary else Color(0xFF64748B),
+                letterSpacing = (-0.1).sp
+            )
+        }
     }
 }
 

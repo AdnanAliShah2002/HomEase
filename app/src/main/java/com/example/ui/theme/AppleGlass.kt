@@ -2,9 +2,16 @@ package com.example.ui.theme
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
@@ -260,16 +270,16 @@ val AppleGlassAccentBorder = AppleGlassIrisBorder
  */
 fun Modifier.liquidGlassCard(
     shape: Shape = RoundedCornerShape(22.dp),
-    backgroundColor: Color = Color.White.copy(alpha = 0.76f),
-    elevation: Dp = 4.dp,
+    backgroundColor: Color = Color.White.copy(alpha = 0.52f),
+    elevation: Dp = 6.dp,
     borderBrush: Brush = AppleGlassSpecularBorder,
-    borderWidth: Dp = 0.75.dp
+    borderWidth: Dp = 0.85.dp
 ): Modifier = this
     .shadow(
         elevation = elevation,
         shape = shape,
-        spotColor = Color(0x181E293B),
-        ambientColor = Color(0x0C1E293B)
+        spotColor = Color(0x221E293B),
+        ambientColor = Color(0x121E293B)
     )
     .clip(shape)
     .background(backgroundColor)
@@ -350,12 +360,22 @@ fun Modifier.liquidGlassDarkCard(
  */
 fun Modifier.liquidGlassPill(
     shape: Shape = RoundedCornerShape(16.dp),
-    backgroundColor: Color = Color.White.copy(alpha = 0.82f),
+    backgroundColor: Color = Color.White.copy(alpha = 0.58f),
     borderBrush: Brush = AppleGlassSpecularBorder
 ): Modifier = this
     .clip(shape)
     .background(backgroundColor)
-    .border(0.5.dp, borderBrush, shape)
+    .background(
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.40f),
+                Color.Transparent
+            ),
+            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+            end = androidx.compose.ui.geometry.Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+        )
+    )
+    .border(0.75.dp, borderBrush, shape)
 
 /**
  * Interactive liquid glass button with tactile touch feedback and specular edge.
@@ -402,56 +422,123 @@ fun Modifier.appleSpringPress(
 }
 
 /**
- * Pearlescent ambient background canvas that paints soft multi-spectral glow orbs
- * (Soft Iris, Warm Linen, and Emerald Mist) behind content.
- * Delivers deep, luxurious optical depth under frosted glass components.
+ * Multi-spectral ambient background canvas that paints vibrant, breathing glow orbs
+ * (Royal Sapphire, Sunset Magenta, Cyan/Emerald Wave, and Warm Amber) behind content,
+ * passed through a native Android 12+ hardware RenderEffect blur engine.
+ * Delivers authentic, luminous, physical optical depth under frosted glass components.
  */
 @Composable
 fun LiquidAmbientCanvas(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
+    val infiniteTransition = rememberInfiniteTransition(label = "ambient_orbs")
+    val orbitPhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(22000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ambient_orbit"
+    )
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF6F7FB))
+            .background(Color(0xFFEFF3F8))
     ) {
-        // Soft Iris/Sapphire ambient orb in top-right
+        // LAYER 1: Multi-Spectral Luminous Light Orbs passed through hardware RenderEffect blur
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(Color(0x1A4F46E5), Color.Transparent),
-                        center = androidx.compose.ui.geometry.Offset(1050f, 200f),
-                        radius = 1100f
-                    )
+                .graphicsLayer {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        try {
+                            renderEffect = android.graphics.RenderEffect.createBlurEffect(
+                                64f,
+                                64f,
+                                android.graphics.Shader.TileMode.CLAMP
+                            ).asComposeRenderEffect()
+                        } catch (_: Exception) {}
+                    }
+                }
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val width = size.width
+                val height = size.height
+
+                // Orb 1: Royal Sapphire / Electric Indigo (Top-right / Hero)
+                val orb1X = width * 0.72f + cos(orbitPhase) * 110f
+                val orb1Y = height * 0.16f + sin(orbitPhase) * 80f
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFF4F46E5).copy(alpha = 0.55f),
+                            Color(0xFF818CF8).copy(alpha = 0.32f),
+                            Color.Transparent
+                        ),
+                        center = Offset(orb1X, orb1Y),
+                        radius = 560f
+                    ),
+                    radius = 560f,
+                    center = Offset(orb1X, orb1Y)
                 )
-        )
-        // Soft Champagne/Warm Linen ambient glow in mid-left
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(Color(0x18D97706), Color.Transparent),
-                        center = androidx.compose.ui.geometry.Offset(80f, 950f),
-                        radius = 950f
-                    )
+
+                // Orb 2: Sunset Coral / Magenta Prism (Mid-left / Categories)
+                val orb2X = width * 0.20f + sin(orbitPhase * 0.8f) * 90f
+                val orb2Y = height * 0.46f + cos(orbitPhase * 0.8f) * 110f
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFFE11D48).copy(alpha = 0.45f),
+                            Color(0xFFF43F5E).copy(alpha = 0.28f),
+                            Color.Transparent
+                        ),
+                        center = Offset(orb2X, orb2Y),
+                        radius = 500f
+                    ),
+                    radius = 500f,
+                    center = Offset(orb2X, orb2Y)
                 )
-        )
-        // Soft Emerald/Mint ambient breath in bottom-right
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(Color(0x1210B981), Color.Transparent),
-                        center = androidx.compose.ui.geometry.Offset(900f, 1800f),
-                        radius = 900f
-                    )
+
+                // Orb 3: Cyan / Neon Emerald Wave (Bottom-right / Bookings & Dock)
+                val orb3X = width * 0.78f + cos(orbitPhase * 1.2f) * 100f
+                val orb3Y = height * 0.76f + sin(orbitPhase * 1.2f) * 90f
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFF0284C7).copy(alpha = 0.48f),
+                            Color(0xFF10B981).copy(alpha = 0.30f),
+                            Color.Transparent
+                        ),
+                        center = Offset(orb3X, orb3Y),
+                        radius = 520f
+                    ),
+                    radius = 520f,
+                    center = Offset(orb3X, orb3Y)
                 )
-        )
+
+                // Orb 4: Warm Sunlight / Amber Glow (Top-left / Greeting)
+                val orb4X = width * 0.15f + cos(orbitPhase * 0.6f) * 60f
+                val orb4Y = height * 0.12f + sin(orbitPhase * 0.6f) * 60f
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFFF59E0B).copy(alpha = 0.45f),
+                            Color(0xFFFBBF24).copy(alpha = 0.25f),
+                            Color.Transparent
+                        ),
+                        center = Offset(orb4X, orb4Y),
+                        radius = 420f
+                    ),
+                    radius = 420f,
+                    center = Offset(orb4X, orb4Y)
+                )
+            }
+        }
+
+        // LAYER 2: Translucent Content Layer
         content()
     }
 }
