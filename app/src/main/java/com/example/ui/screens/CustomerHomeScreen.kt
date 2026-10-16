@@ -292,61 +292,8 @@ fun CustomerHomeScreen(
                     onToggleLanguage = onToggleLanguage,
                     userAvatar = user.profilePhotoUri ?: "👤",
                     onLogout = onLogout,
-                    onOpenProfile = { currentNavTab = "profile" },
-                    onOpenGlassLab = onOpenLiquidGlassShowcase
+                    onOpenProfile = { currentNavTab = "profile" }
                 )
-            },
-            bottomBar = {
-                // Floating Apple-style Frosted Glass Dock
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Surface(
-                        color = Color.White.copy(alpha = 0.58f),
-                        shape = RoundedCornerShape(26.dp),
-                        shadowElevation = 8.dp,
-                        border = androidx.compose.foundation.BorderStroke(0.85.dp, AppleGlassSpecularBorder),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            ProfessionalBottomNavItem(
-                                icon = Icons.Default.Home,
-                                label = if (language == AppLanguage.URDU) "ہوم" else "Home",
-                                isActive = currentNavTab == "home",
-                                onClick = { currentNavTab = "home" }
-                            )
-                            ProfessionalBottomNavItem(
-                                icon = Icons.Default.Assignment,
-                                label = if (language == AppLanguage.URDU) "بکنگز" else "Bookings",
-                                isActive = currentNavTab == "bookings",
-                                onClick = { currentNavTab = "bookings" }
-                            )
-                            ProfessionalBottomNavItem(
-                                icon = Icons.AutoMirrored.Filled.HelpOutline,
-                                label = if (language == AppLanguage.URDU) "مدد" else "Help",
-                                isActive = currentNavTab == "help",
-                                onClick = {
-                                    currentNavTab = "help"
-                                }
-                            )
-                            ProfessionalBottomNavItem(
-                                icon = Icons.Default.Person,
-                                label = if (language == AppLanguage.URDU) "پروفائل" else "Profile",
-                                isActive = currentNavTab == "profile",
-                                onClick = { currentNavTab = "profile" }
-                            )
-                        }
-                    }
-                }
             },
             containerColor = Color.Transparent
         ) { innerPadding ->
@@ -371,42 +318,51 @@ fun CustomerHomeScreen(
         }
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+            modifier = Modifier.fillMaxSize()
         ) {
             when (currentNavTab) {
                 "bookings" -> {
-                    CustomerBookingsView(
-                        allRequests = activeRequests,
-                        language = language,
-                        onRateJob = { job -> activeJobForRatingDialog = job },
-                        onViewLiveJob = onOpenRequestDetails,
-                        onStartNewBooking = { onStartNewRequest(null) }
-                    )
+                    Box(modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding(), bottom = 90.dp)) {
+                        CustomerBookingsView(
+                            allRequests = activeRequests,
+                            language = language,
+                            onRateJob = { job -> activeJobForRatingDialog = job },
+                            onViewLiveJob = onOpenRequestDetails,
+                            onStartNewBooking = { onStartNewRequest(null) }
+                        )
+                    }
                 }
                 "help" -> {
-                    CustomerHelpSupportView(
-                        language = language,
-                        onReportIssue = { category, description ->
-                            onReportIssue(0L, category, description)
-                        }
-                    )
+                    Box(modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding(), bottom = 90.dp)) {
+                        CustomerHelpSupportView(
+                            language = language,
+                            onReportIssue = { category, description ->
+                                onReportIssue(0L, category, description)
+                            }
+                        )
+                    }
                 }
                 "profile" -> {
-                    CustomerProfileView(
-                        user = user,
-                        language = language,
-                        onToggleRole = onToggleRole,
-                        onToggleLanguage = onToggleLanguage,
-                        onSaveProfile = onUpdateProfile,
-                        onLogout = onLogout
-                    )
+                    Box(modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding(), bottom = 90.dp)) {
+                        CustomerProfileView(
+                            user = user,
+                            language = language,
+                            onToggleRole = onToggleRole,
+                            onToggleLanguage = onToggleLanguage,
+                            onSaveProfile = onUpdateProfile,
+                            onLogout = onLogout
+                        )
+                    }
                 }
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                        contentPadding = PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            top = innerPadding.calculateTopPadding() + 8.dp,
+                            bottom = 125.dp
+                        ),
                         verticalArrangement = Arrangement.spacedBy(18.dp)
                     ) {
                         // Section 0: Urgent Awaiting Confirmation Banner if provider marked job complete
@@ -602,89 +558,6 @@ fun CustomerHomeScreen(
                                 modifier = Modifier
                                     .size(18.dp)
                                     .clickable { searchQuery = "" }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Section 1.5: Liquid Glass Studio Interactive Showcase Card
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(
-                                    Color(0xFF4F46E5),
-                                    Color(0xFF7C3AED),
-                                    Color(0xFFC026D3)
-                                )
-                            )
-                        )
-                        .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
-                        .clickable { onOpenLiquidGlassShowcase() }
-                        .padding(16.dp)
-                        .testTag("launch_liquid_glass_lab_card")
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color.White.copy(alpha = 0.25f))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = "AGSL SHADER LAB",
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color.White,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                }
-                            }
-                            Text(
-                                text = "🔮 Liquid Glass Studio",
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = "Realtime Frosted Blurs, Chromatic Prism & Dynamic Light Orbs",
-                                fontSize = 11.5.sp,
-                                color = Color.White.copy(alpha = 0.9f),
-                                lineHeight = 15.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(10.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White)
-                                .clickable { onOpenLiquidGlassShowcase() }
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Open →",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF6D28D9)
                             )
                         }
                     }
@@ -1033,8 +906,73 @@ fun CustomerHomeScreen(
         }
     }
 }
-}
-}
+
+            // Apple-Style Floating Liquid Glass Dock
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 18.dp, vertical = 12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 12.dp,
+                            shape = RoundedCornerShape(28.dp),
+                            spotColor = Color(0x280F172A),
+                            ambientColor = Color(0x140F172A)
+                        )
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(Color.White.copy(alpha = 0.44f))
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.45f),
+                                    Color.White.copy(alpha = 0.08f)
+                                ),
+                                start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                end = androidx.compose.ui.geometry.Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                            )
+                        )
+                        .border(0.85.dp, AppleGlassSpecularBorder, RoundedCornerShape(28.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ProfessionalBottomNavItem(
+                            icon = Icons.Default.Home,
+                            label = if (language == AppLanguage.URDU) "ہوم" else "Home",
+                            isActive = currentNavTab == "home",
+                            onClick = { currentNavTab = "home" }
+                        )
+                        ProfessionalBottomNavItem(
+                            icon = Icons.Default.Assignment,
+                            label = if (language == AppLanguage.URDU) "بکنگز" else "Bookings",
+                            isActive = currentNavTab == "bookings",
+                            onClick = { currentNavTab = "bookings" }
+                        )
+                        ProfessionalBottomNavItem(
+                            icon = Icons.AutoMirrored.Filled.HelpOutline,
+                            label = if (language == AppLanguage.URDU) "مدد" else "Help",
+                            isActive = currentNavTab == "help",
+                            onClick = { currentNavTab = "help" }
+                        )
+                        ProfessionalBottomNavItem(
+                            icon = Icons.Default.Person,
+                            label = if (language == AppLanguage.URDU) "پروفائل" else "Profile",
+                            isActive = currentNavTab == "profile",
+                            onClick = { currentNavTab = "profile" }
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 }
 
